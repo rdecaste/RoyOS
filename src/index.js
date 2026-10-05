@@ -57,16 +57,17 @@ async function currentTheme(env, s, now = Date.now()) {
 }
 
 // Starts the week's generation when it has none (or the last try failed). Idempotent.
-export async function ensureTheme(env, s, { week = themeWeek(), force = false } = {}) {
+// force remakes the week from scratch (new still and clip); a retry keeps a finished still.
+export async function ensureTheme(env, s, { week = themeWeek(), force = false, retry = false } = {}) {
   const row = await s.theme(week);
-  if (row && row.status === 'running' && !force) return { ok: 1, status: 'running', week };
-  if (row && row.status === 'ready' && !force) return { ok: 1, status: 'ready', week };
+  if (row && row.status === 'running' && !force && !retry) return { ok: 1, status: 'running', week };
+  if (row && row.status === 'ready' && !force && !retry) return { ok: 1, status: 'ready', week };
   const catalogue = await loadCatalogue(env.DB);
   if (!catalogue.length) throw new Error('No franchises with scenes and characters in the catalogue');
   const pick = pickTheme(catalogue, week);
   const run = await env.DESK_THEME.create({ params: { week } });
-  if (row && row.still_public_id && row.franchise === pick.franchise && row.character === pick.character) {
-    // The same pick with a still already made: only the clip is redone, with the current prompt.
+  if (!force && row && row.still_public_id && row.franchise === pick.franchise && row.character === pick.character) {
+    // A retry of the same pick with a still already made: only the clip is redone, with the current prompt.
     await s.updateTheme(week, { status: 'running', error: null, prompts: JSON.stringify(pick.prompts), workflow_id: run.id, started_at: new Date().toISOString(), finished_at: null });
   } else {
     if (row) await s.resetTheme(week);
@@ -105,7 +106,7 @@ export default {
         }
         if (path === '/theme/retry' && request.method === 'POST') {
           const f = await readFields(request);
-          return json(await ensureTheme(env, s, { week: f.week || themeWeek(), force: true }));
+          return json(await ensureTheme(env, s, { week: f.week || themeWeek(), retry: true }));
         }
         return json({ ok: 0, code: 'not_found' }, 404);
       }

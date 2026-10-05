@@ -29,7 +29,7 @@ async function gemini(env, method, path, body) {
     body: body ? JSON.stringify(body) : undefined
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Gemini ${response.status}: ${(data.error && data.error.message) || 'request failed'}`);
+  if (!response.ok) throw new Error(`Gemini ${response.status}: ${(data.error && data.error.message) || JSON.stringify(data).slice(0, 200) || 'request failed'}`);
   return data;
 }
 
