@@ -218,7 +218,6 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .ratiobar { position: relative; height: .55rem; margin: .7rem .25rem .25rem; border-radius: 99px; background: linear-gradient(90deg, #2f7fe0 0%, #26a69a 20%, #3ddc84 40%, #a6c63a 55%, #ff9a2e 70%, #ff5a3c 85%, #ef3b3b 100%); }
 .ratiobar .tk { position: absolute; top: -.25rem; bottom: -.25rem; width: 1px; background: rgba(255, 255, 255, .45); }
 .ratiobar .pill { position: absolute; top: 50%; transform: translate(-50%, -50%); padding: .05rem .5rem; border-radius: 99px; box-shadow: 0 0 0 2px var(--ring-hole); font: 800 .76rem/1.2 var(--f-display); color: var(--on-light); }
-.ratiobar .ghost { position: absolute; top: 50%; width: .7rem; height: .7rem; border-radius: 50%; transform: translate(-50%, -50%); border: 2px dashed rgba(255, 255, 255, .8); background: rgba(13, 20, 38, .5); }
 .pips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .25rem; margin-top: .45rem; }
 .pips i { height: .5rem; border-radius: .2rem; border: 1px solid rgba(255, 214, 92, .2); background: rgba(255, 255, 255, .07); }
 .pips i.on { border-color: transparent; background: linear-gradient(90deg, #c99318, #ffd65c); box-shadow: 0 0 .5rem rgba(255, 214, 92, .35); }

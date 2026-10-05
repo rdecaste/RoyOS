@@ -188,8 +188,8 @@ function nightTip(i) {
 }
 function ratioBar() {
   const R2 = RATIO(); if (!R2) return '';
-  const r = R2.value, z = [0, R2.zone, ZC[R2.zone]], rp = R2.yesterday && R2.yesterday.value != null ? R2.yesterday.value : r;
-  return '<div class="ratiobar">' + (Math.abs(rp - r) >= .03 ? '<span class="ghost" style="left:' + ratioPos(rp) + '%"></span>' : '') + [20, 60, 85].map(v => '<span class="tk" style="left:' + v + '%"></span>').join('') + '<span class="pill" style="left:' + ratioPos(r) + '%;background:' + z[2] + '">' + r.toFixed(2) + '</span></div>';
+  const r = R2.value, z = [0, R2.zone, ZC[R2.zone]];
+  return '<div class="ratiobar">' + [20, 60, 85].map(v => '<span class="tk" style="left:' + v + '%"></span>').join('') + '<span class="pill" style="left:' + ratioPos(r) + '%;background:' + z[2] + '">' + r.toFixed(2) + '</span></div>';
 }
 const R_LABELS = '<div class="rlabels">' + [['Low', 10, '#3f8fe8'], ['Optimal', 40, '#3ddc84'], ['High', 72.5, '#ff9a2e'], ['Risk', 92.5, '#ef4b4b']].map(([t, l, c]) => '<span style="left:' + l + '%;color:' + c + '">' + t + '</span>').join('') + '</div>';
 const pips = k => '<div class="pips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</div>';
