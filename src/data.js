@@ -94,8 +94,8 @@ export async function journalDay(env, day) {
 
 // Recovery comes from the engine's /recovery (the readiness rules, one place for every dashboard).
 const SCORE = { good: 85, steady: 56, easy: 28 };
-export async function recovery(env) {
-  const r = await engine(env, '/recovery', { admin: true });
+export async function recovery(env) { return recoveryView(await engine(env, '/recovery', { admin: true })); }
+export function recoveryView(r) {
   if (!r || !r.ok || !r.verdict) return { last: null, usual: {}, nights: [] };
   return {
     last: { date: r.date, fresh: !!r.fresh, score: SCORE[r.verdict] || 50, verdict: r.verdict, text: r.verdict_text, sub: r.verdict_sub, sleep: r.sleep.value, hrv: r.hrv.value, rhr: r.rhr.value, low: { sleep: !!r.sleep.low, hrv: !!r.hrv.low, rhr: !!r.rhr.low } },

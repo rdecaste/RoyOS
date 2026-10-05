@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, power, safeText, gameDay, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, power, safeText, gameDay, recoveryView, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -40,4 +40,13 @@ test('safe text: the main quest stays off the screen', () => {
   assert.equal(safeText(env, "do a workout and don't FAP!"), '');
   assert.equal(safeText({ DESK_HIDE: 'secret' }, 'a secret plan'), '');
   assert.equal(gameDay(Date.parse('2026-10-05T01:30:00Z')), '2026-10-04', 'before 04:00 Amsterdam it is still yesterday');
+});
+
+test('recovery: the engine\'s /recovery answer, shaped for the board', () => {
+  const r = recoveryView({ ok: 1, date: '2026-10-05', measured: true, fresh: true, verdict: 'steady', verdict_text: 'Go steady', verdict_sub: 'Easy session only',
+    sleep: { value: 6.6, usual: 7.1, low: true }, hrv: { value: 48, usual: 54, low: false }, rhr: { value: 53, usual: 52, low: false }, usual: { sleep: 7.1, hrv: 54, rhr: 52 },
+    nights: [{ date: '2026-10-04', measured: true, sleep: 8.8, hrv: 53, rhr: 55, verdict: 'good' }, { date: '2026-10-05', measured: true, sleep: 6.6, hrv: 48, rhr: 53, verdict: 'steady' }, { date: '2026-10-06', measured: false, verdict: null }] });
+  assert.equal(r.last.score, 56); assert.equal(r.last.text, 'Go steady'); assert.equal(r.last.low.sleep, true); assert.equal(r.usual.hrv, 54);
+  assert.deepEqual(r.nights.map(n => n.day), ['2026-10-04', '2026-10-05'], 'unmeasured mornings are left out');
+  assert.deepEqual(recoveryView({ ok: 0, code: 'bad_token' }), { last: null, usual: {}, nights: [] });
 });
