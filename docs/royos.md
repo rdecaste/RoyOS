@@ -21,8 +21,8 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - Admin, header `X-Admin-Token`: `GET /theme/list`, `POST /theme/run` (`week`, `force=1`), `POST /theme/retry` (`week`).
 
 ## Data
-- Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`): main habits and their 14-day history (good hits only), long/short-term load and the week's peak, ki charge, the focus quest.
-- Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `sleep_recovery` (7 nights against the 30-night usual: none low = good, one = careful, two or more = rest), `workouts` (hours this week).
+- Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`): main habits and their 14-day history (good hits only), the load series (`power.load`, fitness and fatigue times a factor that is read off today's `power.fitness`), today's fitness, fatigue and form state, the week's peak, ki charge, the focus quest.
+- Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `sleep_recovery` (7 nights against the 30-night usual: none low = good, one = careful, two or more = rest), `workouts` joined with `workout_streams` (this week's sessions with hrTSS, average HR and minutes per zone; Z1 ≤145, Z2 146–162, Z3 163–173, Z4 174–184, Z5 185+). The per-second streams in R2 are not used.
 - Weather: Open-Meteo for home, cached 15 minutes.
 - The day's edits (ticks, added to-dos, habit ticks, moods, the plan, the commute) are kept per Amsterdam day in the `DeskState` Durable Object. The journal stays the record of the day; nothing is written to D1 from here.
 - Privacy: `safeText` drops any text containing a `DESK_HIDE` word (default `fap,pmo`), so the main quest never shows.
@@ -40,6 +40,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: Body shows this week's sessions with TSS and zone minutes from `workouts` and `workout_streams`, and today's form state; the load scale is read off the engine's values.
 - 2026-10-05: omni gets the still's 16:9 centre crop (the still is 3:2), so it no longer re-frames; the board uses the same crop as poster.
 - 2026-10-05: the clip keeps the character anchored with ambient motion only, as the quest videos do (a wandering character never looped cleanly on omni).
 - 2026-10-05: first version. Page and widgets from the mockup (claude.ai artifact "Roy OS"), live data from the quest engine and D1, the weekly world pipeline, the Ask box.

@@ -43,11 +43,15 @@ export function mainHabits(boss, hero, now) {
 }
 
 // Long-term and short-term load, last 28 days (power.load ÷ 100), the week's peak and the ki charge.
+// The series is fitness and fatigue times a factor (100 today); the factor is read off
+// today's values rather than assumed, so a change in the engine cannot skew the chart.
 export function power(mq, hero, quest) {
-  const L = mq && mq.power && mq.power.load;
-  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null };
+  const Pw = mq && mq.power, L = Pw && Pw.load;
+  const now = Pw ? { fitness: Pw.fitness, fatigue: Pw.fatigue, form_state: Pw.form_state || null, power_level: Pw.power_level } : null;
+  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null, now };
   const n = L.long.length, from = Date.parse(L.from + 'T12:00:00Z');
-  const clal = L.long.slice(-28).map((l, i) => { const k = n - 28 + i; return { date: ymd(from + k * DAY), cl: l / 100, al: L.short[k] / 100 }; });
+  const scale = now && now.fitness > 0 && L.long[n - 1] > 0 ? L.long[n - 1] / now.fitness : 100;
+  const clal = L.long.slice(-28).map((l, i) => { const k = n - 28 + i; return { date: ymd(from + k * DAY), cl: l / scale, al: L.short[k] / scale }; });
   let bi = -1;
   for (let k = Math.max(0, n - 7); k < n - 1; k++) if (bi < 0 || L.short[k] > L.short[bi]) bi = k;
   let peak = null;
@@ -57,10 +61,10 @@ export function power(mq, hero, quest) {
     let what = ev ? ev.habit.toLowerCase() : 'workout';
     const km = ev && ev.habit === 'Run' && quest && quest.updatedAt === date ? /([\d.]+)\s*km/.exec(quest.latestEvidence || '') : null;
     if (km) what = (Math.round(+km[1] * 10) / 10) + ' km ' + what;
-    peak = { i: bi - (n - 28), date, al: L.short[bi] / 100, cl: L.long[bi] / 100, what };
+    peak = { i: bi - (n - 28), date, al: L.short[bi] / scale, cl: L.long[bi] / scale, what };
   }
-  const K = mq.power.ki || {};
-  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus } };
+  const K = Pw.ki || {};
+  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus }, now };
 }
 
 // ---- Journal and health from the quest D1 (read only) ----
@@ -103,10 +107,18 @@ export async function nights(env, day) {
   };
 }
 
+// This week's workouts (Strava rows, with the heart-rate streams' TSS and zone minutes when they exist).
 export async function trainingWeek(env, day) {
   const monday = mondayOf(Date.parse(day + 'T12:00:00Z'));
-  const r = (await rows(env.DB, "SELECT COALESCE(SUM(moving_time), 0) s, COUNT(*) n FROM workouts WHERE substr(start_date_local, 1, 10) >= ? AND substr(start_date_local, 1, 10) <= ?", monday, day))[0] || { s: 0, n: 0 };
-  return { hours: Math.round((r.s || 0) / 360) / 10, sessions: r.n || 0, target: 6 };
+  const list = await rows(env.DB, 'SELECT w.strava_id, w.name, w.start_date_local, w.sport_type_mapped, w.moving_time, w.distance, w.effort_score, w.form_state, s.hr_tss, s.hr_avg, s.z1_min, s.z2_min, s.z3_min, s.z4_min, s.z5_min, s.hr_drift_pct FROM workouts w LEFT JOIN workout_streams s ON s.strava_id = w.strava_id WHERE substr(w.start_date_local, 1, 10) >= ? AND substr(w.start_date_local, 1, 10) <= ? ORDER BY w.start_date_local', monday, day);
+  const zones = [0, 0, 0, 0, 0];
+  const sessions = list.map(w => {
+    const z = [w.z1_min, w.z2_min, w.z3_min, w.z4_min, w.z5_min].map(v => Math.round((v || 0) * 10) / 10);
+    z.forEach((v, i) => { zones[i] += v; });
+    return { id: w.strava_id, name: w.name, sport: w.sport_type_mapped, day: String(w.start_date_local || '').slice(0, 10), at: String(w.start_date_local || '').slice(11, 16), min: Math.round((w.moving_time || 0) / 60), km: w.distance ? Math.round(w.distance / 100) / 10 : null, tss: w.hr_tss != null ? Math.round(w.hr_tss) : w.effort_score != null ? Math.round(w.effort_score) : null, hr_avg: w.hr_avg != null ? Math.round(w.hr_avg) : null, zones: z, drift: w.hr_drift_pct, form_state: w.form_state };
+  });
+  const seconds = list.reduce((a, w) => a + (w.moving_time || 0), 0);
+  return { hours: Math.round(seconds / 360) / 10, sessions: sessions.length, target: 6, list: sessions, tss: sessions.reduce((a, w) => a + (w.tss || 0), 0), zones: zones.map(v => Math.round(v)) };
 }
 
 // ---- Weather for home, cached 15 minutes ----
@@ -142,7 +154,7 @@ export async function board(env, s, now = Date.now()) {
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
-    safe('sleep', nights(env, day), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6 }),
+    safe('sleep', nights(env, day), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s), null), s.day(day)
   ]);
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
@@ -152,7 +164,7 @@ export async function board(env, s, now = Date.now()) {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
     main: mainHabits(boss, hero, now),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
-    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, week },
+    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, week },
     weather: wx, edits, undo: !!(dayState && dayState.undo)
   };
 }
