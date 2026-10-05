@@ -18,8 +18,8 @@
   "triggers": { "crons": ["5 * * * *"] },
   "vars": {
     "QUEST_ENGINE_URL": "https://quest-engine.quest-engine.workers.dev",
-    "IMAGE_MODEL": "gemini-3.1-flash-image",
-    "VIDEO_MODEL": "veo-3.1-fast-generate-preview",
+    "IMAGE_MODEL": "gpt-image-2.5-flare",
+    "VIDEO_MODEL": "gemini-omni-flash-preview",
     "CHAT_MODEL": "gpt-6-astra",
     "WEATHER_LAT": "51.286",
     "WEATHER_LON": "3.828"

@@ -39,13 +39,39 @@ async function readUrl(url) {
   return new Uint8Array(await r.arrayBuffer());
 }
 
-// ---- Nano Banana 2: a 16:9 still, steered by reference images (the character's avatar) ----
+// ---- The still: OpenAI gpt-image (the quest engine's image model) or Nano Banana, by IMAGE_MODEL ----
 export async function generateStill(env, prompt, referenceUrls = []) {
+  const model = env.IMAGE_MODEL || 'gpt-image-2.5-flare';
+  return /^gpt-image/.test(model) ? openaiStill(env, model, prompt, referenceUrls) : geminiStill(env, model, prompt, referenceUrls);
+}
+
+// gpt-image: edit mode with the character's avatar as the reference face, landscape 1536x1024,
+// the same settings as quest-engine's editImage (high, moderation low).
+async function openaiStill(env, model, prompt, referenceUrls) {
+  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+  const form = new FormData();
+  form.append('model', model);
+  form.append('prompt', prompt);
+  for (const url of referenceUrls) form.append('image[]', new Blob([await readUrl(url)], { type: 'image/jpeg' }), 'reference.jpg');
+  form.append('n', '1'); form.append('size', '1536x1024'); form.append('quality', 'high'); form.append('background', 'opaque'); form.append('moderation', 'low');
+  form.append('output_format', 'jpeg'); form.append('output_compression', '92');
+  const response = await fetch(referenceUrls.length ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations', referenceUrls.length
+    ? { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form }
+    : { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt, n: 1, size: '1536x1024', quality: 'high', background: 'opaque', moderation: 'low', output_format: 'jpeg', output_compression: 92 }) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${(data.error && data.error.message) || 'image generation failed'}`);
+  const b64 = data.data && data.data[0] && data.data[0].b64_json;
+  if (!b64) throw new Error('OpenAI returned no image');
+  return { bytes: fromBase64(b64), mimeType: 'image/jpeg' };
+}
+
+// Nano Banana: a 16:9 still, steered by reference images (the character's avatar).
+async function geminiStill(env, model, prompt, referenceUrls) {
   const parts = [{ text: prompt }];
   for (const url of referenceUrls) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: toBase64(await readUrl(url)) } });
   }
-  const data = await gemini(env, 'POST', `/models/${env.IMAGE_MODEL || 'gemini-3.1-flash-image'}:generateContent`, {
+  const data = await gemini(env, 'POST', `/models/${model}:generateContent`, {
     contents: [{ parts }],
     generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9', imageSize: '2K' } }
   });
@@ -55,10 +81,53 @@ export async function generateStill(env, prompt, referenceUrls = []) {
   return { bytes: fromBase64(image.inlineData.data), mimeType: image.inlineData.mimeType || 'image/jpeg' };
 }
 
-// ---- Veo: the still as first AND last frame, so the clip has to come back to its start ----
+// ---- The clip: Gemini omni (the quest engine's video model, Interactions API) or Veo, by VIDEO_MODEL ----
 export async function generateClip(env, stillUrl, prompt) {
+  const model = env.VIDEO_MODEL || 'gemini-omni-flash-preview';
+  return /^veo/.test(model) ? veoClip(env, model, stillUrl, prompt) : omniClip(env, model, stillUrl, prompt);
+}
+
+function findVideo(node) {
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === 'video' && (node.data || node.uri)) return node;
+  for (const value of Array.isArray(node) ? node : Object.values(node)) { const found = findVideo(value); if (found) return found; }
+  return null;
+}
+
+// The image goes in by URL, as quest-engine's animateImage sends it (inline bytes were refused by the filter).
+async function omniClip(env, model, imageUrl, prompt) {
+  let result = await gemini(env, 'POST', '/interactions', {
+    model,
+    input: [{ type: 'image', uri: imageUrl, mime_type: 'image/jpeg' }, { type: 'text', text: prompt }],
+    response_format: { type: 'video', aspect_ratio: '16:9' }
+  });
+  const deadline = Date.now() + 12 * 60 * 1000;
+  while (!findVideo(result)) {
+    const status = String(result.status || '').toLowerCase();
+    if (['failed', 'cancelled', 'canceled', 'blocked'].includes(status)) throw new Error('Gemini video ' + status + ': ' + JSON.stringify(result.error || result).slice(0, 300));
+    if (!result.id || Date.now() > deadline) throw new Error('Gemini returned no video: ' + JSON.stringify(result).slice(0, 300));
+    await sleep(10000);
+    result = await gemini(env, 'GET', `/interactions/${result.id}`);
+  }
+  const video = findVideo(result), mimeType = video.mime_type || video.mimeType || 'video/mp4';
+  if (video.data) return { bytes: fromBase64(video.data), mimeType };
+  const fileName = video.uri.split('?')[0].replace(/:download$/, '').replace(/^.*\/v1beta\//, '');
+  while (true) {
+    const file = await gemini(env, 'GET', `/${fileName}`).catch(() => ({ state: 'ACTIVE' }));
+    const state = String(file.state || 'ACTIVE').toUpperCase();
+    if (state === 'ACTIVE') break;
+    if (state === 'FAILED') throw new Error('Gemini video file failed');
+    if (Date.now() > deadline) throw new Error('Gemini video file never became ready');
+    await sleep(5000);
+  }
+  const download = await fetch(`${GEMINI_URL}/${fileName}:download?alt=media`, { headers: { 'x-goog-api-key': env.GEMINI_API_KEY } });
+  if (!download.ok) throw new Error(`Gemini download ${download.status}`);
+  return { bytes: new Uint8Array(await download.arrayBuffer()), mimeType };
+}
+
+// Veo: the still as first AND last frame, so the clip has to come back to its start.
+async function veoClip(env, model, stillUrl, prompt) {
   const still = { bytesBase64Encoded: toBase64(await readUrl(stillUrl)), mimeType: 'image/jpeg' };
-  const model = env.VIDEO_MODEL || 'veo-3.1-fast-generate-preview';
   let op = await gemini(env, 'POST', `/models/${model}:predictLongRunning`, {
     instances: [{ prompt, image: still, lastFrame: still }],
     parameters: { aspectRatio: '16:9', resolution: '1080p', durationSeconds: 8, personGeneration: 'allow_adult' }

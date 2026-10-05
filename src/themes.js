@@ -95,7 +95,7 @@ export function pickTheme(catalogue, week) {
 // plus the desk's layout: subject in the middle third, the left third dark for the clock and panels.
 export function stillPrompt(scene, character) {
   return [
-    'Semi-realistic anime key art, painterly cinematic lighting, crisp shapes, rich fine detail; the same rendering style as the reference image. Not photorealistic.',
+    'Semi-realistic anime key art, painterly cinematic lighting, crisp shapes, rich fine detail; the character exactly as in the reference image (face, hair, outfit), rendered in that same style. Not photorealistic.',
     `A wide 16:9 living-wallpaper still for a desk dashboard. Setting: ${scene.scene_name} (${scene.franchise}): ${scene.canonical_identity}. Elements: ${scene.canonical_elements}. Feel: ${scene.signature_features}.`,
     `The character is ${character.character_name} (${character.franchise}): ${character.canonical_identity} ${character.canonical_elements} They are part of the scene, not posing for the camera: walking through it mid-stride, looking at something in the scene, relaxed and in character. Full body, about half the frame height, feet on the ground.`,
     'Composition: keep the character inside the middle third of the frame width, centred. The left third is darker and calmer, with few lights, for dashboard overlays. The top edge is calm. Small in-world signs are fine.',
