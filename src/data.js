@@ -99,7 +99,7 @@ export function recoveryView(r) {
   if (!r || !r.ok || !r.verdict) return { last: null, usual: {}, nights: [] };
   return {
     last: { date: r.date, fresh: !!r.fresh, score: SCORE[r.verdict] || 50, verdict: r.verdict, text: r.verdict_text, sub: r.verdict_sub, sleep: r.sleep.value, hrv: r.hrv.value, rhr: r.rhr.value, low: { sleep: !!r.sleep.low, hrv: !!r.hrv.low, rhr: !!r.rhr.low } },
-    usual: r.usual || {}, nights: (r.nights || []).filter(n => n.measured).map(n => ({ day: n.date, sleep: n.sleep, hrv: n.hrv, rhr: n.rhr, verdict: n.verdict }))
+    usual: r.usual || {}, nights: (r.nights || []).filter(n => n.measured !== false && n.verdict).map(n => ({ day: n.date, sleep: n.sleep, hrv: n.hrv, rhr: n.rhr, verdict: n.verdict }))
   };
 }
 
