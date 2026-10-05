@@ -21,8 +21,8 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - Admin, header `X-Admin-Token`: `GET /theme/list`, `POST /theme/run` (`week`, `force=1`), `POST /theme/retry` (`week`).
 
 ## Data
-- Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`): main habits and their 14-day history (good hits only), the load series (`power.load`, fitness and fatigue times a factor that is read off today's `power.fitness`), today's fitness, fatigue and form state, the week's peak, ki charge, the focus quest.
-- Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `sleep_recovery` (7 nights against the 30-night usual: none low = good, one = careful, two or more = rest), `workouts` joined with `workout_streams` (this week's sessions with hrTSS, average HR and minutes per zone; Z1 ≤145, Z2 146–162, Z3 163–173, Z4 174–184, Z5 185+). The per-second streams in R2 are not used.
+- Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`, and `/recovery` with `QUEST_ENGINE_TOKEN`): the load ratio with its zone and TSB (`power.load_ratio`), the morning's recovery and the last 7 mornings (`/recovery`, the readiness rules), and main habits and their 14-day history (good hits only), the load series (`power.load`, fitness and fatigue times a factor that is read off today's `power.fitness`), today's fitness, fatigue and form state, the week's peak, ki charge, the focus quest.
+- Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `workouts` joined with `workout_streams` (this week's sessions with hrTSS, average HR and minutes per zone; Z1 ≤145, Z2 146–162, Z3 163–173, Z4 174–184, Z5 185+). The per-second streams in R2 are not used.
 - Weather: Open-Meteo for home, cached 15 minutes.
 - The day's edits (ticks, added to-dos, habit ticks, moods, the plan, the commute) are kept per Amsterdam day in the `DeskState` Durable Object. The journal stays the record of the day; nothing is written to D1 from here.
 - Privacy: `safeText` drops any text containing a `DESK_HIDE` word (default `fap,pmo`), so the main quest never shows.
@@ -35,11 +35,12 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - Prompts: `stillPrompt` (scene and character rows word for word, the character walking through the scene, subject in the middle third, the left third dark) and `clipPrompt` (quest-engine's living-wallpaper rules word for word: locked camera, the character anchored in place, ambient motion only, every motion returns to its start, first and last frame match; the character is never named).
 
 ## Operations
-- Secrets: `DESK_PASSWORD`, `ADMIN_TOKEN`, `GEMINI_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `OPENAI_API_KEY`.
+- Secrets: `DESK_PASSWORD`, `ADMIN_TOKEN`, `QUEST_ENGINE_TOKEN` (the engine's ADMIN_TOKEN), `GEMINI_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `OPENAI_API_KEY`.
 - Deploy: push to `main` (Workers Builds runs `npm test`, then deploys). The first deploy creates the Durable Object and the Workflow.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: recovery and the load ratio come from the quest engine (`/recovery`, `power.load_ratio`); the desk no longer judges nights or picks bands itself.
 - 2026-10-05: the Load cell shows the 7-day peak (e.g. ↑38 Sun) and a 14-day sparkline with a tight y axis; the Body chart keeps 4 weeks.
 - 2026-10-05: Body shows this week's sessions with TSS and zone minutes from `workouts` and `workout_streams`, and today's form state; the load scale is read off the engine's values.
 - 2026-10-05: omni gets the still's 16:9 centre crop (the still is 3:2), so it no longer re-frames; the board uses the same crop as poster.

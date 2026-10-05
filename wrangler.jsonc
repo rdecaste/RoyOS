@@ -27,6 +27,7 @@
   // Secrets (npx wrangler secret put <NAME>):
   //   DESK_PASSWORD           the screen's login (one cookie, 30 days)
   //   ADMIN_TOKEN             X-Admin-Token for the maintenance routes (/theme/run, /theme/list)
+  //   QUEST_ENGINE_TOKEN      the quest engine's ADMIN_TOKEN, for its /recovery route
   //   GEMINI_API_KEY          Nano Banana 2 stills and Veo clips
   //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   cloud a3xk0plk, folder Desk-Themes
   //   OPENAI_API_KEY          Ask Claude box (chat model above)

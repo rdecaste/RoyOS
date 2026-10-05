@@ -62,7 +62,7 @@ export function askPrompt(data, text) {
     mood_today: e.moods.map(x => ({ at: x.at, mood: FEEL[x.m - 1], note: x.note })),
     work_today: e.work || j.work, work_options: { places: PLACES, rides: RIDES },
     body: f.recovery ? { recovery: f.recovery.score + '% ' + f.recovery.verdict, sleep_h: f.recovery.sleep, hrv: f.recovery.hrv, rest_hr: f.recovery.rhr } : null,
-    load: f.now ? { fitness_ctl: f.now.fitness, fatigue_atl: f.now.fatigue, form_state: f.now.form_state, training_this_week_h: f.week.hours + ' of ' + f.week.target, sessions_this_week: (f.week.list || []).map(w => w.sport + ' ' + w.min + ' min' + (w.tss != null ? ', TSS ' + w.tss : '')) } : null,
+    load: f.now ? { fitness_ctl: f.now.fitness, fatigue_atl: f.now.fatigue, form_state: f.now.form_state, load_ratio: f.ratio ? f.ratio.value + ' (' + f.ratio.zone + ')' : null, training_this_week_h: f.week.hours + ' of ' + f.week.target, sessions_this_week: (f.week.list || []).map(w => w.sport + ' ' + w.min + ' min' + (w.tss != null ? ', TSS ' + w.tss : '')) } : null,
     quest: data.quest ? { title: data.quest.title, next_move: data.quest.next_move, days_left: data.quest.days_left } : null
   };
   const system = 'You are the assistant built into Roy OS, the desk screen next to Roy all day. You answer questions about what the screen shows, and you can change it.\n' +

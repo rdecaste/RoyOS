@@ -25,8 +25,9 @@ export function safeText(env, text) {
 }
 
 // ---- The quest engine, over the service binding (fetch as a fallback in dev) ----
-async function engine(env, path) {
-  const request = new Request(`${env.QUEST_ENGINE_URL}${path}`, { headers: { Accept: 'application/json' } });
+async function engine(env, path, { admin = false } = {}) {
+  if (admin && !env.QUEST_ENGINE_TOKEN) throw new Error('QUEST_ENGINE_TOKEN is not set');
+  const request = new Request(`${env.QUEST_ENGINE_URL}${path}`, { headers: { Accept: 'application/json', ...(admin ? { 'X-Admin-Token': env.QUEST_ENGINE_TOKEN } : {}) } });
   const r = await (env.QUEST_ENGINE ? env.QUEST_ENGINE.fetch(request) : fetch(request));
   if (!r.ok) throw new Error(`quest-engine${path} answered ${r.status}`);
   return r.json();
@@ -48,7 +49,8 @@ export function mainHabits(boss, hero, now) {
 export function power(mq, hero, quest) {
   const Pw = mq && mq.power, L = Pw && Pw.load;
   const now = Pw ? { fitness: Pw.fitness, fatigue: Pw.fatigue, form_state: Pw.form_state || null, power_level: Pw.power_level } : null;
-  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null, now };
+  const ratio = Pw && Pw.load_ratio ? Pw.load_ratio : null;
+  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null, now, ratio };
   const n = L.long.length, from = Date.parse(L.from + 'T12:00:00Z');
   const scale = now && now.fitness > 0 && L.long[n - 1] > 0 ? L.long[n - 1] / now.fitness : 100;
   const clal = L.long.slice(-28).map((l, i) => { const k = n - 28 + i; return { date: ymd(from + k * DAY), cl: l / scale, al: L.short[k] / scale }; });
@@ -64,7 +66,7 @@ export function power(mq, hero, quest) {
     peak = { i: bi - (n - 28), date, al: L.short[bi] / scale, cl: L.long[bi] / scale, what };
   }
   const K = Pw.ki || {};
-  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus }, now };
+  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus }, now, ratio };
 }
 
 // ---- Journal and health from the quest D1 (read only) ----
@@ -90,24 +92,17 @@ export async function journalDay(env, day) {
   };
 }
 
-// The last 7 nights against the 30-night usual: none low = good to train, one = careful, two or more = rest.
-export async function nights(env, day) {
-  const since30 = ymd(Date.parse(day + 'T12:00:00Z') - 30 * DAY);
-  const all = await rows(env.DB, 'SELECT date, total_sleep, hrv, resting_hr FROM sleep_recovery WHERE date > ? AND date <= ? ORDER BY date', since30, day);
-  const avg = (k, xs) => { const v = xs.map(x => x[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-  const usual = { sleep: avg('total_sleep', all), hrv: avg('hrv', all), rhr: avg('resting_hr', all) };
-  const last7 = all.slice(-7).map(x => ({ day: x.date, sleep: x.total_sleep, hrv: x.hrv, rhr: x.resting_hr }));
-  const last = last7[last7.length - 1] || null;
-  const low = d => (usual.sleep != null && d.sleep != null && d.sleep < usual.sleep - .75) + (usual.hrv != null && d.hrv != null && d.hrv < usual.hrv * .9) + (usual.rhr != null && d.rhr != null && d.rhr > usual.rhr + 3);
-  const verdictOf = d => { const n = low(d); return n === 0 ? 'good' : n === 1 ? 'steady' : 'easy'; };
-  const score = d => { const n = low(d); return n === 0 ? 85 : n === 1 ? 56 : 28; };
+// Recovery comes from the engine's /recovery (the readiness rules, one place for every dashboard).
+const SCORE = { good: 85, steady: 56, easy: 28 };
+export async function recovery(env) {
+  const r = await engine(env, '/recovery', { admin: true });
+  if (!r || !r.ok || !r.verdict) return { last: null, usual: {}, nights: [] };
   return {
-    last: last ? { date: last.day, fresh: last.day === day, score: score(last), verdict: verdictOf(last), sleep: last.sleep, hrv: last.hrv, rhr: last.rhr } : null,
-    usual, nights: last7.map(d => ({ ...d, verdict: verdictOf(d) }))
+    last: { date: r.date, fresh: !!r.fresh, score: SCORE[r.verdict] || 50, verdict: r.verdict, text: r.verdict_text, sub: r.verdict_sub, sleep: r.sleep.value, hrv: r.hrv.value, rhr: r.rhr.value, low: { sleep: !!r.sleep.low, hrv: !!r.hrv.low, rhr: !!r.rhr.low } },
+    usual: r.usual || {}, nights: (r.nights || []).filter(n => n.measured).map(n => ({ day: n.date, sleep: n.sleep, hrv: n.hrv, rhr: n.rhr, verdict: n.verdict }))
   };
 }
 
-// This week's workouts (Strava rows, with the heart-rate streams' TSS and zone minutes when they exist).
 export async function trainingWeek(env, day) {
   const monday = mondayOf(Date.parse(day + 'T12:00:00Z'));
   const list = await rows(env.DB, 'SELECT w.strava_id, w.name, w.start_date_local, w.sport_type_mapped, w.moving_time, w.distance, w.effort_score, w.form_state, s.hr_tss, s.hr_avg, s.z1_min, s.z2_min, s.z3_min, s.z4_min, s.z5_min, s.hr_drift_pct FROM workouts w LEFT JOIN workout_streams s ON s.strava_id = w.strava_id WHERE substr(w.start_date_local, 1, 10) >= ? AND substr(w.start_date_local, 1, 10) <= ? ORDER BY w.start_date_local', monday, day);
@@ -154,7 +149,7 @@ export async function board(env, s, now = Date.now()) {
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
-    safe('sleep', nights(env, day), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
+    safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s), null), s.day(day)
   ]);
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
@@ -164,7 +159,7 @@ export async function board(env, s, now = Date.now()) {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
     main: mainHabits(boss, hero, now),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
-    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, week },
+    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, week },
     weather: wx, edits, undo: !!(dayState && dayState.undo)
   };
 }

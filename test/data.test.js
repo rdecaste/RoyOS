@@ -20,7 +20,7 @@ test('main habits: done on today\'s game day, with the last 14 days from the bos
 
 test('power: load per day, the week\'s peak with its workout, the ki charge', () => {
   const long = Array.from({ length: 30 }, (_, i) => 3000 + i * 10), short = long.map((v, i) => (i === 27 ? 3820 : v - 100));
-  const mq = { power: { fitness: 32.9, fatigue: 32.1, form_state: 'Steady', power_level: 4100, load: { from: '2026-09-06', long, short, form: [] }, ki: { level: 1, peak: 5, heal_cap: 60, recovery_bonus: .1 } } };
+  const mq = { power: { fitness: 32.9, fatigue: 32.1, form_state: 'Steady', power_level: 4100, load_ratio: { value: .98, zone: 'Optimal', tsb: .8, state: 'Steady', yesterday: null, bands: { low: .8, optimal: 1.3, high: 1.5 } }, load: { from: '2026-09-06', long, short, form: [] }, ki: { level: 1, peak: 5, heal_cap: 60, recovery_bonus: .1 } } };
   const hero = { days: [{ events: [{ kind: 'boss', habit: 'Run', at: '2026-10-03T17:00:00Z', damage: 40 }] }] };
   const quest = { updatedAt: '2026-10-03', latestEvidence: '🏃 Completed 15.59 km in 1:33:25' };
   const P = power(mq, hero, quest);
@@ -30,7 +30,8 @@ test('power: load per day, the week\'s peak with its workout, the ki charge', ()
   assert.equal(P.ki.level, 1);
   assert.equal(P.clal[27].cl, 32.9, 'the scale is read off today\'s fitness');
   assert.deepEqual(P.now, { fitness: 32.9, fatigue: 32.1, form_state: 'Steady', power_level: 4100 });
-  assert.deepEqual(power(null, null, null), { clal: [], peak: null, ki: null, now: null });
+  assert.equal(P.ratio.zone, 'Optimal', 'the ratio is the engine\'s, passed through');
+  assert.deepEqual(power(null, null, null), { clal: [], peak: null, ki: null, now: null, ratio: null });
 });
 
 test('safe text: the main quest stays off the screen', () => {
