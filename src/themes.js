@@ -1,0 +1,116 @@
+// The weekly world: every Monday morning a random franchise, then a random scene and
+// character of that franchise, from the quest D1's characters and scenes tables.
+// The pick is seeded by the ISO week, so it is the same wherever it is computed,
+// and next week's pick can be shown ahead. The board's colours follow the franchise.
+
+const TZ = 'Europe/Amsterdam';
+
+// The board's palette per franchise: accent, a second colour for gradients, and the glass tint (rgb).
+export const PALETTES = {
+  'Arcane': { accent: '#6fd8ff', second: '#ff7ac8', tint: '10, 18, 38' },
+  'Dragon Ball': { accent: '#ffa63a', second: '#4f8ae8', tint: '22, 14, 8' },
+  'Bleach': { accent: '#c9d4ff', second: '#ff5f6d', tint: '12, 12, 24' },
+  'Solo Leveling': { accent: '#a28bff', second: '#5ab8ff', tint: '12, 8, 30' },
+  'Cyberpunk: Edgerunners': { accent: '#e8ff3a', second: '#3ddcff', tint: '16, 14, 6' },
+  'Jujutsu Kaisen': { accent: '#7c8cff', second: '#ff4b5c', tint: '10, 12, 28' },
+  'One Punch Man': { accent: '#ffd23f', second: '#ff5a3c', tint: '20, 16, 6' },
+  'Fairy Tail': { accent: '#f6c045', second: '#ff6b6b', tint: '22, 16, 6' },
+  'Chainsaw Man': { accent: '#ff6a3d', second: '#ffb08a', tint: '20, 10, 8' },
+  'Tokyo Ghoul': { accent: '#ff5a6e', second: '#8fa3c7', tint: '14, 10, 18' }
+};
+const DEFAULT_PALETTE = { accent: '#6fd8ff', second: '#ff7ac8', tint: '9, 14, 27' };
+
+// Scenes that are too dark, enclosed or grim for a screen that is on all day.
+export const NOT_FOR_DESK = new Set([
+  'The Last Drop', 'Cartenon Temple', 'Malevolent Shrine', 'Monster Association Underground',
+  'Endless Hotel Corridor', 'Chainsaw City Battle', 'Aogiri Tree Hideout', 'Dragon Ruins Tokyo'
+]);
+
+export const ymd = (ms, tz = TZ) => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(ms));
+
+// ISO week of the Amsterdam date, as "2026-W41".
+export function isoWeek(ms) {
+  const d = new Date(ymd(ms) + 'T12:00:00Z');
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  const y = d.getUTCFullYear(), jan4 = new Date(Date.UTC(y, 0, 4));
+  const wk = 1 + Math.round(((d - jan4) / 864e5 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+  return `${y}-W${String(wk).padStart(2, '0')}`;
+}
+export function mondayOf(ms) {
+  const d = new Date(ymd(ms) + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return d.toISOString().slice(0, 10);
+}
+export const weekAfter = (week, n = 1) => {
+  const [y, w] = week.split('-W').map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const monday = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * 864e5 + (w - 1 + n) * 7 * 864e5);
+  return isoWeek(monday.getTime() + 12 * 3600e3);
+};
+
+// A small seeded generator (mulberry32 over an FNV-style hash of the seed).
+export function rng(seed) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+// The catalogue: franchises with their desk-worthy scenes and enabled characters.
+export async function loadCatalogue(db) {
+  const chars = (await db.prepare('SELECT id, character_name, franchise, canonical_identity, canonical_elements, restrictions, avatar_url FROM characters WHERE enabled = 1 AND (in_trash IS NULL OR in_trash = 0)').all()).results || [];
+  const scenes = (await db.prepare('SELECT scene_name, franchise, canonical_identity, canonical_elements, signature_features, restrictions FROM scenes WHERE enabled = 1 AND (in_trash IS NULL OR in_trash = 0)').all()).results || [];
+  return buildCatalogue(chars, scenes);
+}
+
+export function buildCatalogue(chars, scenes) {
+  const by = {};
+  for (const s of scenes) {
+    if (NOT_FOR_DESK.has(s.scene_name)) continue;
+    (by[s.franchise] = by[s.franchise] || { name: s.franchise, scenes: [], characters: [] }).scenes.push(s);
+  }
+  for (const c of chars) if (by[c.franchise]) by[c.franchise].characters.push(c);
+  return Object.values(by).filter(f => f.scenes.length && f.characters.length).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The pick for a week: random franchise, random scene and character inside it, seeded by the week.
+export function pickTheme(catalogue, week) {
+  const r = rng('roy-os:' + week);
+  const f = catalogue[Math.floor(r() * catalogue.length)];
+  const scene = f.scenes[Math.floor(r() * f.scenes.length)];
+  const character = f.characters[Math.floor(r() * f.characters.length)];
+  return {
+    week, franchise: f.name, scene: scene.scene_name, character: character.character_name, character_id: character.id,
+    look: scene.canonical_elements, palette: PALETTES[f.name] || DEFAULT_PALETTE,
+    prompts: { still: stillPrompt(scene, character), clip: clipPrompt(character) }, avatar_url: character.avatar_url || null
+  };
+}
+
+// ---- Prompts ----
+// The still follows the scene and character rows word for word where it matters,
+// plus the desk's layout: subject in the middle third, the left third dark for the clock and panels.
+export function stillPrompt(scene, character) {
+  return [
+    'Semi-realistic anime key art, painterly cinematic lighting, crisp shapes, rich fine detail; the same rendering style as the reference image. Not photorealistic.',
+    `A wide 16:9 living-wallpaper still for a desk dashboard. Setting: ${scene.scene_name} (${scene.franchise}): ${scene.canonical_identity}. Elements: ${scene.canonical_elements}. Feel: ${scene.signature_features}.`,
+    `The character is ${character.character_name} (${character.franchise}): ${character.canonical_identity} ${character.canonical_elements} They are part of the scene, not posing for the camera: walking through it mid-stride, looking at something in the scene, relaxed and in character. Full body, about half the frame height, feet on the ground.`,
+    'Composition: keep the character inside the middle third of the frame width, centred. The left third is darker and calmer, with few lights, for dashboard overlays. The top edge is calm. Small in-world signs are fine.',
+    `Restrictions: ${scene.restrictions} ${character.restrictions} No watermark.`
+  ].join('\n\n');
+}
+
+// The clip follows the quest engine's living-wallpaper rules (locked camera, every motion
+// returns to its start, no cuts or new elements), with one change: the character may wander.
+export function clipPrompt(character) {
+  return [
+    'Use the supplied image as the exact first frame and preserve its character identity, outfit, materials, lighting, composition and its semi-realistic anime rendering; do not make it photorealistic.',
+    'Create a short seamless looping living wallpaper for a desk dashboard with a completely locked camera. No zoom, pan, tilt, dolly, shake or reframing.',
+    `MOTION: ${character.character_name} is part of the scene, not posing. They amble a few steps in a small loop around their starting spot, glance at something in the scene, turn and wander back, so that by the final frame they are in exactly the starting position and pose, facing the same way as in the first frame. Hair and cloth move naturally. The environment moves gently: light flickers, haze or particles drift, small things sway. No new objects or people, no flashes, cuts or transitions.`,
+    'LOOP: every animated element returns to its exact starting state by the final frame; the first and final frames must match so the clip loops without a visible seam.',
+    'COMPOSITION: keep the left third dark and calm for dashboard overlays, keep the character inside the middle third. Landscape 16:9. Silent: no dialogue, music or sound effects.'
+  ].join('\n\n');
+}

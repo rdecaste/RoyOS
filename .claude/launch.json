@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "royos-dev", "runtimeExecutable": "npx", "runtimeArgs": ["wrangler", "dev", "--port", "8788", "--local"], "port": 8788 }
+  ]
+}

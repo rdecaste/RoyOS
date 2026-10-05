@@ -1,0 +1,42 @@
+# Roy OS
+
+The desk screen next to Roy all day (16-inch ASUS ZenScreen, 1920×1080, landscape). A Cloudflare Worker named `royos`.
+
+## What is on the screen
+- **Menu bar:** Roy OS menu (this week's world, wallpaper, full screen, refresh, sign out), the mode (morning, day, evening, night), the week's world chip, a "now" pill with Roy's current plan block and a countdown (hover: Steph and the kids), weather, recovery, date and time.
+- **Left:** clock, date, greeting, the focus quest chip; Focus (today's win-if from the journal, open must/can to-dos, quick add); the five main habits as discs (done, due now, late, later by their usual time).
+- **Right:** Me today (recovery ring, long vs short term load sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (placeholder until a calendar is connected).
+- **Bottom:** Your day, three lanes (Roy, Steph, Kids), editable; the dock with one icon per app and the Ask box.
+- Hover shows details; a click opens the app's window (Body, Focus, Main habits, Mood, Commute, From Steph, Coming up, Quest).
+- From 23:00 to 04:00 a lock screen dims the board; a tap wakes it until the next phase.
+
+## Routes
+All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
+- `GET /` the page. `GET /login`, `POST /login` (password, next), `POST /logout`.
+- `GET /data` everything the page shows (polled every minute). `GET /theme` this week's world and next week's pick.
+- `POST /act` one edit: `{type}` = `todo_tick {text, done}`, `todo_add {text, list}`, `habit {name, done}`, `mood {mood, note}`, `work {am, pm, commute}`, `plan {events}`, `undo`.
+- `POST /ask {text}` the Ask box: the board as JSON plus Roy's words go to the chat model, which answers with a reply and actions; the actions are applied through the same code as `/act`, with one undo.
+- `GET /status` (no cookie) `{ok, week, theme}` for healthchecks.
+- Admin, header `X-Admin-Token`: `GET /theme/list`, `POST /theme/run` (`week`, `force=1`), `POST /theme/retry` (`week`).
+
+## Data
+- Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`): main habits and their 14-day history (good hits only), long/short-term load and the week's peak, ki charge, the focus quest.
+- Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `sleep_recovery` (7 nights against the 30-night usual: none low = good, one = careful, two or more = rest), `workouts` (hours this week).
+- Weather: Open-Meteo for home, cached 15 minutes.
+- The day's edits (ticks, added to-dos, habit ticks, moods, the plan, the commute) are kept per Amsterdam day in the `DeskState` Durable Object. The journal stays the record of the day; nothing is written to D1 from here.
+- Privacy: `safeText` drops any text containing a `DESK_HIDE` word (default `fap,pmo`), so the main quest never shows.
+
+## The weekly world
+- Week = ISO week of the Amsterdam date. Before Monday 06:00 the previous week's world is still current.
+- Pick: seeded by the week (`rng('roy-os:' + week)`): random franchise among those with desk-worthy scenes and enabled characters (from the `characters` and `scenes` tables), then a random scene and a random character of that franchise. `NOT_FOR_DESK` lists the scenes skipped. The palette per franchise is in `PALETTES`; the page sets `--accent`, `--second`, `--tint` from it.
+- Generation (`DeskTheme` Workflow): the still with Nano Banana 2 (`IMAGE_MODEL`, 16:9, 2K, the character's avatar as reference), uploaded to Cloudinary `Desk-Themes/<week>-still`; the clip with Veo (`VIDEO_MODEL`, 8 s, 1080p, the still as first and last frame), uploaded as `Desk-Themes/<week>-clip`. Status goes `running → still → ready`, or `failed` with the error.
+- Cron `5 * * * *`: each hour `ensureTheme` starts the week's generation if the week has no row or its last try failed; running and ready weeks are left alone. `POST /theme/run` with `force=1` remakes a week.
+- Prompts: `stillPrompt` (scene and character rows word for word, the character walking through the scene, subject in the middle third, the left third dark) and `clipPrompt` (quest-engine's living-wallpaper rules: locked camera, every motion returns to its start, first and last frame match; walking allowed).
+
+## Operations
+- Secrets: `DESK_PASSWORD`, `ADMIN_TOKEN`, `GEMINI_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `OPENAI_API_KEY`.
+- Deploy: push to `main` (Workers Builds runs `npm test`, then deploys). The first deploy creates the Durable Object and the Workflow.
+- First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
+
+## Change log
+- 2026-10-05: first version. Page and widgets from the mockup (claude.ai artifact "Roy OS"), live data from the quest engine and D1, the weekly world pipeline, the Ask box.

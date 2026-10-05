@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "royos",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-20",
+  "observability": { "enabled": true },
+  // The page's CSS, markup and browser script live in web/ as plain files and are imported as text.
+  "rules": [{ "type": "Text", "globs": ["**/*.css", "**/*.html", "**/*.client.js"], "fallthrough": false }],
+  // Roy OS keeps its own state (weekly worlds, the day's ticks, moods, plan) in a SQLite Durable Object;
+  // the quest D1 is read only here, its schema belongs to quest-engine.
+  "durable_objects": { "bindings": [{ "name": "STATE", "class_name": "DeskState" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DeskState"] }],
+  "d1_databases": [{ "binding": "DB", "database_name": "quest", "database_id": "94e5f5c7-b24f-4a3c-808c-a85345a27f7f" }],
+  // Workers on one account cannot fetch each other's workers.dev URL, so the quest engine is reached over a service binding.
+  "services": [{ "binding": "QUEST_ENGINE", "service": "quest-engine" }],
+  "workflows": [{ "name": "royos-theme", "binding": "DESK_THEME", "class_name": "DeskTheme" }],
+  // Every hour: makes the week's world on Monday from 06:00 Amsterdam, and catches up if that failed.
+  "triggers": { "crons": ["5 * * * *"] },
+  "vars": {
+    "QUEST_ENGINE_URL": "https://quest-engine.quest-engine.workers.dev",
+    "IMAGE_MODEL": "gemini-3.1-flash-image",
+    "VIDEO_MODEL": "veo-3.1-fast-generate-preview",
+    "CHAT_MODEL": "gpt-6-astra",
+    "WEATHER_LAT": "51.286",
+    "WEATHER_LON": "3.828"
+  }
+  // Secrets (npx wrangler secret put <NAME>):
+  //   DESK_PASSWORD           the screen's login (one cookie, 30 days)
+  //   ADMIN_TOKEN             X-Admin-Token for the maintenance routes (/theme/run, /theme/list)
+  //   GEMINI_API_KEY          Nano Banana 2 stills and Veo clips
+  //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   cloud a3xk0plk, folder Desk-Themes
+  //   OPENAI_API_KEY          Ask Claude box (chat model above)
+}

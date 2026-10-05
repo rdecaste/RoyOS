@@ -1,0 +1,157 @@
+// What the board shows: the quest engine's public cards (habits, hero, power), the
+// journal's day (focus, win-if, moods, work), the last nights and workouts from the
+// quest D1 (read only), the weather, and the week's world. Plus the day's own edits.
+import { ymd, isoWeek, mondayOf } from './themes.js';
+import { emptyDay } from './day.js';
+import { stillUrl, clipUrl } from './media.js';
+
+const TZ = 'Europe/Amsterdam';
+const DAY = 864e5;
+export const MAIN_HABITS = ['Got up at 6', 'Weigh-in', 'Supplements', 'Morning review', 'Evening review'];
+const USUAL = { 'Got up at 6': '06:00', 'Weigh-in': '06:30', 'Supplements': '07:00', 'Morning review': '07:30', 'Evening review': '21:30' };
+const SHORT = { 'Got up at 6': 'Up at 6', 'Weigh-in': 'Weigh-in', 'Supplements': 'Supplements', 'Morning review': 'Morning', 'Evening review': 'Evening' };
+const WORKOUT = /^(Run|Bike|Swim|Gym|Ruck|E-bike)$/;
+
+// Game days roll over at 04:00 Amsterdam, as the boss card counts them.
+export const gameDay = ms => ymd(ms - 4 * 3600e3);
+const hhmm = ms => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
+
+// Words that keep the main quest off a screen visitors can see.
+const hidden = env => String(env.DESK_HIDE || 'fap,pmo').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+export function safeText(env, text) {
+  if (!text) return '';
+  const low = String(text).toLowerCase();
+  return hidden(env).some(w => low.includes(w)) ? '' : String(text);
+}
+
+// ---- The quest engine, over the service binding (fetch as a fallback in dev) ----
+async function engine(env, path) {
+  const request = new Request(`${env.QUEST_ENGINE_URL}${path}`, { headers: { Accept: 'application/json' } });
+  const r = await (env.QUEST_ENGINE ? env.QUEST_ENGINE.fetch(request) : fetch(request));
+  if (!r.ok) throw new Error(`quest-engine${path} answered ${r.status}`);
+  return r.json();
+}
+
+export function mainHabits(boss, hero, now) {
+  const today = gameDay(now);
+  const hits = (hero && hero.days || []).flatMap(d => d.events || []).filter(e => e.kind === 'boss' && MAIN_HABITS.includes(e.habit));
+  return MAIN_HABITS.map(n => (boss && boss.habits || []).find(x => x.name === n)).filter(Boolean).map(x => {
+    const done = !!x.last_attack && gameDay(Date.parse(x.last_attack)) === today;
+    const days = [...new Set(hits.filter(e => e.habit === x.name).map(e => gameDay(Date.parse(e.at))))].filter(d => d !== today).sort();
+    return { name: x.name, short: SHORT[x.name], icon: x.icon || '', streak: x.streak || 0, done, at: done ? hhmm(Date.parse(x.last_attack)) : null, usual: USUAL[x.name], days };
+  });
+}
+
+// Long-term and short-term load, last 28 days (power.load ÷ 100), the week's peak and the ki charge.
+export function power(mq, hero, quest) {
+  const L = mq && mq.power && mq.power.load;
+  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null };
+  const n = L.long.length, from = Date.parse(L.from + 'T12:00:00Z');
+  const clal = L.long.slice(-28).map((l, i) => { const k = n - 28 + i; return { date: ymd(from + k * DAY), cl: l / 100, al: L.short[k] / 100 }; });
+  let bi = -1;
+  for (let k = Math.max(0, n - 7); k < n - 1; k++) if (bi < 0 || L.short[k] > L.short[bi]) bi = k;
+  let peak = null;
+  if (bi >= 0 && L.short[bi] > L.short[n - 1]) {
+    const date = ymd(from + bi * DAY);
+    const ev = (hero && hero.days || []).flatMap(d => d.events || []).filter(e => e.kind === 'boss' && WORKOUT.test(e.habit) && gameDay(Date.parse(e.at)) === date).sort((a, b) => (b.damage || 0) - (a.damage || 0))[0];
+    let what = ev ? ev.habit.toLowerCase() : 'workout';
+    const km = ev && ev.habit === 'Run' && quest && quest.updatedAt === date ? /([\d.]+)\s*km/.exec(quest.latestEvidence || '') : null;
+    if (km) what = (Math.round(+km[1] * 10) / 10) + ' km ' + what;
+    peak = { i: bi - (n - 28), date, al: L.short[bi] / 100, cl: L.long[bi] / 100, what };
+  }
+  const K = mq.power.ki || {};
+  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus } };
+}
+
+// ---- Journal and health from the quest D1 (read only) ----
+async function rows(db, sql, ...binds) { return ((await db.prepare(sql).bind(...binds).all()).results) || []; }
+
+export async function journalDay(env, day) {
+  const db = env.DB;
+  const j = (await rows(db, 'SELECT id, win_if, mood_morning, mood_evening FROM journal WHERE date = ? ORDER BY updated_at DESC LIMIT 1', day))[0] || null;
+  const focus = j ? await rows(db, 'SELECT grp, position, text, done FROM journal_focus WHERE journal_id = ? ORDER BY grp, position', j.id) : [];
+  const group = g => focus.filter(f => f.grp === g).map(f => ({ t: f.text || '', done: !!f.done }));
+  const todos = await rows(db, "SELECT task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
+  const work = (await rows(db, 'SELECT am, pm, commute FROM work_location WHERE date = ? LIMIT 1', day))[0] || null;
+  const year = day.slice(0, 4);
+  const ytd = await rows(db, "SELECT am, pm FROM work_location WHERE date >= ? AND date < ? AND (weekend IS NULL OR weekend = 0)", `${year}-01-01`, day);
+  let be = 0, nl = 0;
+  for (const w of ytd) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
+  return {
+    win_if: j ? safeText(env, j.win_if) : '', must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
+    mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
+    steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
+    work: work ? { am: work.am, pm: work.pm, commute: work.commute } : null, border: { be, nl }
+  };
+}
+
+// The last 7 nights against the 30-night usual: none low = good to train, one = careful, two or more = rest.
+export async function nights(env, day) {
+  const since30 = ymd(Date.parse(day + 'T12:00:00Z') - 30 * DAY);
+  const all = await rows(env.DB, 'SELECT date, total_sleep, hrv, resting_hr FROM sleep_recovery WHERE date > ? AND date <= ? ORDER BY date', since30, day);
+  const avg = (k, xs) => { const v = xs.map(x => x[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const usual = { sleep: avg('total_sleep', all), hrv: avg('hrv', all), rhr: avg('resting_hr', all) };
+  const last7 = all.slice(-7).map(x => ({ day: x.date, sleep: x.total_sleep, hrv: x.hrv, rhr: x.resting_hr }));
+  const last = last7[last7.length - 1] || null;
+  const low = d => (usual.sleep != null && d.sleep != null && d.sleep < usual.sleep - .75) + (usual.hrv != null && d.hrv != null && d.hrv < usual.hrv * .9) + (usual.rhr != null && d.rhr != null && d.rhr > usual.rhr + 3);
+  const verdictOf = d => { const n = low(d); return n === 0 ? 'good' : n === 1 ? 'steady' : 'easy'; };
+  const score = d => { const n = low(d); return n === 0 ? 85 : n === 1 ? 56 : 28; };
+  return {
+    last: last ? { date: last.day, fresh: last.day === day, score: score(last), verdict: verdictOf(last), sleep: last.sleep, hrv: last.hrv, rhr: last.rhr } : null,
+    usual, nights: last7.map(d => ({ ...d, verdict: verdictOf(d) }))
+  };
+}
+
+export async function trainingWeek(env, day) {
+  const monday = mondayOf(Date.parse(day + 'T12:00:00Z'));
+  const r = (await rows(env.DB, "SELECT COALESCE(SUM(moving_time), 0) s, COUNT(*) n FROM workouts WHERE substr(start_date_local, 1, 10) >= ? AND substr(start_date_local, 1, 10) <= ?", monday, day))[0] || { s: 0, n: 0 };
+  return { hours: Math.round((r.s || 0) / 360) / 10, sessions: r.n || 0, target: 6 };
+}
+
+// ---- Weather for home, cached 15 minutes ----
+export async function weather(env, s) {
+  const key = 'weather';
+  const hit = await s.cached(key);
+  if (hit) return hit;
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${env.WEATHER_LAT || '51.286'}&longitude=${env.WEATHER_LON || '3.828'}&current=temperature_2m,weather_code&daily=sunset,precipitation_probability_max&timezone=Europe%2FAmsterdam&forecast_days=1`;
+    const w = await (await fetch(u)).json();
+    const out = { temp: w.current && w.current.temperature_2m, code: w.current && w.current.weather_code, sunset: ((w.daily && w.daily.sunset || [])[0] || '').slice(11, 16), rain: (w.daily && w.daily.precipitation_probability_max || [])[0] };
+    await s.remember(key, out, 15 * 60e3);
+    return out;
+  } catch (_) { return null; }
+}
+
+// ---- The week's world as the page sees it ----
+export function themeView(row, next) {
+  if (!row) return null;
+  return {
+    week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
+    still: row.still_public_id ? stillUrl(row.still_public_id, row.still_version) : null,
+    clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
+    next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
+  };
+}
+
+// Everything the page needs, in one object. Each source fails on its own, so one
+// outage never blanks the screen.
+export async function board(env, s, now = Date.now()) {
+  const day = ymd(now), errors = [];
+  const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
+  const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState] = await Promise.all([
+    safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
+    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
+    safe('sleep', nights(env, day), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6 }),
+    safe('weather', weather(env, s), null), s.day(day)
+  ]);
+  const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
+  const P = power(mq, hero, focusQuest);
+  const edits = dayState && dayState.data || emptyDay();
+  return {
+    today: day, now: hhmm(now), week: isoWeek(now), errors,
+    main: mainHabits(boss, hero, now),
+    quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
+    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, week },
+    weather: wx, edits, undo: !!(dayState && dayState.undo)
+  };
+}

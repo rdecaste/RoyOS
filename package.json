@@ -1,0 +1,16 @@
+{
+  "name": "royos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Roy OS: the desk screen next to Roy all day, with a new world every Monday.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "logs": "wrangler tail",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.142.0"
+  }
+}
