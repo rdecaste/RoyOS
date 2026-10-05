@@ -3,7 +3,7 @@
 // quest D1 (read only), the weather, and the week's world. Plus the day's own edits.
 import { ymd, isoWeek, mondayOf } from './themes.js';
 import { emptyDay } from './day.js';
-import { stillUrl, clipUrl } from './media.js';
+import { stillUrl169, clipUrl } from './media.js';
 
 const TZ = 'Europe/Amsterdam';
 const DAY = 864e5;
@@ -128,7 +128,7 @@ export function themeView(row, next) {
   if (!row) return null;
   return {
     week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
-    still: row.still_public_id ? stillUrl(row.still_public_id, row.still_version) : null,
+    still: row.still_public_id ? stillUrl169(row.still_public_id, row.still_version) : null,
     clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
     next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
   };

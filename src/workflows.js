@@ -1,7 +1,7 @@
 // The weekly world, as a Workflow: pick, still, clip, each paid step run once and its
 // result kept small (Cloudinary ids only), so a retry never pays twice.
 import { WorkflowEntrypoint } from 'cloudflare:workers';
-import { generateStill, generateClip, cloudinaryUpload, stillUrl, THEME_FOLDER } from './media.js';
+import { generateStill, generateClip, cloudinaryUpload, stillUrl169, THEME_FOLDER } from './media.js';
 import { state } from './state.js';
 
 const CHEAP = { retries: { limit: 3, delay: '10 seconds', backoff: 'exponential' }, timeout: '2 minutes' };
@@ -28,7 +28,7 @@ export class DeskTheme extends WorkflowEntrypoint {
       });
       await step.do('save still', CHEAP, async () => s.updateTheme(week, { still_public_id: still.public_id, still_version: String(still.version), status: 'still' }));
       const clip = await step.do('clip', ONCE_PAID, async () => {
-        const video = await generateClip(this.env, stillUrl(still.public_id, still.version), theme.prompts.clip);
+        const video = await generateClip(this.env, stillUrl169(still.public_id, still.version), theme.prompts.clip);
         return cloudinaryUpload(this.env, video.bytes, { resourceType: 'video', mimeType: video.mimeType, publicId: `${THEME_FOLDER}/${week}-clip`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
       });
       await step.do('save clip', CHEAP, async () => s.updateTheme(week, { clip_public_id: clip.public_id, clip_version: String(clip.version), status: 'ready', finished_at: new Date().toISOString() }));

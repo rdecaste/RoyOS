@@ -83,7 +83,7 @@ async function geminiStill(env, model, prompt, referenceUrls) {
 
 // ---- The clip: Gemini omni (the quest engine's video model, Interactions API) or Veo, by VIDEO_MODEL ----
 export async function generateClip(env, stillUrl, prompt) {
-  const model = env.VIDEO_MODEL || 'veo-3.1-generate-preview';
+  const model = env.VIDEO_MODEL || 'gemini-omni-flash-preview';
   return /^veo/.test(model) ? veoClip(env, model, stillUrl, prompt) : omniClip(env, model, stillUrl, prompt);
 }
 
@@ -178,6 +178,8 @@ export async function cloudinaryUpload(env, bytes, { resourceType, mimeType, pub
 }
 
 export const stillUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${version ? 'v' + version + '/' : ''}${publicId}.jpg`;
+// The still is 3:2 (gpt-image has no 16:9); the clip and the screen are 16:9, so both get the same centre crop.
+export const stillUrl169 = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/ar_16:9,c_fill,g_center/${version ? 'v' + version + '/' : ''}${publicId}.jpg`;
 export const clipUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${version ? 'v' + version + '/' : ''}${publicId}.mp4`;
 
 // ---- OpenAI chat for the Ask box (the same model the other Workers use) ----
