@@ -8,6 +8,7 @@ The desk screen next to Roy all day (16-inch ASUS ZenScreen, 1920×1080, landsca
 - **Right:** Me today (recovery ring, long vs short term load sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (placeholder until a calendar is connected).
 - **Bottom:** Your day, three lanes (Roy, Steph, Kids), editable; the dock with one icon per app and the Ask box.
 - Hover shows details; a click opens the app's window (Body, Focus, Main habits, Mood, Commute, From Steph, Coming up, Quest).
+- The clip loops through a one-second crossfade (two copies take turns), so the seam never jumps.
 - From 23:00 to 04:00 a lock screen dims the board; a tap wakes it until the next phase.
 
 ## Routes

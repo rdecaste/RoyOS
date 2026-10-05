@@ -296,16 +296,35 @@ function placeWall() {
   if (!wallNow) return;
   const w = innerWidth, h = innerHeight, dw = Math.max(w, h * wallAr), x = Math.max(w - dw, Math.min(0, w / 2 - .5 * dw));
   $('wall').style.backgroundPosition = Math.round(x) + 'px 30%';
-  const v = $('wall').querySelector('video'); if (v) { v.style.left = Math.round(x) + 'px'; v.style.width = Math.round(dw) + 'px'; }
+  qa('#wall video').forEach(v => { v.style.left = Math.round(x) + 'px'; v.style.width = Math.round(dw) + 'px'; });
 }
+// The clip loops through a crossfade: two copies of it take turns, the next one fading
+// in over the last second of the other, so the seam never jumps or flickers.
+const FADE = 1.0;
+let loopRaf = 0;
 function setWall(w) {
   wallNow = w;
-  const old = $('wall').querySelector('video'); if (old) old.remove();
+  cancelAnimationFrame(loopRaf);
+  qa('#wall video').forEach(v => v.remove());
   if (w.poster || w.src) $('wall').style.backgroundImage = 'url(' + (w.poster || w.src) + ')';
   if (w.video) {
-    const v = document.createElement('video'); v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.setAttribute('aria-hidden', 'true'); v.src = w.video;
-    v.addEventListener('loadedmetadata', () => { if (wallNow === w && v.videoHeight) { wallAr = v.videoWidth / v.videoHeight; placeWall(); } });
-    $('wall').appendChild(v); v.play().catch(() => {});
+    const make = () => { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('aria-hidden', 'true'); v.src = w.video; v.style.opacity = '0'; $('wall').appendChild(v); return v; };
+    const vids = [make(), make()];
+    let cur = 0, switching = false;
+    vids[0].addEventListener('loadedmetadata', () => { if (wallNow === w && vids[0].videoHeight) { wallAr = vids[0].videoWidth / vids[0].videoHeight; placeWall(); } });
+    vids[0].addEventListener('playing', () => { vids[0].style.opacity = '1'; }, { once: true });
+    vids[0].play().catch(() => {});
+    const tick = () => {
+      if (wallNow !== w) return;
+      const v = vids[cur], d = v.duration;
+      if (d && !switching && v.currentTime >= d - FADE) {
+        switching = true;
+        const n = vids[1 - cur]; n.currentTime = 0;
+        n.play().then(() => { n.style.opacity = '1'; v.style.opacity = '0'; setTimeout(() => { v.pause(); switching = false; }, FADE * 1000 + 50); cur = 1 - cur; }).catch(() => { switching = false; v.currentTime = 0; v.play().catch(() => {}); });
+      }
+      loopRaf = requestAnimationFrame(tick);
+    };
+    loopRaf = requestAnimationFrame(tick);
   } else { const img = new Image(); img.onload = () => { if (wallNow === w && img.naturalHeight) { wallAr = img.naturalWidth / img.naturalHeight; placeWall(); } }; img.src = w.src; }
   placeWall();
 }
@@ -627,5 +646,6 @@ setTimeout(nudges, 900);
 setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
 setInterval(() => { renderHabitsW(); renderMe(); nudges(); }, 60e3);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+// A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
+document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });
 })();
