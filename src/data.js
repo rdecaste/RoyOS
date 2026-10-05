@@ -2,6 +2,7 @@
 // journal's day (focus, win-if, moods, work), the last nights and workouts from the
 // quest D1 (read only), the weather, and the week's world. Plus the day's own edits.
 import { ymd, isoWeek, mondayOf } from './themes.js';
+import { parseIcs, agenda, laneWords } from './calendar.js';
 import { emptyDay } from './day.js';
 import { stillUrl169, clipUrl } from './media.js';
 
@@ -135,6 +136,19 @@ export async function weather(env, s) {
   } catch (_) { return null; }
 }
 
+// ---- The family calendar (published iCloud feed), cached 10 minutes ----
+export async function calendar(env, s, now = Date.now()) {
+  if (!env.FAMILY_ICS_URL) return null;
+  const key = 'calendar', hit = await s.cached(key);
+  if (hit && hit.today === ymd(now)) return hit;
+  const url = String(env.FAMILY_ICS_URL).replace(/^webcal:/i, 'https:');
+  const res = await fetch(url, { headers: { accept: 'text/calendar' } });
+  if (!res.ok) throw new Error('calendar feed ' + res.status);
+  const out = agenda(parseIcs(await res.text()), now, { days: 30, words: laneWords(env.LANE_WORDS) });
+  await s.remember(key, out, 10 * 60e3);
+  return out;
+}
+
 // ---- The week's world as the page sees it ----
 export function themeView(row, next) {
   if (!row) return null;
@@ -151,11 +165,11 @@ export function themeView(row, next) {
 export async function board(env, s, now = Date.now()) {
   const day = ymd(now), errors = [];
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
-  const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState] = await Promise.all([
+  const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
-    safe('weather', weather(env, s), null), s.day(day)
+    safe('weather', weather(env, s), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
   const P = power(mq, hero, focusQuest);
@@ -165,6 +179,6 @@ export async function board(env, s, now = Date.now()) {
     main: mainHabits(boss, hero, now),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
-    weather: wx, edits, undo: !!(dayState && dayState.undo)
+    weather: wx, calendar: cal, edits, undo: !!(dayState && dayState.undo)
   };
 }

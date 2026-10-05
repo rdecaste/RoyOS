@@ -31,4 +31,5 @@
   //   GEMINI_API_KEY          Nano Banana 2 stills and Veo clips
   //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   cloud a3xk0plk, folder Desk-Themes
   //   OPENAI_API_KEY          Ask Claude box (chat model above)
+  // FAMILY_ICS_URL (the published iCloud link of the family calendar, webcal:// or https://), LANE_WORDS ("roy:roy;steph:steph,stephanie;kids:<names>,kindjes": title words that put a calendar event on a lane)
 }

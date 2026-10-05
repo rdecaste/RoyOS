@@ -63,6 +63,10 @@ const PLACES = ['🇳🇱 Home', '🇧🇪 Beerse', '🇧🇪 Ghent', '✈️ Tr
 const RIDES = ['🚲 E-bike', '🚗 Car', '✈️ Plane', 'N/A'];
 let E = D.edits;
 const EVENTS = () => (Array.isArray(E.events) ? E.events : []);
+const CAL = () => (D.calendar && Array.isArray(D.calendar.today_timed) ? D.calendar.today_timed : []);
+const COMING = () => (D.calendar && Array.isArray(D.calendar.upcoming) ? D.calendar.upcoming : []);
+const ALLEV = () => EVENTS().concat(CAL());
+const daySpan = i => (i.end_day ? dayFmt(i.day) + ' – ' + dayFmt(i.end_day) : i.day === D.today ? 'Today' : dayFmt(i.day)) + (i.all_day ? '' : ' · ' + i.from + '–' + i.to);
 const ticked = x => (E.ticks[x.t] != null ? E.ticks[x.t] : !!x.done);
 const focusList = g => E.added.filter(a => a.g === g).map(a => ({ t: a.t, done: !!E.ticks[a.t], added: true })).concat((D.journal[g] || []).map(x => ({ t: x.t, done: ticked(x) })));
 const stephList = () => D.journal.steph.map(x => ({ t: x.t, due: x.due, done: !!E.ticks[x.t] }));
@@ -120,7 +124,7 @@ const faceImg = (m, alt) => '<img src="' + D.moodArt[m - 1] + '" alt="' + esc(al
 const moodsSoFar = () => E.moods.slice();
 const lastMood = () => { const so = moodsSoFar(); return so[so.length - 1] || null; };
 function laneNow(who, m) {
-  const evs = EVENTS().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
+  const evs = ALLEV().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
   return { cur: evs.find(e => e.a <= m && m < e.z), next: evs.find(e => e.a > m) };
 }
 const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Cloudy', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunder' };
@@ -297,13 +301,13 @@ const TIPS = {
   ki: () => { const k = F().ki; return k ? '<span class="tt">Ki charge</span><b>' + k.level + ' of ' + k.peak + ' · ' + kiState(k) + '</b><div class="kv"><span>Healing cap</span><b>' + (k.heal_cap || '–') + ' HP</b><span></span><span>Overnight bonus</span><b>+' + Math.round((k.recovery_bonus || 0) * 100) + '%</b><span></span></div>' : ''; },
   commute: () => { const b = border(), T = workToday(); return '<span class="tt">Commute</span><div class="kv"><span>Morning</span><b>' + esc(T.am) + '</b><span></span><span>Afternoon</span><b>' + esc(T.pm) + '</b><span></span><span>Ride</span><b>' + esc(T.commute) + '</b><span></span></div><span class="hint">' + b.share + '% of this year’s work days in Belgium (minimum 50%), ' + b.spare + ' days to spare. Tap to change today.</span>'; },
   steph: () => { const open = stephList().filter(x => !x.done); return '<span class="tt">From Steph</span>' + (open.length ? '<ul>' + open.map(x => '<li>' + esc(x.t) + (x.due ? ' <span class="mut">· ' + esc(x.due) + '</span>' : '') + '</li>').join('') + '</ul>' : 'Nothing open. To-dos tagged Steph in the journal land here.'); },
-  dates: () => '<span class="tt">Coming up</span>Birthdays and important dates will come from the shared calendar.',
+  dates: () => { const l = COMING().slice(0, 6); return '<span class="tt">Coming up · family calendar</span>' + (l.length ? '<div class="kv">' + l.map(i => '<span>' + esc(daySpan(i)) + '</span><b>' + esc(i.t) + '</b><span class="mut">' + esc(WHO[i.who] === 'Everyone' ? '' : WHO[i.who] || '') + '</span>').join('') + '</div>' : 'Nothing in the next 30 days.') + '<span class="hint">' + (D.calendar ? 'Read from the shared iCloud calendar, refreshed every 10 minutes.' : 'No calendar connected.') + '</span>'; },
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
   weather: () => { const w = D.weather; return w ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b><br>' + (w.rain != null ? w.rain + '% chance of rain · ' : '') + 'sunset ' + esc(w.sunset) : ''; },
   mode: () => '<span class="tt">Mode</span>' + { morning: 'Morning habits until 10:00.', day: 'Daytime habits until 18:00.', evening: 'Evening habits until 04:00.', night: 'Night. The screen dims until morning.' }[phaseOf(nowMin())],
   habit: el => { const x = D.main[+el.dataset.i], s = habitState(x); return '<span class="tt">Main habit</span><b>' + esc(x.icon + ' ' + x.name) + '</b><br>' + habitLine(x, s) + (x.streak >= 2 ? '<br><span class="mut">🔥 ' + x.streak + '-day streak</span>' : '') + '<span class="hint">Tap to ' + (s.st === 'done' ? 'untick' : 'tick it off') + '</span>'; },
   lastmood: () => { const m = lastMood(); return m ? '<span class="tt">Last logged · ' + hhmm(m.at) + '</span><b>' + FEEL[m.m - 1] + '</b>' + (m.note ? '<br>' + esc(m.note) : '') : 'No mood logged yet today'; },
-  blk: el => { const e = EVENTS().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">Tap to edit</span>'; },
+  blk: el => { const e = ALLEV().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">' + (e.cal ? 'From the family calendar' : 'Tap to edit') + '</span>'; },
   theme: () => { const t = D.theme; if (!t) return '<span class="tt">This week’s world</span>Not made yet.'; return '<span class="tt">This week’s world · ' + esc(t.week) + '</span><b>' + esc(t.franchise) + ' · ' + esc(t.scene) + '</b><br>' + esc(t.character) + (t.status !== 'ready' ? ' · ' + esc(t.status) : '') + '<span class="hint">New video every Monday morning, random franchise, random scene and character. The colours of the board follow it.</span>'; }
 };
 const tip = $('tip');
@@ -451,7 +455,7 @@ function renderIsland() {
   const m = nowMin(), r = laneNow('roy', m);
   $('islPill').innerHTML = r.cur ? '<span>' + esc(r.cur.ic || '') + '</span><span class="t">' + esc(r.cur.t) + '</span><span class="isl-bar"><i style="width:' + pct(m - r.cur.a, r.cur.z - r.cur.a) + '%"></i></span><span class="left">' + dur(r.cur.z - m) + ' left</span>'
     : r.next ? '<span class="k">Next</span><span>' + esc(r.next.ic || '') + '</span><span class="t">' + esc(r.next.t) + '</span><span class="left">in ' + dur(r.next.a - m) + '</span>'
-    : '<span class="k">' + (EVENTS().length ? 'Free' : 'Plan') + '</span><span class="t">' + (EVENTS().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane below to add.') + '</span>';
+    : '<span class="k">' + (ALLEV().length ? 'Free' : 'Plan') + '</span><span class="t">' + (ALLEV().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane below to add.') + '</span>';
   $('islPanel').innerHTML = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']].map(([w, name]) => { const x = laneNow(w, m);
     const cur = x.cur ? '<span><em>now</em>' + esc((x.cur.ic || '') + ' ' + x.cur.t) + ' <em>until ' + x.cur.to + '</em></span>' : '', nxt = x.next ? '<span class="nxt"><em>' + x.next.from + '</em>' + esc((x.next.ic || '') + ' ' + x.next.t) + '</span>' : '';
     return '<div class="isl-row"><span class="who ' + w + '">' + name + '</span><div class="what">' + (cur || nxt ? cur + nxt : '<span class="nxt">Free for the rest of the day</span>') + '</div></div>'; }).join('');
@@ -488,18 +492,19 @@ function renderMe() {
 function renderMinis() {
   const open = stephList().filter(x => !x.done);
   $('stephBody').innerHTML = '<div class="big">' + open.length + '<small>open</small></div><div class="mtx">' + (open.length ? esc(open[0].t) : 'Nothing from Steph right now.') + '</div>';
-  $('datesBody').innerHTML = '<div class="mtx">Birthdays and dates come with the shared calendar.</div>';
+  const c = COMING().slice(0, 3);
+  $('datesBody').innerHTML = D.calendar ? (c.length ? '<div class="dates">' + c.map(i => '<div class="date ' + esc(i.who) + '"><span class="dd">' + esc(i.day === D.today ? 'Today' : wdShort(i.day) + ' ' + +i.day.slice(8, 10)) + '</span><span class="dt">' + esc(i.t) + '</span><span class="dh">' + esc(i.all_day ? (i.end_day ? 'to ' + wdShort(i.end_day) + ' ' + +i.end_day.slice(8, 10) : 'all day') : i.from) + '</span></div>').join('') + '</div>' : '<div class="mtx">Nothing in the next 30 days.</div>') : '<div class="mtx">No calendar connected.</div>';
 }
 const LANES = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']];
 function renderDay() {
   const m = nowMin(), nowIn = m >= DAY0 * 60 && m <= DAY1 * 60;
   let html = '';
   LANES.forEach(([who, name], li) => {
-    const evs = EVENTS().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
+    const evs = ALLEV().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
     const rows = []; evs.forEach(e => { let r = rows.findIndex(end => end <= e.a); if (r < 0) { r = rows.length; rows.push(0); } rows[r] = e.z; e.row = r; });
     const rh = 100 / Math.max(1, rows.length);
     let t = ''; for (let h = DAY0 + 2; h < DAY1; h += 2) t += '<i class="tick" style="left:' + xOf(h * 60) + '%"></i>';
-    t += evs.map(e => { const st = e.z <= m ? ' past' : e.a <= m ? ' now' : ''; return '<div class="blk ' + who + st + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + esc(e.t + ', ' + e.from + ' to ' + e.to + '. Edit') + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 1px);height:calc(' + rh + '% - 2px)"><span>' + esc((e.ic || ICON[e.k] || '') + ' ' + e.t) + '</span></div>'; }).join('');
+    t += evs.map(e => { const st = e.z <= m ? ' past' : e.a <= m ? ' now' : ''; return '<div class="blk ' + who + st + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit')) + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 1px);height:calc(' + rh + '% - 2px)"><span>' + esc((e.ic || ICON[e.k] || '') + ' ' + e.t) + '</span></div>'; }).join('');
     if (nowIn) t += '<div class="pastshade" style="width:' + xOf(m) + '%"></div><div class="nowl" style="left:' + xOf(m) + '%">' + (li === 0 ? '<span>' + hm() + '</span>' : '') + '</div>';
     html += '<span class="lname ' + who + '">' + name + '</span><div class="track" data-act="track" data-who="' + who + '">' + t + '</div>';
   });
@@ -558,7 +563,12 @@ const WINS = {
         '<div class="sec"><div class="sh"><span>Work days this year</span><b>' + x.share + '% in Belgium</b></div><div class="bbar"><i style="width:' + x.share + '%"></i><i style="width:' + (100 - x.share) + '%"></i><span class="half"></span></div><div class="bnums"><span>🇧🇪 Belgium <b>' + one(x.be) + '</b></span><span>minimum 50%</span><span>🇳🇱 Netherlands <b>' + one(x.nl) + '</b></span></div><p class="say">You have <b>' + x.spare + ' days</b> to spare before Belgium drops under half of your work days. A change here is kept on this screen for today; the journal’s border page stays the record.</p></div>';
     } },
   steph: { w: 28, title: 'From Steph', tags: () => '', render(b) { const l = stephList(); b.innerHTML = l.length ? '<div class="todos">' + l.map(x => todoBtn(x, 'steph', 'wide')).join('') + '</div><p class="say">Tap one to tick it off.</p>' : '<p class="say">Nothing open. To-dos tagged “Steph” in the journal land here.</p>'; } },
-  dates: { w: 29, title: 'Coming up', tags: () => '', render(b) { b.innerHTML = '<p class="say">Birthdays and important dates will come from the shared calendar once it is connected.</p>'; } },
+  dates: { w: 30, title: 'Coming up', tags: () => (D.calendar ? '<span class="tag">Family calendar · next 30 days</span>' : ''), render(b) {
+    const l = COMING(); if (!D.calendar) { b.innerHTML = '<p class="say">No calendar connected.</p>'; return; }
+    if (!l.length) { b.innerHTML = '<p class="say">Nothing in the next 30 days.</p>'; return; }
+    const byDay = []; l.forEach(i => { const k = i.day < D.today ? D.today : i.day; let g = byDay.find(x => x.day === k); if (!g) { g = { day: k, items: [] }; byDay.push(g); } g.items.push(i); });
+    b.innerHTML = '<div class="rows cal">' + byDay.map(g => g.items.map((i, n) => '<div class="rowi"><span class="dd">' + (n ? '' : esc(g.day === D.today ? 'Today' : dayFmt(g.day))) + '</span><span>' + esc(i.t) + '<small>' + esc(i.all_day ? (i.end_day ? 'All day until ' + dayFmt(i.end_day) : 'All day') : i.from + '–' + i.to) + '</small></span><span class="who ' + esc(i.who) + '">' + esc(i.who === 'all' ? '' : WHO[i.who] || '') + '</span></div>').join('')).join('') + '</div><p class="say">Read from the shared iCloud calendar, refreshed every 10 minutes. Change it on your phone.</p>';
+  } },
   quest: { w: 33, title: 'Quest', tags: () => '',
     render(b) {
       const q = D.quest; if (!q) { b.innerHTML = '<p class="say">No quest in focus.</p>'; return; }

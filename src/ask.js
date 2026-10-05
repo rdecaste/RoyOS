@@ -57,6 +57,7 @@ export function askPrompt(data, text) {
   const context = {
     today: data.today, time: data.now,
     plan: (e.events || []).map(({ id, who, from, to, t, k }) => ({ id, who, from, to, t, k })),
+    family_calendar: data.calendar ? { today: data.calendar.today_timed.map(({ who, from, to, t }) => ({ who, from, to, t })), coming: data.calendar.upcoming.slice(0, 15).map(({ day, end_day, all_day, from, to, who, t }) => ({ day, end_day, all_day, from, to, who, t })) } : null,
     focus: { win_if: j.win_if, must: j.must.map(x => ({ t: x.t, done: e.ticks[x.t] != null ? e.ticks[x.t] : x.done })), can: j.can.map(x => ({ t: x.t, done: e.ticks[x.t] != null ? e.ticks[x.t] : x.done })), added: e.added },
     from_steph: j.steph, main_habits: data.main.map(h => ({ name: h.name, done: e.habits[h.name] ? true : e.habits[h.name] === false ? false : h.done, usual: h.usual, streak: h.streak })),
     mood_today: e.moods.map(x => ({ at: x.at, mood: FEEL[x.m - 1], note: x.note })),
@@ -67,6 +68,7 @@ export function askPrompt(data, text) {
   };
   const system = 'You are the assistant built into Roy OS, the desk screen next to Roy all day. You answer questions about what the screen shows, and you can change it.\n' +
     'Lanes ("who") in the plan: roy (Roy, who is typing), steph (Steph, his partner), kids (their children), all (everyone). Event types ("k"): work, move (commute, driving, school run), train (sport), fam (family, school, kids), mind (personal, journal, yoga).\n' +
+    'family_calendar is the shared iCloud calendar, read only: you cannot change it, but its blocks are on the lanes already, so do not add them again.\n' +
     'Do what he asks. Include obvious knock-on effects in the plan (no school means no school run or pickup, and the kids are home). Do not invent details you cannot infer. If he only asks a question, answer it from the data and change nothing.\n' +
     'Reply with only a JSON object {"reply":"...","actions":[...]}. "reply" is one or two short sentences: the answer, or what you changed. Actions, any number, in order:\n' +
     '{"type":"event_add","who":"kids","from":"08:30","to":"15:15","t":"Home","k":"fam"}\n' +
