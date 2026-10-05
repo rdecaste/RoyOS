@@ -31,7 +31,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - Pick: seeded by the week (`rng('roy-os:' + week)`): random franchise among those with desk-worthy scenes and enabled characters (from the `characters` and `scenes` tables), then a random scene and a random character of that franchise. `NOT_FOR_DESK` lists the scenes skipped. The palette per franchise is in `PALETTES`; the page sets `--accent`, `--second`, `--tint` from it.
 - Generation (`DeskTheme` Workflow): the still with the quest engine's image model `gpt-image-2.5-flare` (`IMAGE_MODEL`; edit mode with the character's avatar as reference, 1536×1024, high, moderation low), uploaded to Cloudinary `Desk-Themes/<week>-still`; the clip with the quest engine's video model `gemini-omni-flash-preview` (`VIDEO_MODEL`; Interactions API, image by URL, 16:9), uploaded as `Desk-Themes/<week>-clip`. `IMAGE_MODEL` starting with `gemini-` switches the still to Nano Banana, `VIDEO_MODEL` starting with `veo` switches the clip to Veo (still as first and last frame; Veo refuses prompts that name a character, so the clip prompt never does). Status goes `running → still → ready`, or `failed` with the error.
 - Cron `5 * * * *`: each hour `ensureTheme` starts the week's generation if the week has no row or its last try failed; running and ready weeks are left alone. `POST /theme/run` with `force=1` remakes a week.
-- Prompts: `stillPrompt` (scene and character rows word for word, the character walking through the scene, subject in the middle third, the left third dark) and `clipPrompt` (quest-engine's living-wallpaper rules: locked camera, every motion returns to its start, first and last frame match; walking allowed).
+- Prompts: `stillPrompt` (scene and character rows word for word, the character walking through the scene, subject in the middle third, the left third dark) and `clipPrompt` (quest-engine's living-wallpaper rules word for word: locked camera, the character anchored in place, ambient motion only, every motion returns to its start, first and last frame match; the character is never named).
 
 ## Operations
 - Secrets: `DESK_PASSWORD`, `ADMIN_TOKEN`, `GEMINI_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `OPENAI_API_KEY`.
@@ -39,4 +39,5 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: the clip keeps the character anchored with ambient motion only, as the quest videos do (a wandering character never looped cleanly on omni).
 - 2026-10-05: first version. Page and widgets from the mockup (claude.ai artifact "Roy OS"), live data from the quest engine and D1, the weekly world pipeline, the Ask box.

@@ -103,16 +103,15 @@ export function stillPrompt(scene, character) {
   ].join('\n\n');
 }
 
-// The clip follows the quest engine's living-wallpaper rules (locked camera, every motion
-// returns to its start, no cuts or new elements), with one change: the character may wander.
-// The clip never names the character: Veo's filter reads a name as a real person and refuses
-// (5 Oct 2026, "we can't create videos with real people's names"). The still carries the likeness.
+// The clip follows the quest engine's living-wallpaper rules word for word: locked camera,
+// the character anchored in place, ambient motion only, every motion back to its start.
+// It never names the character: Veo's filter reads a name as a real person (5 Oct 2026).
 export function clipPrompt() {
   return [
-    'Use the supplied image as the exact first frame and preserve the character exactly as drawn there: identity, outfit, materials, lighting, composition and the semi-realistic anime rendering; do not make it photorealistic.',
-    'Create a short seamless looping living wallpaper for a desk dashboard with a completely locked camera. No zoom, pan, tilt, dolly, shake or reframing.',
-    'MOTION: the character is part of the scene, not posing. They amble a few steps in a small loop around their starting spot, glance at something in the scene, turn and wander back, so that by the final frame they are in exactly the starting position and pose, facing the same way as in the first frame. Hair and cloth move naturally. The environment moves gently: light flickers, haze or particles drift, small things sway. No new objects or people, no flashes, cuts or transitions.',
-    'LOOP: every animated element returns to its exact starting state by the final frame; the first and final frames must match so the clip loops without a visible seam.',
-    'COMPOSITION: keep the left third dark and calm for dashboard overlays, keep the character inside the middle third. Landscape 16:9. Silent: no dialogue, music or sound effects.'
+    'Animate the supplied image as a seamless infinite loop for dashboard playback. Preserve the character exactly as drawn there: identity, outfit, materials, lighting, anatomy, composition and the semi-realistic anime rendering; do not make it photorealistic.',
+    'ABSOLUTE RULES:\n- The camera must remain completely static and locked.\n- No zoom, pan, tilt, dolly, shake, reframing, or perspective drift.\n- Create a clean cyclic loop where the final frame matches the first frame as closely as possible.\n- No cuts, transitions, or new elements appearing/disappearing.',
+    'MOTION:\n- Subtle looping motion only.\n- Allowed: gentle breathing, hair and cloth movement, light shimmer, flickering signs, ambient particles, drifting haze or steam, soft environmental motion.\n- The character remains anchored in place, holding the pose and the gaze of the source image.\n- No walking, running, lunging, advancing, drifting, or large body displacement.\n- Every motion must return to its starting state by the end.',
+    'COMPOSITION:\n- Preserve the composition: the character stays inside the middle third, the left third stays dark and calm for dashboard overlays.\n- Keep anatomy coherent. No new text, UI, panels or overlays.',
+    'OUTPUT:\n- Alive, subtle, stable, premium. Landscape 16:9. Silent: no dialogue, music or sound effects.\n- Prioritize seamless loop continuity over dramatic motion.'
   ].join('\n\n');
 }
