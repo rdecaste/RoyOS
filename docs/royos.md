@@ -40,6 +40,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: the Load cell shows the 7-day peak (e.g. ↑38 Sun) and a 14-day sparkline with a tight y axis; the Body chart keeps 4 weeks.
 - 2026-10-05: Body shows this week's sessions with TSS and zone minutes from `workouts` and `workout_streams`, and today's form state; the load scale is read off the engine's values.
 - 2026-10-05: omni gets the still's 16:9 centre crop (the still is 3:2), so it no longer re-frames; the board uses the same crop as poster.
 - 2026-10-05: the clip keeps the character anchored with ambient motion only, as the quest videos do (a wandering character never looped cleanly on omni).

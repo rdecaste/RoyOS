@@ -150,9 +150,10 @@ async function refresh() {
 }
 
 // ---- Charts ----
-function loadSvg(H, grid) {
-  const Ld = L(), n = Ld.length; if (n < 2) return '<div class="say">No load data yet.</div>';
-  const W = 300, all = Ld.flatMap(d => [d.cl * 1.1, d.al, d.cl * .9]), lo = Math.min(...all) * .92, hi = Math.max(...all) * 1.05 || 1;
+// The load chart: the last `days` of the 28 kept, with the y axis fitted tightly to what is shown.
+function loadSvg(H, grid, days) {
+  const all28 = L(), off = Math.max(0, all28.length - (days || 28)), Ld = all28.slice(off), n = Ld.length; if (n < 2) return '<div class="say">No load data yet.</div>';
+  const W = 300, all = Ld.flatMap(d => [d.cl * 1.1, d.al, d.cl * .9]), lo = Math.min(...all) * .97, hi = Math.max(...all) * 1.02 || 1;
   const x = i => 4 + i / (n - 1) * (W - 8), y = v => 4 + (1 - (v - lo) / (hi - lo || 1)) * (H - 8);
   const line = k => Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d[k]).toFixed(1)).join(' ');
   const band = Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d.cl * 1.1).toFixed(1)).join(' ') + ' ' + Ld.slice().reverse().map((d, i) => 'L' + x(n - 1 - i).toFixed(1) + ' ' + y(d.cl * .9).toFixed(1)).join(' ') + 'Z';
@@ -162,7 +163,7 @@ function loadSvg(H, grid) {
     '<path d="' + line('al') + '" fill="none" stroke="#a28bff" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
     '<path d="' + line('cl') + '" fill="none" stroke="#3fd8e8" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
   s += '<span class="pt" style="--c:#a28bff;left:' + px(n - 1) + ';top:' + py(last.al) + '"></span><span class="pt" style="--c:#3fd8e8;left:' + px(n - 1) + ';top:' + py(last.cl) + '"></span>';
-  if (Pk && Pk.i >= 0) s += '<span class="pt peak" style="left:' + px(Pk.i) + ';top:' + py(Pk.al) + '"></span>';
+  if (Pk && Pk.i - off >= 0) s += '<span class="pt peak" style="left:' + px(Pk.i - off) + ';top:' + py(Pk.al) + '"></span>';
   return s + '<i class="xh"></i>';
 }
 function loadTip(i) {
@@ -242,7 +243,7 @@ document.addEventListener('focusout', () => hideTip());
 document.addEventListener('pointerdown', () => hideTip(true));
 function chartHover(el, e) {
   const r = el.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), xh = el.querySelector('.xh');
-  if (el.dataset.chart === 'load') { const n = L().length; if (n < 2) return; const W = 300, i = Math.max(0, Math.min(n - 1, Math.round((f * W - 4) / (W - 8) * (n - 1)))); if (xh) { xh.style.left = ((4 + i / (n - 1) * (W - 8)) / W * 100) + '%'; xh.style.opacity = 1; } showTipAt(loadTip(i), e.clientX, r.top, r.bottom); }
+  if (el.dataset.chart === 'load') { const days = +el.dataset.days || 28, off = Math.max(0, L().length - days), n = L().length - off; if (n < 2) return; const W = 300, i = Math.max(0, Math.min(n - 1, Math.round((f * W - 4) / (W - 8) * (n - 1)))); if (xh) { xh.style.left = ((4 + i / (n - 1) * (W - 8)) / W * 100) + '%'; xh.style.opacity = 1; } showTipAt(loadTip(off + i), e.clientX, r.top, r.bottom); }
   else { const n = F().nights.length; if (!n) return; const i = Math.max(0, Math.min(n - 1, Math.floor(f * n))); if (xh) { xh.style.left = ((i + .5) / n * 100) + '%'; xh.style.opacity = 1; } showTipAt(nightTip(i), e.clientX, r.top, r.bottom); }
 }
 
@@ -384,7 +385,8 @@ function renderHabitsW() {
 function renderMe() {
   const r = R(), lm = lastMood(), b = border(), k = F().ki;
   $('cRec').innerHTML = '<div class="cl">Recovery</div>' + (r ? '<div class="rec"><div class="ring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"><b>' + r.score + '%</b></div><div class="recw" style="--c:' + recColor(r.score) + '"><b>' + REC_LABEL[r.verdict][0] + '</b><span>' + REC_LABEL[r.verdict][1] + '</span></div></div>' : '<div class="say">No night synced yet.</div>');
-  $('cLoad').innerHTML = '<div class="cl"><span>Load</span>' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span></span>' : '') + '</div><div class="spark" data-chart="load">' + loadSvg(100) + '</div>';
+  const Pk = F().peak;
+  $('cLoad').innerHTML = '<div class="cl"><span>Load</span>' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span>' + (Pk ? '<span title="7-day peak"><b class="st-c">↑' + Math.round(Pk.al) + '</b> ' + wdShort(Pk.date) + '</span>' : '') + '</span>' : '') + '</div><div class="spark" data-chart="load" data-days="14">' + loadSvg(100, false, 14) + '</div>';
   const rz = L().length > 1 ? zoneOf(ratioOf(LAST())) : null;
   $('cRatio').innerHTML = '<div class="cl">Load ratio' + (rz ? '<b style="color:' + rz[2] + '">' + rz[1] + '</b>' : '') + '</div>' + ratioBar();
   $('cKi').innerHTML = '<div class="cl">Ki charge' + (k ? '<b>' + k.level + ' of ' + k.peak + '</b>' : '') + '</div>' + (k ? pips(k) : '');
