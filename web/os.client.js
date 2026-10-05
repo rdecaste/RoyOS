@@ -189,7 +189,9 @@ function nightTip(i) {
 function ratioBar() {
   const R2 = RATIO(); if (!R2) return '';
   const r = R2.value, z = [0, R2.zone, ZC[R2.zone]];
-  return '<div class="ratiobar">' + [20, 60, 85].map(v => '<span class="tk" style="left:' + v + '%"></span>').join('') + '<span class="pill" style="left:' + ratioPos(r) + '%;background:' + z[2] + '">' + r.toFixed(2) + '</span></div>';
+  const bands = [['Low', 0, 20], ['Optimal', 20, 60], ['High', 60, 85], ['Risk', 85, 100]];
+  return '<div class="ratiobar">' + [20, 60, 85].map(v => '<span class="tk" style="left:' + v + '%"></span>').join('') + '<span class="pill" style="left:' + ratioPos(r) + '%;background:' + z[2] + '">' + r.toFixed(2) + '</span></div>' +
+    '<div class="ratiolab">' + bands.map(([n, a, b]) => '<span' + (n === R2.zone ? ' class="on"' : '') + ' style="left:' + a + '%;width:' + (b - a) + '%' + (n === R2.zone ? ';color:' + z[2] : '') + '">' + n + '</span>').join('') + '</div>';
 }
 const R_LABELS = '<div class="rlabels">' + [['Low', 10, '#3f8fe8'], ['Optimal', 40, '#3ddc84'], ['High', 72.5, '#ff9a2e'], ['Risk', 92.5, '#ef4b4b']].map(([t, l, c]) => '<span style="left:' + l + '%;color:' + c + '">' + t + '</span>').join('') + '</div>';
 const pips = k => '<div class="pips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</div>';
@@ -478,7 +480,7 @@ function renderMe() {
   $('cRec').innerHTML = '<div class="cl">Recovery</div>' + (r ? '<div class="rec"><div class="ring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"><b>' + r.score + '%</b></div><div class="recw" style="--c:' + recColor(r.score) + '"><b>' + REC_LABEL[r.verdict][0] + '</b><span>' + REC_LABEL[r.verdict][1] + '</span></div></div>' : '<div class="say">No night synced yet.</div>');
   $('cLoad').innerHTML = '<div class="cl">' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span></span>' : '<span>Load</span>') + '</div><div class="spark" data-chart="load" data-days="14">' + loadSvg(100, false, 14) + '</div>';
   const R2 = RATIO();
-  $('cRatio').innerHTML = '<div class="cl">Load ratio' + (R2 ? '<b style="color:' + ZC[R2.zone] + '">' + esc(R2.zone) + '</b>' : '') + '</div>' + (R2 ? ratioBar() : '<div class="say">Waiting for the quest engine.</div>');
+  $('cRatio').innerHTML = '<div class="cl">Load ratio</div>' + (R2 ? ratioBar() : '<div class="say">Waiting for the quest engine.</div>');
   $('cKi').innerHTML = '<div class="cl">Ki charge' + (k ? '<b>' + k.level + ' of ' + k.peak + '</b>' : '') + '</div>' + (k ? pips(k) : '');
   $('cMood').innerHTML = '<div class="cl">Mood' + (lm ? '<span class="lastm" data-tip="@lastmood">' + hhmm(lm.at) + faceImg(lm.m, '') + '</span>' : '') + '</div><div class="moods" role="group" aria-label="Log your mood">' + FEEL.map((f, i) => '<button type="button" class="face' + (lm && lm.m === i + 1 ? ' last' : '') + '" data-act="face" data-m="' + (i + 1) + '" data-tip="' + f + '" aria-label="Log mood: ' + f + '">' + faceImg(i + 1, '') + '</button>').join('') + '</div>';
   $('cCommute').innerHTML = '<div class="cl">Commute</div><div class="commute"><span class="place">' + esc(workPlace()) + '</span><span class="ride">' + esc(workToday().commute) + '</span><span class="minring" style="--p:' + b.share + '"><b>' + b.share + '%</b></span></div>';

@@ -217,6 +217,9 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .pt { position: absolute; width: .3rem; height: .3rem; border-radius: 50%; transform: translate(-50%, -50%); background: var(--c); box-shadow: 0 0 0 1.5px var(--ring-hole), 0 0 .35rem var(--c); pointer-events: none; }
 .ratiobar { position: relative; height: .55rem; margin: .7rem .25rem .25rem; border-radius: 99px; background: linear-gradient(90deg, #2f7fe0 0%, #26a69a 20%, #3ddc84 40%, #a6c63a 55%, #ff9a2e 70%, #ff5a3c 85%, #ef3b3b 100%); }
 .ratiobar .tk { position: absolute; top: -.25rem; bottom: -.25rem; width: 1px; background: rgba(255, 255, 255, .45); }
+.ratiolab { position: relative; height: .8rem; margin: .35rem .25rem 0; font: 600 .56rem/1 var(--f-sys); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.ratiolab span { position: absolute; top: 0; text-align: center; white-space: nowrap; }
+.ratiolab span.on { color: var(--fg); font-weight: 700; }
 .ratiobar .pill { position: absolute; top: 50%; transform: translate(-50%, -50%); padding: .05rem .5rem; border-radius: 99px; box-shadow: 0 0 0 2px var(--ring-hole); font: 800 .76rem/1.2 var(--f-display); color: var(--on-light); }
 .pips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .25rem; margin-top: .45rem; }
 .pips i { height: .5rem; border-radius: .2rem; border: 1px solid rgba(255, 214, 92, .2); background: rgba(255, 255, 255, .07); }

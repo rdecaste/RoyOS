@@ -40,6 +40,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: the load ratio cell names the four bands (low, optimal, high, risk) under the bar, each centred in its band, with today's lit in its colour; the word left the cell's header.
 - 2026-10-05: the load ratio bar no longer draws yesterday's ghost marker; the move since yesterday stays in the hover tip.
 - 2026-10-05: the Load cell shows only long and short (no label, no peak); the sparkline's end dots are smaller and the numbers are set in the label font.
 - 2026-10-05: the Body window shows the Goku card's load chart (rdecaste/MainQuest `loadChart`, 12 weeks: long and short load, unlocked moves' marks, form strip, load ratio row with the engine's bands, recovery row; a pointer reads a day), fed by `power.load` as the engine serves it.
