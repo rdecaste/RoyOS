@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, power, safeText, gameDay, recoveryView, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, power, safeText, gameDay, recoveryView, weatherView, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -50,4 +50,15 @@ test('recovery: the engine\'s /recovery answer, shaped for the board', () => {
   assert.equal(r.last.score, 56); assert.equal(r.last.text, 'Go steady'); assert.equal(r.last.low.sleep, true); assert.equal(r.usual.hrv, 54);
   assert.deepEqual(r.nights.map(n => n.day), ['2026-10-04', '2026-10-05'], 'unmeasured mornings are left out');
   assert.deepEqual(recoveryView({ ok: 0, code: 'bad_token' }), { last: null, usual: {}, nights: [] });
+});
+
+test('weather: Open-Meteo shaped for the tile, the strip starting at the current hour', () => {
+  const time = Array.from({ length: 48 }, (_, i) => '2026-10-0' + (5 + Math.floor(i / 24)) + 'T' + String(i % 24).padStart(2, '0') + ':00');
+  const w = weatherView({
+    current: { temperature_2m: 14.4, apparent_temperature: 12.1, weather_code: 61, is_day: 1, wind_speed_10m: 18.2 },
+    hourly: { time, temperature_2m: time.map((_, i) => 10 + (i % 24) / 2), precipitation_probability: time.map((_, i) => i % 5 * 20), weather_code: time.map(() => 3), is_day: time.map((_, i) => (i % 24 >= 7 && i % 24 < 19 ? 1 : 0)) },
+    daily: { sunrise: ['2026-10-05T07:48'], sunset: ['2026-10-05T19:05'], precipitation_probability_max: [80], temperature_2m_max: [16.2], temperature_2m_min: [9.8] }
+  }, NOW);
+  assert.equal(w.temp, 14.4); assert.equal(w.day, true); assert.equal(w.sunset, '19:05'); assert.equal(w.hi, 16.2); assert.equal(w.rain, 80);
+  assert.equal(w.hours.length, 12); assert.equal(w.hours[0].t, '12:00', '10:00 UTC is 12:00 in Amsterdam'); assert.equal(w.hours[11].t, '23:00'); assert.equal(w.hours[0].temp, 16);
 });

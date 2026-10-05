@@ -4,7 +4,7 @@ The desk screen next to Roy all day (16-inch ASUS ZenScreen, 1920×1080, landsca
 
 ## What is on the screen
 - **Menu bar:** Roy OS menu (this week's world, wallpaper, full screen, refresh, sign out), the mode (morning, day, evening, night), the week's world chip, a "now" pill with Roy's current plan block and a countdown (hover: Steph and the kids), weather, recovery, date and time.
-- **Left:** clock, date, greeting, the focus quest chip; Focus (today's win-if from the journal, open must/can to-dos, quick add); the five main habits as discs (done, due now, late, later by their usual time).
+- **Left:** clock, date, greeting, the focus quest chip; the weather tile (an animated sky for the conditions now: sun or moon, drifting clouds, rain, snow, fog, lightning; the temperature, today's range and wind; the next 12 hours as temperature with a rain-chance bar each; hover for feels-like, sunrise and sunset); Focus (today's win-if from the journal, open must/can to-dos, quick add); the five main habits as discs (done, due now, late, later by their usual time).
 - **Right:** Me today (recovery ring, long and short term load with a 14-day sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (the next three dates from the family calendar; the window lists 30 days).
 - **Bottom:** Your day, three lanes (Roy, Steph, Kids), editable, with today's timed events from the family calendar, Steph's work calendar and Roy's personal calendar as dashed blocks (read only); the dock with one icon per app and the Ask box.
 - Hover shows details; a click opens the app's window (Body, Focus, Main habits, Mood, Commute, From Steph, Coming up, Quest).
@@ -23,7 +23,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 ## Data
 - Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`, and `/recovery` with `QUEST_ENGINE_TOKEN`): the load ratio with its zone and TSB (`power.load_ratio`), the morning's recovery and the last 7 mornings (`/recovery`, the readiness rules), and main habits and their 14-day history (good hits only), the load series (`power.load`, fitness and fatigue times a factor that is read off today's `power.fitness`), today's fitness, fatigue and form state, the week's peak, ki charge, the focus quest.
 - Quest D1, read only: `journal` + `journal_focus` (win-if, must/can), `todos` tagged Steph, `work_location` (today and the year's Belgium share), `workouts` joined with `workout_streams` (this week's sessions with hrTSS, average HR and minutes per zone; Z1 ≤145, Z2 146–162, Z3 163–173, Z4 174–184, Z5 185+). The per-second streams in R2 are not used.
-- Weather: Open-Meteo for home, cached 15 minutes.
+- Weather: Open-Meteo for home (current, hourly for 12 hours, daily range, sunrise and sunset), shaped by `weatherView`, cached 15 minutes.
 - Calendars: the published iCloud feeds in `FAMILY_ICS_URL` (the family calendar: lanes by title words, and Coming up) `STEPH_ICS_URL` (Steph's work shifts: her lane only, as work blocks, never in Coming up) and `ROY_ICS_URL` (Roy's personal calendar: his lane and Coming up), webcal read as https, parsed by `src/calendar.js` (timed and all-day events; DAILY/WEEKLY/MONTHLY/YEARLY rules with INTERVAL, UNTIL, COUNT, BYDAY, BYMONTH, BYMONTHDAY; EXDATE; RECURRENCE-ID overrides; Apple's Europe/Brussels and Europe/Paris stamps read in Amsterdam time). `agenda` gives today's timed events as lane blocks and 30 days of dates. The lane is chosen from words in the title (`LANE_WORDS`, e.g. the children's names → Kids, Steph → Steph); one match picks the lane, none or several means everyone. Cached 10 minutes in the Durable Object; nothing is written to the calendar.
 - The day's edits (ticks, added to-dos, habit ticks, moods, the plan, the commute) are kept per Amsterdam day in the `DeskState` Durable Object. The journal stays the record of the day; nothing is written to D1 from here.
 - Privacy: `safeText` drops any text containing a `DESK_HIDE` word (default `fap,pmo`), so the main quest never shows.
@@ -41,6 +41,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: the weather tile under the clock: an animated sky from the current weather code, the day's range and wind, and the next 12 hours with rain chance; the clock is a touch smaller to make room.
 - 2026-10-05: Roy's personal calendar (third iCloud feed) fills his lane and Coming up.
 - 2026-10-05: Steph's work calendar (second iCloud feed) fills her lane with the day's shifts.
 - 2026-10-05: the family calendar (published iCloud feed) feeds Coming up and the day lanes; the Ask box sees it too.

@@ -303,7 +303,7 @@ const TIPS = {
   steph: () => { const open = stephList().filter(x => !x.done); return '<span class="tt">From Steph</span>' + (open.length ? '<ul>' + open.map(x => '<li>' + esc(x.t) + (x.due ? ' <span class="mut">· ' + esc(x.due) + '</span>' : '') + '</li>').join('') + '</ul>' : 'Nothing open. To-dos tagged Steph in the journal land here.'); },
   dates: () => { const l = COMING().slice(0, 6); return '<span class="tt">Coming up · family calendar</span>' + (l.length ? '<div class="kv">' + l.map(i => '<span>' + esc(daySpan(i)) + '</span><b>' + esc(i.t) + '</b><span class="mut">' + esc(WHO[i.who] === 'Everyone' ? '' : WHO[i.who] || '') + '</span>').join('') + '</div>' : 'Nothing in the next 30 days.') + '<span class="hint">' + (D.calendar ? 'Read from the shared iCloud calendar, refreshed every 10 minutes.' : 'No calendar connected.') + '</span>'; },
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
-  weather: () => { const w = D.weather; return w ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b><br>' + (w.rain != null ? w.rain + '% chance of rain · ' : '') + 'sunset ' + esc(w.sunset) : ''; },
+  weather: () => { const w = D.weather; return w && w.temp != null ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b>' + (w.feels != null ? '<br>Feels like ' + Math.round(w.feels) + '°' : '') + '<div class="kv"><span>Today</span><b>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '–') + '</b><span></span><span>Rain chance</span><b>' + (w.rain != null ? w.rain + '%' : '–') + '</b><span></span><span>Wind</span><b>' + (w.wind != null ? Math.round(w.wind) + ' km/h' : '–') + '</b><span></span><span>Sun</span><b>' + esc(w.sunrise || '–') + ' – ' + esc(w.sunset || '–') + '</b><span></span></div><span class="hint">Open-Meteo for home, every 15 minutes. The strip is the next 12 hours: temperature, and the bar is the chance of rain.</span>' : ''; },
   mode: () => '<span class="tt">Mode</span>' + { morning: 'Morning habits until 10:00.', day: 'Daytime habits until 18:00.', evening: 'Evening habits until 04:00.', night: 'Night. The screen dims until morning.' }[phaseOf(nowMin())],
   habit: el => { const x = D.main[+el.dataset.i], s = habitState(x); return '<span class="tt">Main habit</span><b>' + esc(x.icon + ' ' + x.name) + '</b><br>' + habitLine(x, s) + (x.streak >= 2 ? '<br><span class="mut">🔥 ' + x.streak + '-day streak</span>' : '') + '<span class="hint">Tap to ' + (s.st === 'done' ? 'untick' : 'tick it off') + '</span>'; },
   lastmood: () => { const m = lastMood(); return m ? '<span class="tt">Last logged · ' + hhmm(m.at) + '</span><b>' + FEEL[m.m - 1] + '</b>' + (m.note ? '<br>' + esc(m.note) : '') : 'No mood logged yet today'; },
@@ -445,6 +445,32 @@ function renderClock() {
   $('trTime').innerHTML = esc(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(t))) + '<b>' + hm(t) + '</b>';
   $('mode').textContent = { morning: 'Morning', day: 'Day', evening: 'Evening', night: 'Night' }[ph];
 }
+// ---- The weather tile: an animated sky for the conditions now, and the next 12 hours ----
+const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
+const WX_NAME = { none: '', clear: 'Clear', cloud: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', snow: 'Snow', thunder: 'Thunder' };
+function skyHtml(kind, day, code) {
+  const clouds = n => Array.from({ length: n }, (_, i) => '<i class="cl c' + (i + 1) + '"></i>').join('');
+  let s = day ? '<i class="sun"></i>' : '<i class="moon"></i><i class="stars"></i>';
+  if (kind === 'clear') s += code === 1 ? clouds(1) : '';
+  else if (kind === 'cloud') s += clouds(code === 2 ? 2 : 3);
+  else if (kind === 'fog') s += clouds(2) + '<i class="fog"></i><i class="fog f2"></i>';
+  else if (kind === 'drizzle') s += clouds(3) + '<i class="rain light"></i>';
+  else if (kind === 'rain') s += clouds(3) + '<i class="rain' + (code === 65 || code === 82 ? ' heavy' : '') + '"></i>';
+  else if (kind === 'snow') s += clouds(3) + '<i class="snow"></i>';
+  else if (kind === 'thunder') s += clouds(3) + '<i class="rain"></i><i class="flash"></i>';
+  return s;
+}
+function renderWeather() {
+  const w = D.weather, el = $('wWx'); if (!el) return;
+  if (!w || w.temp == null) { el.hidden = true; return; }
+  el.hidden = false;
+  const kind = WX_KIND(w.code), sky = $('wxSky');
+  sky.className = 'wx-sky ' + kind + (w.day ? ' day' : ' night'); sky.innerHTML = skyHtml(kind, w.day, w.code);
+  $('wxTemp').textContent = Math.round(w.temp) + '°';
+  $('wxTxt').innerHTML = '<b>' + esc(WMO[w.code] || WX_NAME[kind] || '') + '</b><span>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '') + (w.wind != null ? ' · ' + Math.round(w.wind) + ' km/h' : '') + '</span>';
+  const hs = w.hours || [], wet = hs.some(h => h.pop != null && h.pop >= 30);
+  $('wxHours').innerHTML = hs.map((h, i) => '<span class="h ' + WX_KIND(h.code) + (h.day ? '' : ' n') + '" title="' + h.t + ' · ' + Math.round(h.temp) + '° · ' + (h.pop != null ? h.pop + '% rain · ' : '') + esc(WMO[h.code] || '') + '"><span class="ht">' + Math.round(h.temp) + '°</span><span class="hw"><i class="hb" style="--p:' + (h.pop || 0) + '"></i></span><span class="hh">' + (i % 3 ? '' : h.t.slice(0, 2)) + '</span></span>').join('') + (wet ? '' : '<span class="dry">Dry for the next 12 hours</span>');
+}
 function renderTray() {
   const w = D.weather, r = R();
   $('trWeather').innerHTML = w ? icon(w.code <= 1 ? 'sun' : 'cloud') + Math.round(w.temp) + '°' : '';
@@ -513,7 +539,7 @@ function renderDay() {
 }
 function renderApps() { $('apps').innerHTML = APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
 function renderDockState() { qa('.app').forEach(a => a.classList.toggle('open', !!WIN && WIN.key === a.dataset.open)); }
-function renderAll() { renderClock(); renderTray(); renderIsland(); renderQuest(); renderFocusW(); renderHabitsW(); renderMe(); renderMinis(); renderDay(); renderDockState(); }
+function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderHabitsW(); renderMe(); renderMinis(); renderDay(); renderDockState(); }
 
 // ---- Windows ----
 const sec = (id, hl, html) => '<div class="sec' + (hl === id ? ' hl' : '') + '">' + html + '</div>';

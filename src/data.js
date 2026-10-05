@@ -123,14 +123,27 @@ export async function trainingWeek(env, day) {
 }
 
 // ---- Weather for home, cached 15 minutes ----
-export async function weather(env, s) {
-  const key = 'weather';
+// Open-Meteo's answer shaped for the tile: now, the day's range, sunrise and sunset, and the next 12 hours.
+export function weatherView(w, now = Date.now()) {
+  const c = w.current || {}, d = w.daily || {}, h = w.hourly || {};
+  const at = (k, i = 0) => (Array.isArray(d[k]) ? d[k][i] : null);
+  const stamp = ymd(now) + 'T' + hhmm(now).slice(0, 2) + ':00';
+  const times = Array.isArray(h.time) ? h.time : [];
+  let i0 = times.findIndex(t => t >= stamp); if (i0 < 0) i0 = 0;
+  const hours = times.slice(i0, i0 + 12).map((t, j) => ({ t: t.slice(11, 16), temp: Math.round((h.temperature_2m || [])[i0 + j]), pop: (h.precipitation_probability || [])[i0 + j] ?? null, code: (h.weather_code || [])[i0 + j] ?? null, day: (h.is_day || [])[i0 + j] !== 0 }));
+  return {
+    temp: c.temperature_2m ?? null, feels: c.apparent_temperature ?? null, code: c.weather_code ?? null, day: c.is_day !== 0, wind: c.wind_speed_10m ?? null,
+    hi: at('temperature_2m_max'), lo: at('temperature_2m_min'), rain: at('precipitation_probability_max'),
+    sunrise: String(at('sunrise') || '').slice(11, 16), sunset: String(at('sunset') || '').slice(11, 16), hours
+  };
+}
+export async function weather(env, s, now = Date.now()) {
+  const key = 'weather:v2';
   const hit = await s.cached(key);
   if (hit) return hit;
   try {
-    const u = `https://api.open-meteo.com/v1/forecast?latitude=${env.WEATHER_LAT || '51.286'}&longitude=${env.WEATHER_LON || '3.828'}&current=temperature_2m,weather_code&daily=sunset,precipitation_probability_max&timezone=Europe%2FAmsterdam&forecast_days=1`;
-    const w = await (await fetch(u)).json();
-    const out = { temp: w.current && w.current.temperature_2m, code: w.current && w.current.weather_code, sunset: ((w.daily && w.daily.sunset || [])[0] || '').slice(11, 16), rain: (w.daily && w.daily.precipitation_probability_max || [])[0] };
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${env.WEATHER_LAT || '51.286'}&longitude=${env.WEATHER_LON || '3.828'}&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=sunrise,sunset,precipitation_probability_max,temperature_2m_max,temperature_2m_min&timezone=Europe%2FAmsterdam&forecast_days=2`;
+    const out = weatherView(await (await fetch(u)).json(), now);
     await s.remember(key, out, 15 * 60e3);
     return out;
   } catch (_) { return null; }
@@ -184,7 +197,7 @@ export async function board(env, s, now = Date.now()) {
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
-    safe('weather', weather(env, s), null), s.day(day), safe('calendar', calendar(env, s, now), null)
+    safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
   const P = power(mq, hero, focusQuest);
