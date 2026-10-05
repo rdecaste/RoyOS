@@ -30,6 +30,7 @@ test('pick: seeded by the week, the same every time, different across weeks', ()
   assert.ok(new Set(weeks).size > 1, 'the rotation uses more than one franchise');
   assert.ok(a.prompts.still.includes(a.scene) && a.prompts.still.includes(a.character));
   assert.ok(a.prompts.clip.includes('locked camera') && a.prompts.clip.includes('first and final frames must match'));
+  assert.ok(!a.prompts.clip.includes(a.character), 'the clip prompt never names the character (Veo refuses names)');
   assert.equal(a.palette, PALETTES[a.franchise]);
 });
 

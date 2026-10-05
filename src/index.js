@@ -61,12 +61,17 @@ export async function ensureTheme(env, s, { week = themeWeek(), force = false } 
   const row = await s.theme(week);
   if (row && row.status === 'running' && !force) return { ok: 1, status: 'running', week };
   if (row && row.status === 'ready' && !force) return { ok: 1, status: 'ready', week };
-  if (row) await s.resetTheme(week);
   const catalogue = await loadCatalogue(env.DB);
   if (!catalogue.length) throw new Error('No franchises with scenes and characters in the catalogue');
   const pick = pickTheme(catalogue, week);
   const run = await env.DESK_THEME.create({ params: { week } });
-  await s.startTheme(pick, run.id);
+  if (row && row.still_public_id && row.franchise === pick.franchise && row.character === pick.character) {
+    // The same pick with a still already made: only the clip is redone, with the current prompt.
+    await s.updateTheme(week, { status: 'running', error: null, prompts: JSON.stringify(pick.prompts), workflow_id: run.id, started_at: new Date().toISOString(), finished_at: null });
+  } else {
+    if (row) await s.resetTheme(week);
+    await s.startTheme(pick, run.id);
+  }
   return { ok: 1, status: 'started', week, workflow: run.id, pick: { franchise: pick.franchise, scene: pick.scene, character: pick.character } };
 }
 

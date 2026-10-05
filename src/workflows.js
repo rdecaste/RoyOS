@@ -15,13 +15,14 @@ export class DeskTheme extends WorkflowEntrypoint {
       const theme = await step.do('load pick', CHEAP, async () => {
         const t = await s.theme(week);
         if (!t) throw new Error(`No pick stored for ${week}`);
-        return { prompts: t.prompts, character_id: t.character_id };
+        // A retry after a failed clip keeps the still it already paid for.
+        return { prompts: t.prompts, character_id: t.character_id, still: t.still_public_id ? { public_id: t.still_public_id, version: t.still_version } : null };
       });
       const avatar = await step.do('avatar url', CHEAP, async () => {
         const row = await this.env.DB.prepare('SELECT avatar_url FROM characters WHERE id = ?').bind(theme.character_id).first();
         return (row && row.avatar_url) || null;
       });
-      const still = await step.do('still', ONCE_PAID, async () => {
+      const still = theme.still || await step.do('still', ONCE_PAID, async () => {
         const image = await generateStill(this.env, theme.prompts.still, avatar ? [avatar] : []);
         return cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/${week}-still`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
       });

@@ -86,7 +86,7 @@ export function pickTheme(catalogue, week) {
   return {
     week, franchise: f.name, scene: scene.scene_name, character: character.character_name, character_id: character.id,
     look: scene.canonical_elements, palette: PALETTES[f.name] || DEFAULT_PALETTE,
-    prompts: { still: stillPrompt(scene, character), clip: clipPrompt(character) }, avatar_url: character.avatar_url || null
+    prompts: { still: stillPrompt(scene, character), clip: clipPrompt() }, avatar_url: character.avatar_url || null
   };
 }
 
@@ -105,11 +105,13 @@ export function stillPrompt(scene, character) {
 
 // The clip follows the quest engine's living-wallpaper rules (locked camera, every motion
 // returns to its start, no cuts or new elements), with one change: the character may wander.
-export function clipPrompt(character) {
+// The clip never names the character: Veo's filter reads a name as a real person and refuses
+// (5 Oct 2026, "we can't create videos with real people's names"). The still carries the likeness.
+export function clipPrompt() {
   return [
-    'Use the supplied image as the exact first frame and preserve its character identity, outfit, materials, lighting, composition and its semi-realistic anime rendering; do not make it photorealistic.',
+    'Use the supplied image as the exact first frame and preserve the character exactly as drawn there: identity, outfit, materials, lighting, composition and the semi-realistic anime rendering; do not make it photorealistic.',
     'Create a short seamless looping living wallpaper for a desk dashboard with a completely locked camera. No zoom, pan, tilt, dolly, shake or reframing.',
-    `MOTION: ${character.character_name} is part of the scene, not posing. They amble a few steps in a small loop around their starting spot, glance at something in the scene, turn and wander back, so that by the final frame they are in exactly the starting position and pose, facing the same way as in the first frame. Hair and cloth move naturally. The environment moves gently: light flickers, haze or particles drift, small things sway. No new objects or people, no flashes, cuts or transitions.`,
+    'MOTION: the character is part of the scene, not posing. They amble a few steps in a small loop around their starting spot, glance at something in the scene, turn and wander back, so that by the final frame they are in exactly the starting position and pose, facing the same way as in the first frame. Hair and cloth move naturally. The environment moves gently: light flickers, haze or particles drift, small things sway. No new objects or people, no flashes, cuts or transitions.',
     'LOOP: every animated element returns to its exact starting state by the final frame; the first and final frames must match so the clip loops without a visible seam.',
     'COMPOSITION: keep the left third dark and calm for dashboard overlays, keep the character inside the middle third. Landscape 16:9. Silent: no dialogue, music or sound effects.'
   ].join('\n\n');
