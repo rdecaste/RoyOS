@@ -83,7 +83,7 @@ async function geminiStill(env, model, prompt, referenceUrls) {
 
 // ---- The clip: Gemini omni (the quest engine's video model, Interactions API) or Veo, by VIDEO_MODEL ----
 export async function generateClip(env, stillUrl, prompt) {
-  const model = env.VIDEO_MODEL || 'gemini-omni-flash-preview';
+  const model = env.VIDEO_MODEL || 'veo-3.1-generate-preview';
   return /^veo/.test(model) ? veoClip(env, model, stillUrl, prompt) : omniClip(env, model, stillUrl, prompt);
 }
 

@@ -81,7 +81,8 @@ export async function journalDay(env, day) {
     win_if: j ? safeText(env, j.win_if) : '', must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
     mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
     steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
-    work: work ? { am: work.am, pm: work.pm, commute: work.commute } : null, border: { be, nl }
+    // A row with empty fields (the day not filled in yet) counts as no row.
+    work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl }
   };
 }
 
