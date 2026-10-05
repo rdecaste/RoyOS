@@ -160,12 +160,11 @@ function loadSvg(H, grid, days) {
   const line = k => Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d[k]).toFixed(1)).join(' ');
   const band = Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d.cl * 1.1).toFixed(1)).join(' ') + ' ' + Ld.slice().reverse().map((d, i) => 'L' + x(n - 1 - i).toFixed(1) + ' ' + y(d.cl * .9).toFixed(1)).join(' ') + 'Z';
   const lines = grid ? [7, 14, 21].filter(k => k < n).map(k => '<line x1="' + x(n - 1 - k) + '" x2="' + x(n - 1 - k) + '" y1="0" y2="' + H + '" stroke="rgba(238,243,255,.08)" stroke-width="1" vector-effect="non-scaling-stroke"/>').join('') : '';
-  const px = i => (x(i) / W * 100) + '%', py = v => (y(v) / H * 100) + '%', last = Ld[n - 1], Pk = F().peak;
+  const px = i => (x(i) / W * 100) + '%', py = v => (y(v) / H * 100) + '%', last = Ld[n - 1];
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' + lines + '<path d="' + band + '" fill="rgba(63,216,232,.16)"/>' +
     '<path d="' + line('al') + '" fill="none" stroke="#a28bff" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
     '<path d="' + line('cl') + '" fill="none" stroke="#3fd8e8" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
   s += '<span class="pt" style="--c:#a28bff;left:' + px(n - 1) + ';top:' + py(last.al) + '"></span><span class="pt" style="--c:#3fd8e8;left:' + px(n - 1) + ';top:' + py(last.cl) + '"></span>';
-  if (Pk && Pk.i - off >= 0) s += '<span class="pt peak" style="left:' + px(Pk.i - off) + ';top:' + py(Pk.al) + '"></span>';
   return s + '<i class="xh"></i>';
 }
 function loadTip(i) {
@@ -477,8 +476,7 @@ function renderHabitsW() {
 function renderMe() {
   const r = R(), lm = lastMood(), b = border(), k = F().ki;
   $('cRec').innerHTML = '<div class="cl">Recovery</div>' + (r ? '<div class="rec"><div class="ring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"><b>' + r.score + '%</b></div><div class="recw" style="--c:' + recColor(r.score) + '"><b>' + REC_LABEL[r.verdict][0] + '</b><span>' + REC_LABEL[r.verdict][1] + '</span></div></div>' : '<div class="say">No night synced yet.</div>');
-  const Pk = F().peak;
-  $('cLoad').innerHTML = '<div class="cl"><span>Load</span>' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span>' + (Pk ? '<span title="7-day peak"><b class="st-c">↑' + Math.round(Pk.al) + '</b> ' + wdShort(Pk.date) + '</span>' : '') + '</span>' : '') + '</div><div class="spark" data-chart="load" data-days="14">' + loadSvg(100, false, 14) + '</div>';
+  $('cLoad').innerHTML = '<div class="cl">' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span></span>' : '<span>Load</span>') + '</div><div class="spark" data-chart="load" data-days="14">' + loadSvg(100, false, 14) + '</div>';
   const R2 = RATIO();
   $('cRatio').innerHTML = '<div class="cl">Load ratio' + (R2 ? '<b style="color:' + ZC[R2.zone] + '">' + esc(R2.zone) + '</b>' : '') + '</div>' + (R2 ? ratioBar() : '<div class="say">Waiting for the quest engine.</div>');
   $('cKi').innerHTML = '<div class="cl">Ki charge' + (k ? '<b>' + k.level + ' of ' + k.peak + '</b>' : '') + '</div>' + (k ? pips(k) : '');

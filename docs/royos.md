@@ -5,7 +5,7 @@ The desk screen next to Roy all day (16-inch ASUS ZenScreen, 1920×1080, landsca
 ## What is on the screen
 - **Menu bar:** Roy OS menu (this week's world, wallpaper, full screen, refresh, sign out), the mode (morning, day, evening, night), the week's world chip, a "now" pill with Roy's current plan block and a countdown (hover: Steph and the kids), weather, recovery, date and time.
 - **Left:** clock, date, greeting, the focus quest chip; Focus (today's win-if from the journal, open must/can to-dos, quick add); the five main habits as discs (done, due now, late, later by their usual time).
-- **Right:** Me today (recovery ring, long vs short term load sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (placeholder until a calendar is connected).
+- **Right:** Me today (recovery ring, long and short term load with a 14-day sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (placeholder until a calendar is connected).
 - **Bottom:** Your day, three lanes (Roy, Steph, Kids), editable; the dock with one icon per app and the Ask box.
 - Hover shows details; a click opens the app's window (Body, Focus, Main habits, Mood, Commute, From Steph, Coming up, Quest).
 - The clip loops through a one-second crossfade (two copies take turns), so the seam never jumps.
@@ -40,6 +40,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-05: the Load cell shows only long and short (no label, no peak); the sparkline's end dots are smaller and the numbers are set in the label font.
 - 2026-10-05: the Body window shows the Goku card's load chart (rdecaste/MainQuest `loadChart`, 12 weeks: long and short load, unlocked moves' marks, form strip, load ratio row with the engine's bands, recovery row; a pointer reads a day), fed by `power.load` as the engine serves it.
 - 2026-10-05: recovery and the load ratio come from the quest engine (`/recovery`, `power.load_ratio`); the desk no longer judges nights or picks bands itself.
 - 2026-10-05: the Load cell shows the 7-day peak (e.g. ↑38 Sun) and a 14-day sparkline with a tight y axis; the Body chart keeps 4 weeks.

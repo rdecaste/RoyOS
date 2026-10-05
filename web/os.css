@@ -201,7 +201,8 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .cell:hover { background: var(--well-hover); }
 .cl { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: .9rem; font: 600 .6rem/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
 .cl b { font: 700 .76rem/1 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--fg); }
-.cl .pair { display: inline-flex; gap: .45rem; }
+.cl .pair { display: inline-flex; gap: .6rem; }
+.cl .pair b { font: 700 .68rem/1 var(--f-sys); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .lt-c { color: var(--long) !important; } .st-c { color: var(--short) !important; }
 .rec { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .65rem; align-items: center; margin-top: .45rem; }
 .ring { --p: 0; --c: var(--warn); position: relative; width: 3.6rem; height: 3.6rem; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, .1) 0); }
@@ -213,8 +214,7 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .spark { position: relative; height: 3.6rem; margin-top: .4rem; cursor: crosshair; }
 .spark svg, .chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .xh { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: rgba(255, 255, 255, .55); opacity: 0; pointer-events: none; transition: opacity .12s; }
-.pt { position: absolute; width: .5rem; height: .5rem; border-radius: 50%; transform: translate(-50%, -50%); background: var(--ring-hole); box-shadow: 0 0 0 2px var(--c), 0 0 .5rem var(--c); pointer-events: none; }
-.pt.peak { --c: var(--short); width: .6rem; height: .6rem; background: var(--short); box-shadow: 0 0 0 2px #fff, 0 0 .7rem var(--short); }
+.pt { position: absolute; width: .3rem; height: .3rem; border-radius: 50%; transform: translate(-50%, -50%); background: var(--c); box-shadow: 0 0 0 1.5px var(--ring-hole), 0 0 .35rem var(--c); pointer-events: none; }
 .ratiobar { position: relative; height: .55rem; margin: .7rem .25rem .25rem; border-radius: 99px; background: linear-gradient(90deg, #2f7fe0 0%, #26a69a 20%, #3ddc84 40%, #a6c63a 55%, #ff9a2e 70%, #ff5a3c 85%, #ef3b3b 100%); }
 .ratiobar .tk { position: absolute; top: -.25rem; bottom: -.25rem; width: 1px; background: rgba(255, 255, 255, .45); }
 .ratiobar .pill { position: absolute; top: 50%; transform: translate(-50%, -50%); padding: .05rem .5rem; border-radius: 99px; box-shadow: 0 0 0 2px var(--ring-hole); font: 800 .76rem/1.2 var(--f-display); color: var(--on-light); }
