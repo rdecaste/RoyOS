@@ -89,6 +89,12 @@ test('agenda: today\'s timed blocks on a lane, and the coming days', () => {
   assert.equal(a.upcoming[0].t, 'Fysio, Steph', 'sorted by time');
 });
 
+test('agenda: a personal calendar is pinned to one lane with its own block style', () => {
+  const a = agenda(parseIcs(ICS), NOW, { days: 30, lane: 'steph', kind: 'work', icon: '💼' });
+  assert.deepEqual(a.today_timed.map(({ who, k, ic }) => ({ who, k, ic })), [{ who: 'steph', k: 'work', ic: '💼' }]);
+  assert.ok(a.upcoming.every(i => i.who === 'steph'));
+});
+
 test('lanes: one name picks the lane, none or two means everyone; accents and case do not matter', () => {
   assert.equal(laneOf('Michelle turnles', WORDS), 'kids');
   assert.equal(laneOf('Raphaël naar oma', WORDS), 'kids');

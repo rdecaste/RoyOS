@@ -163,13 +163,14 @@ export function laneOf(title, words) {
 }
 
 // ---- The view: today's lane blocks and the coming days ----
-export function agenda(events, now, { days = 30, words = laneWords() } = {}) {
+// `lane` fixes every event to one lane (a personal calendar); `kind` and `icon` style its blocks.
+export function agenda(events, now, { days = 30, words = laneWords(), lane = null, kind = 'fam', icon = '📅' } = {}) {
   const today = ymdOf(now), from = zoned(+today.slice(0, 4), +today.slice(5, 7), +today.slice(8, 10)), to = from + days * DAY;
   const list = occurrences(events, from, to);
   const items = list.map(o => {
     const day = o.allDay ? ymdFromDayMs(o.ms) : ymdOf(o.ms), endDay = o.allDay ? ymdFromDayMs(o.end - 1) : ymdOf(o.end - 1);
-    return { id: 'cal:' + o.uid + ':' + o.ms, t: o.title, who: laneOf(o.title, words), day, end_day: endDay > day ? endDay : null, all_day: o.allDay, from: o.allDay ? null : hhmmOf(o.ms), to: o.allDay ? null : hhmmOf(o.end), ms: o.ms };
+    return { id: 'cal:' + o.uid + ':' + o.ms, t: o.title, who: lane || laneOf(o.title, words), day, end_day: endDay > day ? endDay : null, all_day: o.allDay, from: o.allDay ? null : hhmmOf(o.ms), to: o.allDay ? null : hhmmOf(o.end), ms: o.ms };
   });
-  const todayTimed = items.filter(i => !i.all_day && i.day === today).map(i => ({ id: i.id, who: i.who, k: 'fam', ic: '📅', from: i.from, to: i.end_day ? '23:59' : i.to, t: i.t, cal: true }));
+  const todayTimed = items.filter(i => !i.all_day && i.day === today).map(i => ({ id: i.id, who: i.who, k: kind, ic: icon, from: i.from, to: i.end_day ? '23:59' : i.to, t: i.t, cal: true }));
   return { today, today_timed: todayTimed, upcoming: items.map(({ ms, ...rest }) => rest) };
 }

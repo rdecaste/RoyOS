@@ -136,15 +136,28 @@ export async function weather(env, s) {
   } catch (_) { return null; }
 }
 
-// ---- The family calendar (published iCloud feed), cached 10 minutes ----
+// ---- The calendars (published iCloud feeds), cached 10 minutes ----
+// The family calendar fills the lanes by the words in each title and Coming up; Steph's
+// work calendar fills her lane only (daily shifts would drown Coming up).
+const feeds = env => [
+  { key: 'family', url: env.FAMILY_ICS_URL, coming: true, opts: { words: laneWords(env.LANE_WORDS) } },
+  { key: 'steph', url: env.STEPH_ICS_URL, coming: false, opts: { lane: 'steph', kind: 'work', icon: '💼' } }
+].filter(f => f.url);
+async function feed(f, now) {
+  const res = await fetch(String(f.url).replace(/^webcal:/i, 'https:'), { headers: { accept: 'text/calendar' } });
+  if (!res.ok) throw new Error(f.key + ' feed ' + res.status);
+  return agenda(parseIcs(await res.text()), now, { days: 30, ...f.opts });
+}
 export async function calendar(env, s, now = Date.now()) {
-  if (!env.FAMILY_ICS_URL) return null;
-  const key = 'calendar', hit = await s.cached(key);
+  const list = feeds(env); if (!list.length) return null;
+  const key = 'calendar:' + list.map(f => f.key).join('+'), hit = await s.cached(key);
   if (hit && hit.today === ymd(now)) return hit;
-  const url = String(env.FAMILY_ICS_URL).replace(/^webcal:/i, 'https:');
-  const res = await fetch(url, { headers: { accept: 'text/calendar' } });
-  if (!res.ok) throw new Error('calendar feed ' + res.status);
-  const out = agenda(parseIcs(await res.text()), now, { days: 30, words: laneWords(env.LANE_WORDS) });
+  const got = await Promise.allSettled(list.map(f => feed(f, now)));
+  const errors = got.map((g, i) => g.status === 'rejected' ? list[i].key + ': ' + g.reason.message : null).filter(Boolean);
+  if (errors.length === list.length) throw new Error(errors.join('; '));
+  const out = { today: ymd(now), today_timed: [], upcoming: [], feeds: list.map(f => f.key), errors };
+  got.forEach((g, i) => { if (g.status !== 'fulfilled') return; out.today_timed.push(...g.value.today_timed); if (list[i].coming) out.upcoming.push(...g.value.upcoming); });
+  out.today_timed.sort((a, b) => a.from.localeCompare(b.from));
   await s.remember(key, out, 10 * 60e3);
   return out;
 }
