@@ -27,8 +27,10 @@ export function safeText(env, text) {
 // ---- The quest engine, over the service binding (fetch as a fallback in dev) ----
 async function engine(env, path, { admin = false } = {}) {
   if (admin && !env.QUEST_ENGINE_TOKEN) throw new Error('QUEST_ENGINE_TOKEN is not set');
-  const request = new Request(`${env.QUEST_ENGINE_URL}${path}`, { headers: { Accept: 'application/json', ...(admin ? { 'X-Admin-Token': env.QUEST_ENGINE_TOKEN } : {}) } });
-  const r = await (env.QUEST_ENGINE ? env.QUEST_ENGINE.fetch(request) : fetch(request));
+  const make = () => new Request(`${env.QUEST_ENGINE_URL}${path}`, { headers: { Accept: 'application/json', ...(admin ? { 'X-Admin-Token': env.QUEST_ENGINE_TOKEN } : {}) } });
+  let r = await (env.QUEST_ENGINE ? env.QUEST_ENGINE.fetch(make()) : fetch(make()));
+  // The public routes are also reachable over the open internet (local dev has no binding to the real engine).
+  if (!r.ok && !admin && env.QUEST_ENGINE) r = await fetch(make());
   if (!r.ok) throw new Error(`quest-engine${path} answered ${r.status}`);
   return r.json();
 }
@@ -50,7 +52,7 @@ export function power(mq, hero, quest) {
   const Pw = mq && mq.power, L = Pw && Pw.load;
   const now = Pw ? { fitness: Pw.fitness, fatigue: Pw.fatigue, form_state: Pw.form_state || null, power_level: Pw.power_level } : null;
   const ratio = Pw && Pw.load_ratio ? Pw.load_ratio : null;
-  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null, now, ratio };
+  if (!L || !L.long || !L.long.length) return { clal: [], peak: null, ki: null, now, ratio, load: null, moves: [] };
   const n = L.long.length, from = Date.parse(L.from + 'T12:00:00Z');
   const scale = now && now.fitness > 0 && L.long[n - 1] > 0 ? L.long[n - 1] / now.fitness : 100;
   const clal = L.long.slice(-28).map((l, i) => { const k = n - 28 + i; return { date: ymd(from + k * DAY), cl: l / scale, al: L.short[k] / scale }; });
@@ -66,7 +68,10 @@ export function power(mq, hero, quest) {
     peak = { i: bi - (n - 28), date, al: L.short[bi] / scale, cl: L.long[bi] / scale, what };
   }
   const K = Pw.ki || {};
-  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus }, now, ratio };
+  // The Goku card's load chart, as the engine serves it (84 days: long, short, form, ratio, recovery), with only the unlocked moves' marks.
+  const load = { from: L.from, long: L.long, short: L.short, form: L.form || [], ratio: L.ratio || null, ratio_bands: L.ratio_bands || null, recovery: L.recovery || null };
+  const moves = (Pw.moves || []).filter(m => m && m.name && m.state !== 'locked').map(m => ({ name: m.name, power: m.power, state: m.state }));
+  return { clal, peak, ki: { level: K.level || 0, peak: K.peak || 5, heal_cap: K.heal_cap, recovery_bonus: K.recovery_bonus }, now, ratio, load, moves };
 }
 
 // ---- Journal and health from the quest D1 (read only) ----
@@ -159,7 +164,7 @@ export async function board(env, s, now = Date.now()) {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
     main: mainHabits(boss, hero, now),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
-    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, week },
+    journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
     weather: wx, edits, undo: !!(dayState && dayState.undo)
   };
 }

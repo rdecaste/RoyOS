@@ -496,3 +496,28 @@ body[data-phase="night"]:not(.awake) .lock { display: grid; }
 .signin h1 { margin: 0; font: 800 1.6rem/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
 .signin p { margin: 0; color: var(--dim); font-size: .9rem; }
 .stale { color: var(--warn); }
+
+/* The Goku card's load chart (rdecaste/MainQuest, Scouter tab), in the Body window */
+.ld-legend { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .74rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.ld-legend i { display: inline-block; width: .7rem; height: .25rem; border-radius: 2px; margin-right: .35rem; vertical-align: .18rem; }
+.ld-wrap { position: relative; margin-top: .4rem; touch-action: none; cursor: crosshair; }
+.ld-chart { display: block; width: 100%; height: 8rem; overflow: visible; }
+.ld-strip { display: flex; height: .35rem; border-radius: 3px; overflow: hidden; margin-top: .25rem; }
+.ld-strip span { flex: 1; }
+.ld-x { position: relative; height: .9rem; margin-top: .2rem; font: 500 .62rem/1 var(--f-sys); color: var(--faint); }
+.ld-x span { position: absolute; transform: translateX(-50%); }
+.ld-tip { position: absolute; top: -.4rem; z-index: 2; padding: .4rem .55rem; border-radius: .55rem; background: rgba(6, 10, 20, .95); border: 1px solid var(--edge-hi); font-size: .74rem; line-height: 1.45; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+.ld-tip .f { color: var(--long); } .ld-tip .a { color: var(--short); } .ld-tip .r { color: #cfe3ff; }
+.ld-row { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-top: .55rem; font: 600 .6rem/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.ld-row b { font: 700 .78rem/1 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--fg); font-variant-numeric: tabular-nums; }
+.ld-ratio { display: block; width: 100%; height: 3.2rem; margin-top: .2rem; overflow: visible; }
+.ld-rec { display: flex; gap: 1px; height: .5rem; margin-top: .2rem; }
+.ld-rec span { flex: 1; border-radius: 1px; }
+.rc-good { background: #3ddc84; } .rc-steady { background: #ffd65c; } .rc-easy { background: #ff5f5f; } .rc-none { background: rgba(255, 255, 255, .08); }
+.ld-cursor { position: absolute; top: 0; bottom: .9rem; width: 1px; background: rgba(255, 255, 255, .5); pointer-events: none; }
+.form-chip { display: inline-block; padding: .1rem .45rem; border-radius: 99px; font: 800 .6rem/1.4 var(--f-sys); letter-spacing: .06em; text-transform: uppercase; }
+.fs-Rusty { background: #5b6472; } .fs-Steady { background: #3ddc84; } .fs-Building { background: #ffd65c; } .fs-Overreaching { background: #ff5f5f; }
+.form-chip.fs-Rusty { background: rgba(91, 100, 114, .35); color: #c9d1dc; } .form-chip.fs-Steady { background: rgba(61, 220, 132, .18); color: #7dffb0; }
+.form-chip.fs-Building { background: rgba(255, 214, 92, .2); color: #ffd65c; } .form-chip.fs-Overreaching { background: rgba(255, 95, 95, .2); color: #ff9f9f; }
+.form-chip.rc-good { background: rgba(61, 220, 132, .18); color: #7dffb0; } .form-chip.rc-steady { background: rgba(255, 214, 92, .2); color: #ffd65c; }
+.form-chip.rc-easy { background: rgba(255, 95, 95, .2); color: #ff9f9f; } .form-chip.rc-none { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .6); }

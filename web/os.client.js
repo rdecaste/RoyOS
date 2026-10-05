@@ -196,6 +196,96 @@ const R_LABELS = '<div class="rlabels">' + [['Low', 10, '#3f8fe8'], ['Optimal', 
 const pips = k => '<div class="pips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</div>';
 const todoBtn = (x, g, cls) => '<button type="button" class="todo' + (x.done ? ' done' : '') + (x.added ? ' new' : '') + (cls ? ' ' + cls : '') + '" data-act="todo" data-g="' + g + '" data-t="' + esc(x.t) + '" role="checkbox" aria-checked="' + !!x.done + '"><span class="chk"></span><span class="tx">' + esc(x.t) + '</span>' + (x.due && !x.done ? '<em>' + esc(x.due) + '</em>' : '<span></span>') + '</button>';
 
+// ---- The Goku card's load chart (rdecaste/MainQuest index.html, loadChart), the same widget here ----
+// 84 days of long-term load (fitness, the power level) and short-term load (fatigue), the
+// unlocked moves' marks, a strip with each day's form, the load ratio with the engine's bands,
+// and each morning's recovery. A pointer on it reads a day across all rows.
+const LD_W = 246, LD_H = 150, LD_RH = 58, WD3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const REC_TEXT = { good: 'Good to go', steady: 'Go steady', easy: 'Take it easy' };
+const fmtNum = n => Math.round(Number(n) || 0).toLocaleString('en-GB');
+const RATIO_ZONE = (r, b) => (r === null || r === undefined ? null : r < b.low ? 'Low' : r <= b.optimal ? 'Optimal' : r <= b.high ? 'High' : 'Risk');
+function loadChart(load, moves) {
+  const long = load.long.map(Number), short = load.short.map(Number), n = long.length;
+  const marks = (moves || []).filter(m => m.name && m.state !== 'locked').map(m => ({ p: Number(m.power), n: m.name })).filter(m => m.p > 0);
+  const yMax = Math.max(1, ...long, ...short) * 1.05;
+  const x = i => (i / Math.max(1, n - 1)) * LD_W;
+  const y = v => 8 + (1 - v / yMax) * (LD_H - 12);
+  const path = vals => vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  let prevY = null, right = false;
+  const lines = marks.filter(m => m.p <= yMax).sort((a, b) => a.p - b.p).map(m => {
+    const my = y(m.p);
+    right = prevY !== null && Math.abs(prevY - my) < 18 ? !right : false;
+    prevY = my;
+    return '<line x1="0" x2="' + LD_W + '" y1="' + my + '" y2="' + my + '" stroke="rgba(255,214,92,.55)" stroke-dasharray="3 4" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
+      '<text x="' + (right ? LD_W - 2 : 2) + '" y="' + (my - 3) + '" text-anchor="' + (right ? 'end' : 'start') + '" font-size="8" font-weight="800" fill="rgba(255,214,92,.8)">' + esc(m.n) + ' · ' + esc(fmtNum(m.p)) + '</text>';
+  }).join('');
+  const start = Date.parse(load.from + 'T12:00:00Z');
+  const dayOf = i => new Date(start + i * 86400000);
+  let months = '';
+  for (let i = 0; i < n; i++) { const d = dayOf(i); if (d.getUTCDate() === 1) months += '<span style="left:' + (i / (n - 1)) * 100 + '%">' + MON[d.getUTCMonth()] + '</span>'; }
+  const ratio = Array.isArray(load.ratio) && load.ratio.length === n ? load.ratio.map(r => (r === null ? null : Number(r))) : null;
+  const rec = Array.isArray(load.recovery) && load.recovery.length === n ? load.recovery : null;
+  const bands = load.ratio_bands || { low: 0.8, optimal: 1.3, high: 1.5 };
+  const ry = r => 2 + (1 - Math.min(2, Math.max(0, r)) / 2) * (LD_RH - 4);
+  let ratioRow = '';
+  if (ratio) {
+    const band = (a, b, c) => '<rect x="0" width="' + LD_W + '" y="' + ry(b) + '" height="' + (ry(a) - ry(b)) + '" fill="' + c + '"/>';
+    let d = '', on = false;
+    ratio.forEach((r, i) => { if (r === null) { on = false; return; } d += (on ? 'L' : 'M') + x(i).toFixed(1) + ' ' + ry(r).toFixed(1); on = true; });
+    const lastR = ratio[n - 1];
+    ratioRow = '<div class="ld-row" data-tip="@ratio"><span>Load ratio · short ÷ long</span><b>' + (lastR === null ? '–' : esc(lastR.toFixed(2)) + ' · ' + esc(RATIO_ZONE(lastR, bands))) + '</b></div>' +
+      '<svg class="ld-ratio" viewBox="0 0 ' + LD_W + ' ' + LD_RH + '" preserveAspectRatio="none" aria-label="Load ratio, last 12 weeks">' +
+      band(bands.low, bands.optimal, 'rgba(61,220,132,.16)') + band(bands.high, 2, 'rgba(255,95,95,.14)') +
+      '<line x1="0" x2="' + LD_W + '" y1="' + ry(1) + '" y2="' + ry(1) + '" stroke="rgba(255,255,255,.12)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>' +
+      '<text x="2" y="' + (ry(bands.optimal) + 8) + '" font-size="7" font-weight="800" fill="rgba(125,255,176,.75)">' + esc(bands.low) + '–' + esc(bands.optimal) + '</text>' +
+      '<text x="2" y="' + (ry(2) + 8) + '" font-size="7" font-weight="800" fill="rgba(255,159,159,.8)">' + esc(bands.high) + '+</text>' +
+      '<path d="' + d + '" fill="none" stroke="#cfe3ff" stroke-width="1.8" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
+      (lastR === null ? '' : '<circle cx="' + x(n - 1) + '" cy="' + ry(lastR) + '" r="2.6" fill="#cfe3ff"/>') +
+      '<circle class="ld-cr" r="3" fill="#cfe3ff" visibility="hidden"/></svg>';
+  }
+  const recRow = rec
+    ? '<div class="ld-row" data-tip="@recovery"><span>Recovery · each morning</span><b>' + (rec[n - 1] ? 'Today ' + esc(REC_TEXT[rec[n - 1]] || rec[n - 1]) : 'No night yet today') + '</b></div>' +
+      '<div class="ld-rec">' + rec.map(r => '<span class="rc-' + (REC_TEXT[r] ? r : 'none') + '"></span>').join('') + '</div>'
+    : '';
+  const html =
+    '<div class="ld-wrap"><svg class="ld-chart" viewBox="0 0 ' + LD_W + ' ' + LD_H + '" preserveAspectRatio="none" aria-label="Long-term and short-term load, last 12 weeks">' + lines +
+    '<path d="' + path(long) + ' L' + LD_W + ' ' + LD_H + ' L0 ' + LD_H + 'Z" fill="rgba(63,216,232,.14)"/>' +
+    '<path d="' + path(short) + '" fill="none" stroke="#a28bff" stroke-width="1.6" stroke-linejoin="round" opacity=".9" vector-effect="non-scaling-stroke"/>' +
+    '<path d="' + path(long) + '" fill="none" stroke="#3fd8e8" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
+    '<circle class="ld-cf" r="3.5" fill="#3fd8e8" visibility="hidden"/><circle class="ld-ca" r="3" fill="#a28bff" visibility="hidden"/></svg>' +
+    '<div class="ld-strip">' + load.form.map(f => '<span class="fs-' + esc(f) + '"></span>').join('') + '</div>' +
+    ratioRow + recRow +
+    '<div class="ld-x">' + months + '</div><div class="ld-cursor" hidden></div><div class="ld-tip" hidden></div></div>';
+  const bind = wrap => {
+    const svg = wrap.querySelector('svg'), tip = wrap.querySelector('.ld-tip'), cur = wrap.querySelector('.ld-cursor'), cr = wrap.querySelector('.ld-cr');
+    const dots = [...svg.querySelectorAll('.ld-cf,.ld-ca')];
+    const show = i => {
+      const cx = x(i), d = dayOf(i);
+      svg.querySelector('.ld-cf').setAttribute('cx', cx); svg.querySelector('.ld-cf').setAttribute('cy', y(long[i]));
+      svg.querySelector('.ld-ca').setAttribute('cx', cx); svg.querySelector('.ld-ca').setAttribute('cy', y(short[i]));
+      dots.forEach(m => m.setAttribute('visibility', 'visible'));
+      const r = ratio ? ratio[i] : null;
+      if (cr) { cr.setAttribute('cx', cx); if (r !== null) cr.setAttribute('cy', ry(r)); cr.setAttribute('visibility', r === null ? 'hidden' : 'visible'); }
+      const rc = rec ? rec[i] : null;
+      tip.innerHTML = WD3[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + MON[d.getUTCMonth()] + '<br><span class="f">Long-term ' + esc(fmtNum(long[i])) + '</span><br><span class="a">Short-term ' + esc(fmtNum(short[i])) + '</span>' +
+        (ratio && r !== null ? '<br><span class="r">Ratio ' + esc(r.toFixed(2)) + ' · ' + esc(RATIO_ZONE(r, bands)) + '</span>' : '') +
+        '<br><span class="form-chip fs-' + esc(load.form[i]) + '">' + esc(load.form[i]) + '</span>' +
+        (rec ? ' <span class="form-chip rc-' + (REC_TEXT[rc] ? rc : 'none') + '">' + esc(REC_TEXT[rc] || 'No night') + '</span>' : '');
+      tip.hidden = false;
+      const w = wrap.clientWidth, left = (cx / LD_W) * w;
+      cur.style.left = left + 'px'; cur.hidden = false;
+      tip.style.left = Math.max(0, Math.min(w - tip.offsetWidth, left + (left > w / 2 ? -tip.offsetWidth - 8 : 8))) + 'px';
+    };
+    const hide = () => { tip.hidden = true; cur.hidden = true; dots.forEach(m => m.setAttribute('visibility', 'hidden')); if (cr) cr.setAttribute('visibility', 'hidden'); };
+    const at = ev => { const r = wrap.getBoundingClientRect(); return Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - r.left) / r.width) * (n - 1)))); };
+    wrap.addEventListener('pointerdown', ev => { if (!ev.target.closest('.ld-row')) { ev.stopPropagation(); show(at(ev)); } });
+    wrap.addEventListener('pointermove', ev => { if (ev.target.closest('.ld-row')) { hide(); return; } show(at(ev)); });
+    wrap.addEventListener('pointerleave', hide);
+    wrap.addEventListener('pointercancel', hide);
+  };
+  return { html, bind };
+}
+
 // ---- Tooltips ----
 const TIPS = {
   recovery: () => { const r = R(); if (!r) return '<span class="tt">Recovery</span>No night synced yet.'; const U = F().usual, lab = REC_LABEL[r.verdict];
@@ -423,19 +513,20 @@ function renderAll() { renderClock(); renderTray(); renderIsland(); renderQuest(
 // ---- Windows ----
 const sec = (id, hl, html) => '<div class="sec' + (hl === id ? ' hl' : '') + '">' + html + '</div>';
 const WINS = {
-  body: { w: 50, title: 'Body', tags: () => '',
+  body: { w: 54, title: 'Body', tags: () => '',
     render(b, arg) {
       const r = R(), U = F().usual, k = F().ki, N = F().nights, Ld = L();
       const left = sec('recovery', arg, '<div class="sh"><span>Recovery' + (r ? ' · ' + (r.fresh ? 'last night' : 'night to ' + dayFmt(r.date)) : '') + '</span></div>' + (r ? '<div class="rec big"><div class="ring bigring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"><b>' + r.score + '%</b></div><div class="recw" style="--c:' + recColor(r.score) + '"><b>' + REC_LABEL[r.verdict][0] + ' · ' + REC_LABEL[r.verdict][1] + '</b><span>' + REC_LABEL[r.verdict][2] + '</span></div></div>' +
           '<div class="vit"><span>Sleep</span><b>' + sleepTxt(r.sleep) + ' ' + trend(r.sleep, U.sleep, true, .25) + '</b><em>usual ' + sleepTxt(U.sleep) + '</em><span>HRV</span><b>' + (r.hrv == null ? '–' : r.hrv + ' ms ') + trend(r.hrv, U.hrv, true, (U.hrv || 50) * .05) + '</b><em>usual ' + one(U.hrv) + '</em><span>Resting HR</span><b>' + (r.rhr == null ? '–' : r.rhr + ' ') + trend(r.rhr, U.rhr, false, 2) + '</b><em>usual ' + one(U.rhr) + '</em></div>' : '<p class="say">No night synced yet.</p>')) +
         sec('nights', arg, '<div class="sh"><span>Last 7 nights</span></div><div class="chart nights" data-chart="nights">' + nightsSvg() + '</div><div class="xlab seven">' + N.map((d, i) => '<span>' + (i === N.length - 1 ? 'Last' : wdShort(d.day)) + '</span>').join('') + '</div><div class="legend"><span><i style="background:#3ddc84"></i>Train</span><span><i style="background:#ffc24a"></i>Careful</span><span><i style="background:#ff5f6d"></i>Rest</span><span><i style="background:#fff"></i>HRV</span></div>');
-      const R2 = RATIO(), r2 = R2 ? R2.value : null, z = R2 ? [0, R2.zone, ZC[R2.zone]] : null, rp = R2 && R2.yesterday && R2.yesterday.value != null ? R2.yesterday.value : r2, Pk = F().peak, why = Pk && Ld.length > 1 && Pk.date === PREV().date ? ' after the ' + esc(Pk.what) : '';
-      const right = sec('load', arg, '<div class="sh"><span>Fitness vs fatigue · 4 weeks</span>' + (Ld.length ? '<span>' + formChip() + ' <b class="lt-c">' + one(LAST().cl) + '</b> · <b class="st-c">' + one(LAST().al) + '</b></span>' : '') + '</div><div class="chart load" data-chart="load">' + loadSvg(120, true) + '</div>' + (Ld.length ? '<div class="xlab"><span>' + dayFmt(Ld[0].date) + '</span><span>Today</span></div>' : '') + '<div class="legend"><span><i style="background:var(--long)"></i>Long term (fitness)</span><span><i style="background:var(--short)"></i>Short term (fatigue)</span>' + (Pk ? '<span><i style="background:var(--short);width:.5rem;height:.5rem;border-radius:50%;vertical-align:0"></i>' + wdShort(Pk.date) + ': ' + esc(Pk.what) + '</span>' : '') + '</div>') +
-        (z ? sec('ratio', arg, '<div class="sh"><span>Load ratio</span><b style="color:' + z[2] + '">' + r2.toFixed(2) + ' · ' + z[1] + '</b></div>' + ratioBar() + R_LABELS + '<p class="say">' + esc(RSAY[z[1]]) + ' Yesterday it was <b>' + rp.toFixed(2) + '</b>' + why + '.</p>') : '') +
+      const LD = F().load, chart = LD && LD.long && LD.long.length > 1 ? loadChart(LD, F().moves) : null, last = LD ? LD.long.length - 1 : 0;
+      const right = sec('load', arg, '<div class="sh"><span>Load · 12 weeks · the Goku card\'s chart</span>' + (chart ? '<span>' + formChip() + '</span>' : '') + '</div>' +
+          (chart ? '<div class="ld-legend"><span><i style="background:var(--long)"></i>Long-term ' + esc(fmtNum(LD.long[last])) + '</span><span><i style="background:var(--short)"></i>Short-term ' + esc(fmtNum(LD.short[last])) + '</span>' + (LD.form[last] ? '<span class="form-chip fs-' + esc(LD.form[last]) + '">' + esc(LD.form[last]) + '</span>' : '') + '</div>' + chart.html : '<p class="say">No load data yet.</p>')) +
         '<div class="grid2">' + (k ? sec('ki', arg, '<div class="sh"><span>Ki charge</span><b>' + kiState(k) + '</b></div>' + pips(k) + '<div class="kv2"><b>' + k.level + ' of ' + k.peak + '</b>' + (k.heal_cap ? ' · healing cap <b>' + k.heal_cap + ' HP</b>' : '') + '</div>') : '') +
         sec('week', arg, '<div class="sh"><span>Training this week</span>' + (F().week.tss ? '<b>TSS ' + Math.round(F().week.tss) + '</b>' : '') + '</div><div class="meter"><i style="width:' + pct(F().week.hours, F().week.target) + '%"></i></div><div class="kv2"><b>' + one(F().week.hours) + ' h</b> of ' + F().week.target + ' h · ' + F().week.sessions + ' session' + (F().week.sessions === 1 ? '' : 's') + '</div>' + zoneBar(F().week.zones)) + '</div>' +
         ((F().week.list || []).length ? sec('sessions', arg, '<div class="sh"><span>Sessions</span></div><div class="rows">' + F().week.list.map(w => '<div class="rowi"><span>' + (SPORT[w.sport] || '🏃') + '</span><span>' + esc(w.name) + '<small>' + wdShort(w.day) + ' ' + w.at + ' · ' + w.min + ' min' + (w.km ? ' · ' + w.km + ' km' : '') + (w.hr_avg ? ' · ' + w.hr_avg + ' bpm' : '') + '</small></span><span class="in">' + (w.tss != null ? 'TSS ' + w.tss : '') + '</span></div>').join('') + '</div>') : '');
       b.innerHTML = '<div class="bodygrid"><div>' + left + '</div><div>' + right + '</div></div>';
+      if (chart) chart.bind(b.querySelector('.ld-wrap'));
     } },
   focus: { w: 30, title: 'Focus', tags: () => '',
     render(b) {

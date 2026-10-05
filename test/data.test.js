@@ -31,7 +31,8 @@ test('power: load per day, the week\'s peak with its workout, the ki charge', ()
   assert.equal(P.clal[27].cl, 32.9, 'the scale is read off today\'s fitness');
   assert.deepEqual(P.now, { fitness: 32.9, fatigue: 32.1, form_state: 'Steady', power_level: 4100 });
   assert.equal(P.ratio.zone, 'Optimal', 'the ratio is the engine\'s, passed through');
-  assert.deepEqual(power(null, null, null), { clal: [], peak: null, ki: null, now: null, ratio: null });
+  assert.equal(P.load.long.length, 30, 'the engine\'s load series is passed through for the Goku card\'s chart');
+  assert.deepEqual(power(null, null, null), { clal: [], peak: null, ki: null, now: null, ratio: null, load: null, moves: [] });
 });
 
 test('safe text: the main quest stays off the screen', () => {
