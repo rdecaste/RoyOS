@@ -442,7 +442,8 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 #tip .kv > span:nth-child(3n+1), #tip .mut { color: var(--dim); }
 #tip .hint { display: block; margin-top: .35rem; font-size: .72rem; color: var(--faint); }
 #tip ul { margin: .2rem 0 0; padding-left: 1rem; }
-#notes { position: fixed; z-index: 45; top: 2.45rem; right: .9rem; width: 22rem; display: grid; gap: .5rem; pointer-events: none; }
+/* Notifications drop in at the top centre, over the world, clear of both widget columns. */
+#notes { position: fixed; z-index: 45; top: 2.6rem; left: 50%; transform: translateX(-50%); width: 26rem; display: grid; gap: .5rem; pointer-events: none; }
 .note { pointer-events: auto; display: grid; grid-template-columns: 2.1rem minmax(0, 1fr) auto; gap: .65rem; align-items: start; padding: .65rem .7rem .7rem; border-radius: .95rem; border: 1px solid var(--edge-hi);
   background: rgba(16, 24, 44, .9); box-shadow: var(--shadow); backdrop-filter: blur(26px) saturate(1.4); -webkit-backdrop-filter: blur(26px) saturate(1.4); animation: notein .4s cubic-bezier(.2, .9, .3, 1.15); }
 .note.link { cursor: pointer; }
@@ -455,8 +456,8 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .nx { width: 1.25rem; height: 1.25rem; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--faint); }
 .nx svg { width: .75rem; height: .75rem; }
 .nx:hover { background: rgba(255, 255, 255, .1); color: var(--fg); }
-@keyframes notein { from { opacity: 0; transform: translateX(1.5rem) scale(.98); } }
-@keyframes noteout { to { opacity: 0; transform: translateX(1.5rem); } }
+@keyframes notein { from { opacity: 0; transform: translateY(-1rem) scale(.98); } }
+@keyframes noteout { to { opacity: 0; transform: translateY(-1rem); } }
 .lock { position: fixed; z-index: 15; inset: 1.9rem 0 0; display: none; place-items: center; background: rgba(2, 4, 10, .86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); text-align: center; cursor: pointer; }
 body[data-phase="night"]:not(.awake) .lock { display: grid; }
 .lclock { font: 700 9rem/1 var(--f-display); color: #9fb0d4; font-variant-numeric: tabular-nums; }
@@ -483,7 +484,7 @@ body[data-phase="night"]:not(.awake) .lock { display: grid; }
   .dock { flex-wrap: wrap; justify-content: center; width: 100%; }
   .dsep { display: none; }
   .ask { order: -1; width: 100%; }
-  #notes { left: 16px; right: 16px; width: auto; }
+  #notes { left: 16px; right: 16px; width: auto; transform: none; }
   .win { max-height: calc(100% - 3rem); }
   .bodygrid, .grid3 { grid-template-columns: minmax(0, 1fr); }
   .minis { grid-template-columns: minmax(0, 1fr); }
