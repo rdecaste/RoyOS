@@ -401,25 +401,66 @@ const CRIT_ART = {
       '<circle class="eye" cx="51.5" cy="9.7" r="1.45"/><path class="pupil" d="M51.5 8.6 L51.5 10.8"/>' +
       '<path class="leg lhn" d="M19 12.5 L16 15.2 L13.5 15.8"/><path class="leg lfn" d="M39 12.5 L42 15.2 L44.5 15.8"/></g></svg>'
 };
-// Painted sheets (CRITTER_ART, flare) replace the drawn cat when /data has them: each is one image of
-// poses, each pose [x, y, w, h, centre x] in sheet pixels, shown at k of its size. The walk sheet
-// (8 frames of one stride) is the same cat and, when there, takes over the walk from frames a and b.
-const CRIT_SHEET = {
-  cat: { of: 'cat', k: .2, W: 1536, H: 1024, f: { a: [24, 148, 455, 282, 251.5], b: [520, 147, 428, 281, 726.5], leap: [1003, 149, 510, 271, 1258], sit: [144, 524, 232, 406, 260], sleep: [574, 661, 391, 244, 769.5], groom: [1131, 544, 270, 388, 1266] } },
-  catwalk: { of: 'cat', k: .265, W: 1536, H: 1024, f: { w0: [28, 217, 353, 214, 204.5], w1: [408, 217, 333, 213, 579.5], w2: [778, 217, 344, 213, 958.5], w3: [1154, 217, 337, 213, 1327.5], w4: [27, 637, 358, 213, 199.5], w5: [402, 637, 338, 213, 577.5], w6: [784, 637, 339, 213, 959.5], w7: [1153, 638, 350, 211, 1335.5] } }
-};
+// The week's critter (theme.critter): flare's three sheets of 8 frames in a 4 by 2 grid, cut apart here.
+// It takes the cat's place and habits; without it (or if a sheet can't be cut) the drawn cat walks.
+// Sizes follow the walk: each sheet's standing frame (walk 1, rest 7, leap 1) is scaled to the same height.
+const CR_CUTS = new Map(), CR_STAND = { walk: 0, rest: 6, leap: 0 }, CR_TALL = 56, CR_LONG = 100;
+function crCut(url) {
+  if (!CR_CUTS.has(url)) CR_CUTS.set(url, new Promise(done => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onerror = () => done(null);
+    img.onload = () => { try { done(crFind(img)); } catch (_) { done(null); } };
+    img.src = url;
+  }));
+  return CR_CUTS.get(url);
+}
+// In each half of the sheet: the four widest runs of columns that hold anything, then each run's top
+// and bottom, and the middle of its top row (an ear tip, which lines up the walk frames).
+function crFind(img) {
+  const W = img.naturalWidth, H = img.naturalHeight, sc = Math.min(1, 1536 / W), w = Math.round(W * sc), h = Math.round(H * sc);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+  const px = g.getImageData(0, 0, w, h).data, on = (x, y) => px[(y * w + x) * 4 + 3] > 20, f = [];
+  for (let r = 0; r < 2; r++) {
+    const y0 = Math.round(r * h / 2), y1 = Math.round((r + 1) * h / 2), col = new Uint8Array(w);
+    for (let y = y0; y < y1; y++) for (let x = 0; x < w; x++) if (on(x, y)) col[x] = 1;
+    let runs = [], st = -1;
+    for (let x = 0; x <= w; x++) { const v = x < w && col[x]; if (v && st < 0) st = x; if (!v && st >= 0) { runs.push([st, x]); st = -1; } }
+    runs = runs.reduce((m, q) => { const l = m[m.length - 1]; if (l && q[0] - l[1] < 3) l[1] = q[1]; else m.push(q); return m; }, []);
+    runs = runs.sort((p, q) => (q[1] - q[0]) - (p[1] - p[0])).slice(0, 4).sort((p, q) => p[0] - q[0]);
+    if (runs.length < 4 || runs[3][1] - runs[3][0] < w / 20) return null;
+    for (const [x0, x1] of runs) {
+      let top = -1, bot = -1;
+      for (let y = y0; y < y1 && top < 0; y++) for (let x = x0; x < x1; x++) if (on(x, y)) { top = y; break; }
+      for (let y = y1 - 1; y >= y0 && bot < 0; y--) for (let x = x0; x < x1; x++) if (on(x, y)) { bot = y; break; }
+      let sx = 0, n = 0; for (let x = x0; x < x1; x++) if (on(x, top)) { sx += x; n++; }
+      f.push({ x: (x0 - 1) / sc, y: (top - 1) / sc, w: (x1 - x0 + 2) / sc, h: (bot - top + 3) / sc, ear: (sx / n + .5) / sc });
+    }
+  }
+  return { W, H, f };
+}
 function crPaint(c) {
-  const have = D && D.critters || {}, keys = Object.keys(CRIT_SHEET).filter(n => CRIT_SHEET[n].of === c.sp && have[n]);
-  const sig = keys.map(n => have[n]).join(' ');
-  if (!have[c.sp] || c.painted === sig) return;
-  const S = SPECIES[c.sp];
-  c.el.querySelector('.cb').innerHTML = '<div class="pw">' + keys.map(n => {
-    const P = CRIT_SHEET[n], k = P.k, px = v => (v * k).toFixed(2) + 'px';
-    return Object.entries(P.f).map(([f, [x, y, w, h, cx]], i) =>
-      '<i class="fr f-' + f + '" style="--i:' + i + ';background-image:var(--s-' + n + ');left:' + px(S.w / 2 / k - (cx - x)) + ';bottom:' + px(-2) + ';width:' + px(w) + ';height:' + px(h) + ';background-size:' + px(P.W) + ' ' + px(P.H) + ';background-position:' + px(-x) + ' ' + px(-y) + '"></i>').join('');
-  }).join('') + '</div>';
-  keys.forEach(n => c.el.style.setProperty('--s-' + n, 'url("' + have[n] + '")'));
-  c.el.classList.add('painted'); c.el.classList.toggle('walk8', keys.includes(c.sp + 'walk')); c.painted = sig;
+  if (c.sp !== 'cat') return;
+  const k = D && D.theme && D.theme.critter, sig = k ? [k.walk, k.rest, k.leap].join(' ') : '';
+  if (sig === (c.painted || '') || sig === c.cutting) return;
+  if (!k) { c.el.querySelector('.cb').innerHTML = CRIT_ART.cat; c.el.classList.remove('painted'); c.painted = ''; return; }
+  c.cutting = sig;
+  Promise.all(['walk', 'rest', 'leap'].map(n => crCut(k[n]))).then(cuts => {
+    if (c.cutting !== sig) return;
+    c.cutting = null;
+    if (cuts.some(x => !x)) return;
+    const S = SPECIES[c.sp], [wk] = cuts, s0 = wk.f[CR_STAND.walk], kw = Math.min(CR_TALL / s0.h, CR_LONG / s0.w), tall = s0.h * kw;
+    const lead = s0.ear - (s0.x + s0.w / 2);
+    c.el.querySelector('.cb').innerHTML = '<div class="pw">' + ['walk', 'rest', 'leap'].map((n, j) => {
+      const P = cuts[j], ks = n === 'walk' ? kw : tall / P.f[CR_STAND[n]].h, v = q => (q * ks).toFixed(2) + 'px';
+      return P.f.map((q, i) => {
+        const cx = n === 'walk' ? q.ear - lead : q.x + q.w / 2;
+        return '<i class="fr f-' + n[0] + i + '" style="--i:' + i + ';background-image:var(--s-' + n + ');left:' + (S.w / 2 - (cx - q.x) * ks).toFixed(2) + 'px;bottom:' + v(-1) + ';width:' + v(q.w) + ';height:' + v(q.h) + ';background-size:' + v(P.W) + ' ' + v(P.H) + ';background-position:' + v(-q.x) + ' ' + v(-q.y) + '"></i>';
+      }).join('');
+    }).join('') + '</div>';
+    ['walk', 'rest', 'leap'].forEach(n => c.el.style.setProperty('--s-' + n, 'url("' + k[n] + '")'));
+    c.el.classList.add('painted'); c.painted = sig;
+  });
 }
 const SPECIES = {
   cat: { w: 64, h: 44, home: e => e.id === 'wAsk', reach: [460, 300, 440], crouch: 240, arc: 40 },
@@ -503,6 +544,7 @@ function crTick(c, t, dt) {
   if (c.mode === 'jump') {
     const j = c.jump, k = Math.min(1, (t - j.t0) / (j.d * 1000)), to = CRP.find(q => q.el === j.pe) || pl;
     c.x = j.x0 + (j.x1 - j.x0) * k;
+    c.lk = k;
     c.y = j.y0 + (to.y - j.y0) * k - j.H * 4 * k * (1 - k);
     if (k >= 1) { c.pe = to.el; c.y = to.y; CR_NEXT[c.sp](c, t, 'land'); }
     return;
@@ -532,6 +574,8 @@ function crDraw(c) {
   c.el.classList.toggle('left', flip);
   const m = c.mode === 'walk' && c.v > 80 && c.sp === 'cat' ? 'trot' : c.mode;
   if (c.el.dataset.mode !== m) c.el.dataset.mode = m;
+  const lf = m === 'jump' ? String(2 + Math.min(5, Math.floor((c.lk || 0) * 6))) : '';
+  if (c.el.dataset.lf !== lf) c.el.dataset.lf = lf;
 }
 function crStep(t) {
   requestAnimationFrame(crStep);
