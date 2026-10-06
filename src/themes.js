@@ -173,14 +173,15 @@ export function critterDue(spec, done) {
 
 // ---- Prompts ----
 // The still follows the scene and character rows word for word where it matters,
-// plus the desk's layout: subject in the middle third, both sides dark for the panels, room for the quote.
+// plus the desk's layout: subject in the middle third, both sides dark and calm, room for the quote. It never
+// mentions the screen's panels or timeline: flare drew them into W41's still as boxes (6 Oct 2026).
 export function stillPrompt(scene, character) {
   return [
     'Semi-realistic anime key art, painterly cinematic lighting, crisp shapes, rich fine detail; the character exactly as in the reference image (face, hair, outfit), rendered in that same style. Not photorealistic.',
     `A wide 16:9 living-wallpaper still for a desk dashboard. Setting: ${scene.scene_name} (${scene.franchise}): ${scene.canonical_identity}. Elements: ${scene.canonical_elements}. Feel: ${scene.signature_features}.`,
     `The character is ${character.character_name} (${character.franchise}): ${character.canonical_identity} ${character.canonical_elements} They are part of the scene, not posing for the camera: standing or leaning in it with their weight settled, looking at something in the scene, relaxed and in character (a settled pose, because the clip holds it; a mid-stride pose reads as frozen). Medium shot, waist up: the figure is cut at the hips by the bottom edge or by foreground elements, never shown full length, and the head sits a little above the centre of the frame.`,
-    'Composition: the image fills a 1920x1080 desk screen with see-through panels down both sides (the outer quarter of the width on the left and on the right) and a timeline across the bottom fifth. Keep the character inside the middle third of the frame width, centred, with head and torso in the upper two thirds of the height. Keep both outer quarters darker and calmer, with few bright lights, so the panels stay readable. The bottom fifth holds only ground, foreground and reflections, nothing that matters. Leave the upper area just right of the character open and calm: a short handwritten quote is placed there. The top edge is calm. Small in-world signs are fine.',
-    `Restrictions: ${scene.restrictions} ${character.restrictions} No watermark.`
+    'Composition: one continuous scene from edge to edge; the screen\'s own widgets are laid over it later, so none are drawn. Keep the character inside the middle third of the frame width, centred, with head and torso in the upper two thirds of the height. The outer quarter of the width on the left and on the right is more of the same scene (walls, buildings, sky, foliage), darker and calmer, with few bright lights. The bottom fifth holds only ground, foreground and reflections, nothing that matters. Leave the upper area just right of the character open and calm. The top edge is calm. Small in-world signs are fine.',
+    `Restrictions: ${scene.restrictions} ${character.restrictions} No watermark. No frames, borders, panels, boxes, windows, cards, rounded rectangles, outlines, grids, timelines, interface or HUD elements, and no text overlays anywhere in the image: only the scene.`
   ].join('\n\n');
 }
 
@@ -193,7 +194,7 @@ export function clipPrompt() {
     'Animate the supplied image as a seamless infinite loop for dashboard playback. Preserve the character exactly as drawn there: identity, outfit, materials, lighting, anatomy, composition and the semi-realistic anime rendering; do not make it photorealistic.',
     'ABSOLUTE RULES:\n- The camera must remain completely static and locked.\n- No zoom, pan, tilt, dolly, push-in, parallax, shake, reframing, or perspective drift.\n- Create a clean cyclic loop where the final frame matches the first frame as closely as possible.\n- No cuts, transitions, or new elements appearing/disappearing.',
     'MOTION:\n- The character is alive but stays in place: breathing, blinking, a glance away and back, a change of expression (a smile, a smirk, a narrowed look), a slight tilt or turn of the head, a shift of weight, a small gesture with the hands or with what they hold.\n- The scene lives around them: hair and cloth moving in the air, flickering signs and lights, drifting haze or steam, falling rain or particles, reflections moving on wet ground.\n- No walking, stepping, running, lunging, leaning out of the frame or large body movement; the character keeps the same position and size in the frame throughout.\n- Every motion is a small arc that comes back: by the last frame the pose, gaze and expression match the source image again, so the loop closes without a jump.',
-    'COMPOSITION:\n- Preserve the composition: the character stays inside the middle third, both sides stay dark and calm for dashboard overlays.\n- Keep anatomy coherent. No new text, UI, panels or overlays.',
+    'COMPOSITION:\n- Preserve the composition: the character stays inside the middle third, both sides stay dark and calm.\n- Keep anatomy coherent. No new text, UI, frames, boxes, panels or overlays.',
     'OUTPUT:\n- Alive, subtle, stable, premium. Landscape 16:9. Silent: no dialogue, music or sound effects.\n- Prioritize seamless loop continuity over dramatic motion.'
   ].join('\n\n');
 }

@@ -93,3 +93,4 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - 2026-10-05: the clip keeps the character anchored with ambient motion only, as the quest videos do (a wandering character never looped cleanly on omni).
 - 2026-10-05: first version. Page and widgets from the mockup (claude.ai artifact "Roy OS"), live data from the quest engine and D1, the weekly world pipeline, the Ask box.
 - 2026-10-06: menu bar links to the quest pages (Quest log, Journal, Fitness, Admin) on the admin dashboard Worker, each in its own tab.
+- 2026-10-06: the still prompt no longer mentions the screen's panels and timeline (flare painted them into W41's Jinx still as boxes, and the clip kept them); it asks for one continuous scene with no frames, boxes, panels or interface. Takes effect with the next world or a remake.
