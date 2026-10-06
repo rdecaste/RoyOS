@@ -19,7 +19,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - `POST /act` one edit: `{type}` = `todo_tick {text, done}`, `todo_add {text, list}`, `habit {name, done}`, `mood {mood, note}`, `work {am, pm, commute}`, `plan {events}`, `undo`.
 - `POST /ask {text}` the Ask box: the board as JSON plus Roy's words go to the chat model, which answers with a reply and actions; the actions are applied through the same code as `/act`, with one undo.
 - `GET /status` (no cookie) `{ok, week, theme}` for healthchecks.
-- Admin, header `X-Admin-Token`: `GET /theme/list`, `POST /theme/run` (`week`, `force=1`), `POST /theme/retry` (`week`).
+- Admin, header `X-Admin-Token`: `GET /theme/list`, `POST /theme/run` (`week`, `force=1`; as JSON `{"week":"2026-W41","force":true}`: the number 1 is not read as force), `POST /theme/retry` (`week`).
 
 ## Data
 - Quest engine over the service binding (`/boss`, `/hero`, `/mainquest`, `/questboard`, and `/recovery` with `QUEST_ENGINE_TOKEN`): the load ratio with its zone and TSB (`power.load_ratio`), the morning's recovery and the last 7 mornings (`/recovery`, the readiness rules), and main habits and their 14-day history (good hits only), the load series (`power.load`, fitness and fatigue times a factor that is read off today's `power.fitness`), today's fitness, fatigue and form state, the week's peak, ki charge, the focus quest.
