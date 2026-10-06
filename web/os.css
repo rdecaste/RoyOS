@@ -487,6 +487,10 @@ body[data-phase="night"]:not(.awake) .lock { display: block; }
   .os { position: relative; inset: auto; display: flex; flex-direction: column; gap: 12px; padding: 0 16px 24px; translate: none !important; }
   .os .menubar { position: sticky; top: 0; margin: 0 -16px; padding: 0 16px; gap: 12px; }
   .os .apps, .os .mdate { display: none; }
+  .os .island { flex: 1; margin: 0; }
+  .os .isl-pill { max-width: 100%; overflow: hidden; }
+  .os .isl-panel { position: fixed; top: 44px; left: 16px; right: 16px; width: auto; transform: translateY(-8px); }
+  .os .island:hover .isl-panel, .os .island.open .isl-panel { transform: none; }
   .os .clockw { position: static; padding-top: 14px; }
   .os .clockw .hm { font-size: 84px; }
   .os .t, .os .wquote { position: static; width: auto; height: auto; }
