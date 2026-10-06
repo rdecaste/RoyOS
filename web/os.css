@@ -88,6 +88,10 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .app svg { width: 11px; height: 11px; stroke-width: 2.2; }
 .os .app:hover { background: rgba(255, 255, 255, .14); }
 .os .app.open::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--fg); }
+/* The quest pages (the admin dashboard Worker's own pages), each in its own tab */
+.os .pages { flex: none; display: flex; align-items: center; gap: 4px; padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, .16); }
+.os .pages a { padding: 5px 8px; border-radius: 6px; font: 600 12px/1 var(--f-sys); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; white-space: nowrap; }
+.os .pages a:hover { background: rgba(255, 255, 255, .1); color: var(--fg); }
 .os .island { position: relative; min-width: 0; margin: 0 auto; }
 .os .isl-pill { display: flex; align-items: center; max-width: 640px; padding: 6px 14px; border: 0; border-radius: 99px; background: rgba(255, 255, 255, .07); color: var(--fg); font: 600 14px/1 var(--f-body); white-space: nowrap; }
 .os .isl-pill:hover { background: rgba(255, 255, 255, .12); }
@@ -619,7 +623,7 @@ body[data-phase="night"]:not(.awake) .lock { display: block; }
   .board #wall { position: fixed; }
   .os { position: relative; inset: auto; display: flex; flex-direction: column; gap: 12px; padding: 0 16px 24px; translate: none !important; }
   .os .menubar { position: sticky; top: 0; margin: 0 -16px; padding: 0 16px; gap: 12px; }
-  .os .apps, .os .mdate { display: none; }
+  .os .apps, .os .pages, .os .mdate { display: none; }
   .os .island { flex: 1; margin: 0; }
   .os .isl-pill { max-width: 100%; overflow: hidden; }
   .os .isl-panel { position: fixed; top: 44px; left: 16px; right: 16px; width: auto; transform: translateY(-8px); }
