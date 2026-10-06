@@ -807,18 +807,24 @@ function renderDates() {
   const c = COMING().slice(0, 3);
   $('datesBody').innerHTML = D.calendar ? (c.length ? c.map(i => '<div class="ev"><span class="ed">' + esc(i.day <= D.today ? 'Today' : wdShort(i.day) + ' ' + +i.day.slice(8, 10)) + '</span><span class="et">' + esc(i.t) + '</span></div>').join('') : '<div class="tsay">Nothing in the next 30 days.</div>') : '<div class="tsay">No calendar connected.</div>';
 }
-// Your day: three thin lanes from 06 to 23, one now line across them.
+// Your day: three thin lanes from 06 to 23, one now line across them. An event for everyone (a
+// family event with no name in it) shows once, as one block across the three lanes, unless
+// something else is on at the same time; then each lane gets its own copy.
 const LANES = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']];
+const blkLabel = e => esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit'));
 function renderDay() {
   const m = nowMin(), nowIn = m >= DAY0 * 60 && m <= DAY1 * 60;
+  const evAll = ALLEV().map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) }));
+  const span = new Set(evAll.filter(e => e.who === 'all' && !evAll.some(o => o !== e && o.a < e.z && e.a < o.z)).map(e => e.id));
   let html = '';
   LANES.forEach(([who, name]) => {
-    const evs = ALLEV().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
+    const evs = evAll.filter(e => e.who === who || (e.who === 'all' && !span.has(e.id))).sort((p, q) => p.a - q.a);
     const rows = []; evs.forEach(e => { let r = rows.findIndex(end => end <= e.a); if (r < 0) { r = rows.length; rows.push(0); } rows[r] = e.z; e.row = r; });
     const rh = 100 / Math.max(1, rows.length);
-    const t = evs.map(e => { const st = e.z <= m ? ' past' : ''; return '<div class="blk ' + who + st + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit')) + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 2px);height:calc(' + rh + '% - 4px)"><span>' + esc(e.t) + '</span></div>'; }).join('');
+    const t = evs.map(e => { const st = e.z <= m ? ' past' : ''; return '<div class="blk ' + who + st + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + blkLabel(e) + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 2px);height:calc(' + rh + '% - 4px)"><span>' + esc(e.t) + '</span></div>'; }).join('');
     html += '<span class="lname ' + who + '">' + name + '</span><div class="track" data-act="track" data-who="' + who + '">' + t + '</div>';
   });
+  html += evAll.filter(e => span.has(e.id)).map(e => '<div class="blk all span' + (e.z <= m ? ' past' : '') + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + blkLabel(e) + '" style="left:calc(82px + (100% - 82px) * ' + (xOf(e.a) / 100).toFixed(4) + ' + 1px);width:calc((100% - 82px) * ' + ((xOf(e.z) - xOf(e.a)) / 100).toFixed(4) + ' - 2px)"><span>' + esc(e.t) + '</span></div>').join('');
   $('lanes').innerHTML = html + (nowIn ? '<span class="nowl" style="left:calc(82px + (100% - 82px) * ' + (xOf(m) / 100).toFixed(4) + ')"></span>' : '');
   $('dayHours').textContent = [6, 9, 12, 15, 18, 21, 23].map(h => String(h).padStart(2, '0')).join(' · ');
 }
