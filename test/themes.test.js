@@ -35,6 +35,16 @@ test('pick: seeded by the week, the same every time, different across weeks', ()
   assert.equal(a.palette, PALETTES[a.franchise]);
 });
 
+test('pick: a character asked for by name pins the week to them and their franchise', () => {
+  const cat = buildCatalogue(chars, scenes);
+  for (let i = 0; i < 6; i++) {
+    const p = pickTheme(cat, weekAfter('2026-W41', i), { character: 'jinx' });
+    assert.deepEqual([p.franchise, p.character, p.character_id], ['Arcane', 'Jinx', 'c1']);
+    assert.equal(p.scene, 'Zaun — The Lanes');
+  }
+  assert.throws(() => pickTheme(cat, '2026-W41', { character: 'Nobody' }), /No character named Nobody/);
+});
+
 test('weeks: ISO weeks on Amsterdam dates, Monday first', () => {
   assert.equal(isoWeek(Date.parse('2026-10-05T10:00:00Z')), '2026-W41');
   assert.equal(isoWeek(Date.parse('2026-10-04T23:30:00Z')), '2026-W41'); // 01:30 Monday in Amsterdam

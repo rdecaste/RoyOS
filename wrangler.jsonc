@@ -33,5 +33,5 @@
   //   GEMINI_API_KEY          Nano Banana 2 stills and Veo clips
   //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   cloud a3xk0plk, folder Desk-Themes
   //   OPENAI_API_KEY          Ask Claude box (chat model above)
-  // FAMILY_ICS_URL (the published iCloud link of the family calendar, webcal:// or https://), STEPH_ICS_URL (Steph's work calendar, her lane only), ROY_ICS_URL (Roy's personal calendar, his lane and Coming up), LANE_WORDS ("roy:roy;steph:steph,stephanie;kids:<names>,kindjes": title words that put a calendar event on a lane)
+  // FAMILY_ICS_URL (the published iCloud link of the family calendar, webcal:// or https://), STEPH_ICS_URL (Steph's work calendar, her lane only), ROY_ICS_URL (Roy's personal calendar, his lane and Coming up), KIDS_ICS_URL (the kids' calendar, their lane and Coming up; optional), LANE_WORDS ("roy:roy;steph:steph,stephanie;kids:<names>,kindjes": title words that put a calendar event on a lane)
 }

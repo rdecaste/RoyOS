@@ -10,7 +10,7 @@
 //   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
-//   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1)   POST /theme/retry (week)
+//   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1, character?)   POST /theme/retry (week)
 //
 // Every hour (cron) the week's world is made if it is Monday 06:00 Amsterdam or later and
 // the week has none yet; a failed week is retried on the next tick.
@@ -71,13 +71,14 @@ async function currentTheme(env, s, now = Date.now()) {
 
 // Starts the week's generation when it has none (or the last try failed). Idempotent.
 // force remakes the week from scratch (new still and clip); a retry keeps a finished still.
-export async function ensureTheme(env, s, { week = themeWeek(), force = false, retry = false } = {}) {
+// `character` remakes the week with that character; otherwise a week keeps the character it has.
+export async function ensureTheme(env, s, { week = themeWeek(), force = false, retry = false, character = null } = {}) {
   const row = await s.theme(week);
   if (row && row.status === 'running' && !force && !retry) return { ok: 1, status: 'running', week };
   if (row && row.status === 'ready' && !force && !retry) return { ok: 1, status: 'ready', week };
   const catalogue = await loadCatalogue(env.DB);
   if (!catalogue.length) throw new Error('No franchises with scenes and characters in the catalogue');
-  const pick = pickTheme(catalogue, week);
+  const pick = pickTheme(catalogue, week, { character: character || (row && !force ? row.character : null) });
   const run = await env.DESK_THEME.create({ params: { week } });
   if (!force && row && row.still_public_id && row.franchise === pick.franchise && row.character === pick.character) {
     // A retry of the same pick with a still already made: only the clip is redone, with the current prompt.
@@ -115,7 +116,7 @@ export default {
         if (path === '/theme/list') return json({ ok: 1, themes: (await s.themes(12)).map(r => themeView(r, null)) });
         if (path === '/theme/run' && request.method === 'POST') {
           const f = await readFields(request);
-          return json(await ensureTheme(env, s, { week: f.week || themeWeek(), force: f.force === '1' || f.force === true }));
+          return json(await ensureTheme(env, s, { week: f.week || themeWeek(), force: f.force === '1' || f.force === true, character: f.character || null }));
         }
         if (path === '/theme/retry' && request.method === 'POST') {
           const f = await readFields(request);
