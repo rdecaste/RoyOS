@@ -51,6 +51,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-06: W42's Veo clip (1920×1080, 8 s, about 7 Mbit/s against omni's 2) had a headset appear on Lucy's head after two seconds. The clip prompt now says the character looks the same in every frame: no headset, glasses, hat, mask, prop or other item appears, vanishes or changes.
 - 2026-10-06: W42's first Veo clip was refused by Veo's audio check ("an issue with the audio for your prompt"; Veo makes sound with every clip). The clip prompt now asks for soft ambient sound only (no voices or music) instead of "silent", and a Veo failure falls back to omni (`generateClip`), so a week keeps a clip. The board plays clips muted.
 - 2026-10-06: clips are made with Veo 3.1 at 1080p (`VIDEO_MODEL` `veo-3.1-generate-preview`); omni's 1280×720 clips looked soft on the screen (Roy: "lets try veo"). `POST /theme/retry {week}` redoes only a week's clip and keeps its still and critter.
 - 2026-10-06: the board shows the week's still exactly as uploaded (`stillUrl`), with no Cloudinary crop or re-encode (Roy: "we should not ask cloudinary anything to crop it"); only the clip model's input still uses the 16:9 crop (`stillUrl169`).
