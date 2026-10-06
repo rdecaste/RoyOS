@@ -46,13 +46,13 @@ export function mainHabits(boss, hero, now) {
   });
 }
 
-// Today's win is a boss card habit ("Today's win", Quest Engine POST /win): done when it was hit on today's
-// game day. Read only, like every habit here.
-export const WIN_HABIT = "Today's win";
+// Today's win, as the boss card shows it: /boss keeps the "Today's win" habit off its habits list
+// and sends the win itself as `win` ({day, done, hit: {damage}}). Done when today's game day's
+// win is Done. Read only: it is ticked on the boss card (Quest Engine POST /win).
 export function winToday(boss, now = Date.now()) {
-  const h = (boss && boss.habits || []).find(x => x.name === WIN_HABIT);
-  const done = !!(h && h.last_attack) && gameDay(Date.parse(h.last_attack)) === gameDay(now);
-  return { done, at: done ? hhmm(Date.parse(h.last_attack)) : null };
+  const w = boss && boss.win;
+  const done = !!(w && w.done) && w.day === gameDay(now);
+  return { done, dmg: done && w.hit && w.hit.damage ? Number(w.hit.damage) : null };
 }
 
 // The boss widget: the boss's HP from the boss card (GET /boss) and Goku's front-of-card

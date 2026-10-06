@@ -906,7 +906,7 @@ function renderFocusW(max = focusMax) {
   const won = isWon();
   $('wFocus').classList.toggle('won', won);
   $('winIf').dataset.act = D.journal.win_if ? 'win' : '';
-  $('winIf').dataset.tip = D.journal.win_if ? (won ? 'Done on the boss card' + (D.win.at ? ' at ' + D.win.at : '') : 'Tap to tick it off on the boss card') : '';
+  $('winIf').dataset.tip = D.journal.win_if ? (won ? 'Done on the boss card' + (D.win.dmg ? ' · ' + D.win.dmg + ' damage' : '') : 'Tap to tick it off on the boss card') : '';
   $('winIf').innerHTML = (won ? '<small>Today is a win<span class="wk"></span></small>' : '<small>Today is a win if' + (D.journal.win_if ? '<span class="wk"></span>' : '') + '</small>') + (D.journal.win_if ? '<span class="wtx">' + esc(D.journal.win_if) + '</span>' : '<span class="say">Not set in your journal yet.</span>');
   celebrateWin();
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
