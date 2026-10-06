@@ -470,6 +470,97 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .nx:hover { background: rgba(255, 255, 255, .1); color: var(--fg); }
 @keyframes notein { from { opacity: 0; transform: translateY(-1rem) scale(.98); } }
 @keyframes noteout { to { opacity: 0; transform: translateY(-1rem); } }
+/* The critters: a black cat, a Zaun rat and a gecko, drawn as silhouettes lit by the world */
+.os .critters { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.os .crit { position: absolute; left: 0; top: 0; will-change: transform; }
+.os .crit .cb { width: 100%; height: 100%; }
+.os .crit.left .cb { transform: scaleX(-1); }
+.os .crit svg { display: block; overflow: visible; filter: drop-shadow(0 0 .7px rgba(var(--accent-rgb, 255, 95, 183), .7)) drop-shadow(0 2px 3px rgba(0, 0, 0, .55)); }
+.os .crit .leg { transform-box: fill-box; transform-origin: 50% 0; }
+
+/* Cat: black fur with a thin rim of the world's light, green-gold eyes */
+.os .crit.cat path, .os .crit.cat ellipse { fill: #0b0c10; }
+.os .crit.cat .tail { fill: none; stroke: #0b0c10; stroke-width: 3.4; stroke-linecap: round; transform-origin: 13px 21px; animation: crSway 3.2s ease-in-out infinite; }
+.os .crit.cat .p-sit .tail, .os .crit.cat .p-sleep .tail { stroke-width: 3; transform-origin: 44px 43px; animation: crTip 4s ease-in-out infinite; }
+.os .crit.cat .far path { fill: #050608; }
+.os .crit.cat .eye { fill: #c9e36b; stroke: none; filter: drop-shadow(0 0 1.5px rgba(201, 227, 107, .9)); transform-box: fill-box; transform-origin: center; animation: crBlink 6s infinite; }
+.os .crit.cat .p-sit, .os .crit.cat .p-sleep, .os .crit.cat .paw { display: none; }
+.os .crit.cat:is([data-mode="sit"], [data-mode="groom"]) .p-walk, .os .crit.cat[data-mode="sleep"] .p-walk { display: none; }
+.os .crit.cat:is([data-mode="sit"], [data-mode="groom"]) .p-sit, .os .crit.cat[data-mode="sleep"] .p-sleep { display: inline; }
+.os .crit.cat[data-mode="groom"] .paw { display: inline; transform-box: fill-box; transform-origin: 30% 100%; animation: crGroom .6s ease-in-out infinite alternate; }
+.os .crit.cat[data-mode="groom"] .p-sit .head { transform: rotate(14deg); transform-box: fill-box; transform-origin: 50% 100%; }
+.os .crit.cat .breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: crBreathe 3.6s ease-in-out infinite; }
+.os .crit.cat:is([data-mode="walk"], [data-mode="trot"]) .leg { animation: crStride .8s ease-in-out infinite; }
+.os .crit.cat:is([data-mode="walk"], [data-mode="trot"]) :is(.lhf, .lfn) { animation-delay: -.4s; }
+.os .crit.cat[data-mode="trot"] .leg { animation-duration: .46s; }
+.os .crit.cat[data-mode="trot"] :is(.lhf, .lfn) { animation-delay: -.23s; }
+.os .crit.cat:is([data-mode="walk"], [data-mode="trot"]) svg { animation: crBob .4s ease-in-out infinite alternate; }
+.os .crit.cat[data-mode="crouch"] svg { transform: scaleY(.84); transform-origin: 50% 100%; }
+.os .crit.cat[data-mode="jump"] :is(.lff, .lfn) { transform: rotate(-58deg); }
+.os .crit.cat[data-mode="jump"] :is(.lhf, .lhn) { transform: rotate(52deg); }
+.os .crit.cat[data-mode="stretch"] .torso { transform: rotate(9deg); transform-origin: 14px 26px; }
+.os .crit.cat[data-mode="stretch"] :is(.lff, .lfn) { transform: rotate(-38deg); }
+
+/* The week's critter: three painted sheets of 8 frames (walk, rest, leap), one frame shown at a time */
+.os .crit.painted { --cyc: 1.1s; }
+.os .crit.painted[data-mode="trot"] { --cyc: .6s; }
+.os .crit.painted .cb { position: relative; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6)); }
+.os .crit.painted .pw { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.os .crit.painted .fr { position: absolute; display: none; background-repeat: no-repeat; }
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) [class*="f-w"] { display: block; animation: crFrame8 var(--cyc) linear infinite; animation-delay: calc((var(--i) - 8) * var(--cyc) / 8); }
+.os .crit.painted[data-mode="freeze"] .f-r6, .os .crit.painted[data-mode="stretch"] .f-r7, .os .crit.painted[data-mode="crouch"] .f-l1 { display: block; }
+.os .crit.painted[data-mode="sit"] :is(.f-r0, .f-r1) { display: block; animation: crGlance 9s linear infinite; }
+.os .crit.painted[data-mode="sit"] .f-r1 { animation-name: crGlanceB; }
+.os .crit.painted[data-mode="groom"] :is(.f-r2, .f-r3) { display: block; animation: crFrame .9s linear infinite; }
+.os .crit.painted[data-mode="groom"] .f-r3 { animation-delay: -.45s; }
+.os .crit.painted[data-mode="sleep"] :is(.f-r4, .f-r5) { display: block; }
+.os .crit.painted[data-mode="sleep"] .f-r5 { animation: crBreathIn 4.4s ease-in-out infinite; }
+.os .crit.painted[data-mode="jump"][data-lf="2"] .f-l2, .os .crit.painted[data-mode="jump"][data-lf="3"] .f-l3, .os .crit.painted[data-mode="jump"][data-lf="4"] .f-l4,
+.os .crit.painted[data-mode="jump"][data-lf="5"] .f-l5, .os .crit.painted[data-mode="jump"][data-lf="6"] .f-l6, .os .crit.painted[data-mode="jump"][data-lf="7"] .f-l7 { display: block; }
+@keyframes crFrame8 { 0%, 12.5% { opacity: 1; } 12.6%, 100% { opacity: 0; } }
+@keyframes crFrame { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes crGlance { 0%, 69.9%, 86%, 100% { opacity: 1; } 70%, 85.9% { opacity: 0; } }
+@keyframes crGlanceB { 0%, 69.9%, 86%, 100% { opacity: 0; } 70%, 85.9% { opacity: 1; } }
+@keyframes crBreathIn { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+/* Rat: grey-brown fur, pink ears, nose and tail, twitching whiskers */
+.os .crit.rat .fur, .os .crit.rat .leg path { fill: #3d3734; }
+.os .crit.rat .far path { fill: #2c2725; }
+.os .crit.rat .tail { fill: none; stroke: #8b7270; stroke-width: 1.6; stroke-linecap: round; transform-origin: 10px 19px; animation: crSway 2.2s ease-in-out infinite; }
+.os .crit.rat .ear { fill: #5e4b49; } .os .crit.rat .earin { fill: #c48b8b; }
+.os .crit.rat .eye { fill: #050505; } .os .crit.rat .glint { fill: #fff; }
+.os .crit.rat .nose { fill: #d99a9a; }
+.os .crit.rat .whisk { fill: none; stroke: rgba(235, 235, 235, .4); stroke-width: .35; }
+.os .crit.rat[data-mode="walk"] .leg { animation: crStride .16s linear infinite; }
+.os .crit.rat[data-mode="walk"] :is(.lhf, .lfn) { animation-delay: -.08s; }
+.os .crit.rat[data-mode="walk"] svg { animation: crBob .08s linear infinite alternate; }
+.os .crit.rat :is([data-mode="sniff"], [data-mode="rear"]) .snout { transform-box: fill-box; transform-origin: 0 50%; animation: crSniff .22s ease-in-out infinite alternate; }
+.os .crit.rat[data-mode="rear"] .body { transform: rotate(-38deg); transform-origin: 15px 24px; }
+.os .crit.rat[data-mode="rear"] :is(.lff, .lfn) { transform: rotate(-70deg); }
+.os .crit.rat[data-mode="jump"] :is(.lff, .lfn) { transform: rotate(-60deg); }
+.os .crit.rat[data-mode="jump"] :is(.lhf, .lhn) { transform: rotate(55deg); }
+
+/* Gecko: olive with pale spots and a gold eye; darts, freezes, climbs */
+.os .crit.gecko .fur { fill: #47523c; }
+.os .crit.gecko .spots { fill: #8f9e6a; }
+.os .crit.gecko .leg { fill: none; stroke: #47523c; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transform-origin: 0 0; }
+.os .crit.gecko .far { stroke: #343c2c; }
+.os .crit.gecko .eye { fill: #d3a83a; } .os .crit.gecko .pupil { fill: none; stroke: #111; stroke-width: .6; }
+.os .crit.gecko .tailg { transform-origin: 17px 12px; }
+.os .crit.gecko:is([data-mode="walk"], [data-mode="climb"]) .leg { animation: crScuttle .14s linear infinite alternate; }
+.os .crit.gecko:is([data-mode="walk"], [data-mode="climb"]) :is(.lhf, .lfn) { animation-direction: alternate-reverse; }
+.os .crit.gecko:is([data-mode="walk"], [data-mode="climb"]) .tailg { animation: crSway .28s ease-in-out infinite alternate; }
+
+@keyframes crStride { 0%, 100% { transform: rotate(15deg); } 50% { transform: rotate(-15deg); } }
+@keyframes crScuttle { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@keyframes crBob { from { transform: translateY(0); } to { transform: translateY(-1px); } }
+@keyframes crSway { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+@keyframes crTip { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
+@keyframes crBlink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+@keyframes crBreathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.06); } }
+@keyframes crGroom { from { transform: rotate(0); } to { transform: rotate(-18deg); } }
+@keyframes crSniff { from { transform: rotate(0) translateX(0); } to { transform: rotate(-4deg) translateX(.6px); } }
+
 /* Night: the lock goes fully black (OLED pixels off) from 23:00 to 04:00; a tap wakes the board until the next phase. */
 .lock { position: fixed; z-index: 40; inset: 0; display: none; background: #000; cursor: pointer; }
 body[data-phase="night"]:not(.awake) .lock { display: block; }
