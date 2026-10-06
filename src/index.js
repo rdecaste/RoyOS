@@ -4,6 +4,8 @@
 //   GET  /                 the board
 //   GET  /login            sign-in page (no cookie)   POST /login (password, next)   POST /logout
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
+//   GET  /?at=2026-10-12T07:00   a preview: the board at that time (Amsterdam), read only; /data?at= feeds it.
+//                          Nothing is saved, no cache written, no world, critter or commute run started.
 //   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}; work with a past `day` fills in that day,
 //                          and places and ride go on to the admin board's work_location (src/work.js);
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
@@ -18,7 +20,7 @@
 // the week has none yet; a failed week is retried on the next tick.
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
-import { board, themeView, gameDay, focusSession } from './data.js';
+import { board, themeView, gameDay, focusSession, previewAt } from './data.js';
 import { loadCatalogue, pickTheme, loreFor, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
@@ -71,6 +73,15 @@ async function currentTheme(env, s, now = Date.now()) {
   const next = catalogue.length ? pickTheme(catalogue, weekAfter(week, 1)) : null;
   const critter = current ? await s.cached('critter:' + current.week) : null;
   return themeView(current, next, critter, loreFor(catalogue, current));
+}
+
+// A preview's own note: the time it shows and, when that week has no world yet, the one the Monday
+// run will pick (pickTheme is the same pick the run makes; nothing is generated here).
+async function previewNote(env, s, at) {
+  const week = themeWeek(at), row = await s.theme(week);
+  const catalogue = row ? [] : await loadCatalogue(env.DB).catch(() => []);
+  const pick = catalogue.length ? pickTheme(catalogue, week) : null;
+  return { at: new Date(at).toISOString(), week, world: row ? { franchise: row.franchise, scene: row.scene, character: row.character, ready: row.status === 'ready' } : pick ? { franchise: pick.franchise, scene: pick.scene, character: pick.character, ready: false } : null };
 }
 
 // Starts the week's generation when it has none (or the last try failed). Idempotent.
@@ -171,6 +182,13 @@ export default {
         return json({ ok: 0, code: 'signed_out' }, 401);
       }
 
+      const at = url.searchParams.has('at') ? previewAt(url.searchParams.get('at')) : null;
+      if (url.searchParams.has('at') && at == null && (path === '/' || path === '/data')) return json({ ok: 0, code: 'bad_at', message: 'at must be a time within 60 days, like 2026-10-12T07:00 (Amsterdam)' }, 400);
+      if (at != null && (path === '/' || path === '/data') && request.method === 'GET') {
+        const [data, theme, preview] = await Promise.all([board(env, s, at, { preview: true }), currentTheme(env, s, at), previewNote(env, s, at)]);
+        if (path === '/data') return json({ ok: 1, ...data, theme, preview });
+        return page(deskPage({ data: { ...data, preview }, theme, moodArt: MOOD_ART.map(b => 'data:image/webp;base64,' + b) }));
+      }
       if (path === '/' && request.method === 'GET') {
         const [data, theme] = await Promise.all([board(env, s), currentTheme(env, s)]);
         return page(deskPage({ data, theme, moodArt: MOOD_ART.map(b => 'data:image/webp;base64,' + b) }));
