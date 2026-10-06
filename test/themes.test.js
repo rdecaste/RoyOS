@@ -123,6 +123,6 @@ test('lore: the scene and character descriptions from the catalogue, the scene\'
 test('still prompt: a wide shot with the character busy in the scene, never a pin-up bust', async () => {
   const { stillPrompt } = await import('../src/themes.js');
   const p = stillPrompt({ scene_name: 'S', franchise: 'F', canonical_identity: '', canonical_elements: '', signature_features: '', restrictions: '' }, { character_name: 'C', franchise: 'F', canonical_identity: '', canonical_elements: '', restrictions: '' });
-  assert.match(p, /not a pin-up/); assert.match(p, /never on the viewer/); assert.match(p, /wide shot/);
+  assert.match(p, /not a pin-up/); assert.match(p, /not looking at the viewer/); assert.match(p, /Wide shot/); assert.match(p, /Never younger, never childlike/);
   assert.doesNotMatch(p, /waist up:/);
 });
