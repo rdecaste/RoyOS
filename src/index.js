@@ -17,7 +17,7 @@
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
 import { board, themeView, gameDay } from './data.js';
-import { loadCatalogue, pickTheme, remakeDue, isoWeek, weekAfter, ymd } from './themes.js';
+import { loadCatalogue, pickTheme, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
 import { MOOD_ART } from './moodart.js';
@@ -90,6 +90,15 @@ export async function ensureTheme(env, s, { week = themeWeek(), force = false, r
   return { ok: 1, status: 'started', week, workflow: run.id, pick: { franchise: pick.franchise, scene: pick.scene, character: pick.character } };
 }
 
+// Starts the critter art CRITTER_ART asks for, once: the ask is remembered before the run starts.
+async function ensureCritter(env, s) {
+  const first = critterDue(env.CRITTER_ART, false); if (!first) return null;
+  if (await s.cached(first.key)) return null;
+  await s.remember(first.key, { at: new Date().toISOString() }, 3650 * 864e5);
+  const run = await env.DESK_THEME.create({ params: { critter: first.critter } });
+  return { ok: 1, critter: first.critter, workflow: run.id };
+}
+
 // ---- Edits on the board ----
 async function edit(env, s, day, fn) {
   const { data } = await s.day(day);
@@ -152,6 +161,7 @@ export default {
         return page(deskPage({ data, theme, moodArt: MOOD_ART.map(b => 'data:image/webp;base64,' + b) }));
       }
       if (path === '/data') {
+        ctx.waitUntil(ensureCritter(env, s).catch(err => console.error('critter: ' + (err && err.message || err))));
         const [data, theme] = await Promise.all([board(env, s), currentTheme(env, s)]);
         return json({ ok: 1, ...data, theme });
       }
@@ -197,6 +207,7 @@ export default {
         const now = event.scheduledTime || Date.now(), week = themeWeek(now);
         const character = remakeDue(env.REMAKE, await s.theme(week), week);
         await ensureTheme(env, s, character ? { week, force: true, character } : { week });
+        await ensureCritter(env, s);
       } catch (err) {
         console.error('theme cron: ' + (err && err.message || err));
       }

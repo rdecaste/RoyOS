@@ -107,6 +107,21 @@ export function remakeDue(spec, row, week) {
   return character;
 }
 
+// ---- Critter art ----
+// CRITTER_ART is "<critter>|<ISO time>": the art for that critter is made once per ask.
+export const CRITTER_PROMPTS = {
+  cat: 'A sprite sheet of one black cat for an animated desk dashboard: six separate poses of the SAME cat, side view, every pose facing right, all at the same size and scale, evenly spaced in a 3 by 2 grid with generous empty space around each pose so they can be cut apart. ' +
+    'Top row, left to right: walking with the near front paw forward and the near hind leg back; walking in the passing pose with the legs under the body; leaping with the body stretched long, front paws reaching forward and hind legs pushing back. ' +
+    'Bottom row, left to right: sitting upright with the tail wrapped around the front paws; curled up asleep; sitting and licking a raised front paw. ' +
+    'A sleek short-haired black cat with green-gold eyes, realistic proportions, painterly semi-realistic anime key art, soft rim light in magenta and teal from a neon city at night, crisp silhouette, fine fur detail. ' +
+    'Transparent background. No ground, no floor, no cast shadows, no text, no labels, no grid lines, no frames, nothing else in the image.'
+};
+export function critterDue(spec, done) {
+  const [critter, at] = String(spec || '').split('|').map(x => x.trim());
+  if (!CRITTER_PROMPTS[critter] || isNaN(Date.parse(at || '')) || done) return null;
+  return { critter, key: 'critter-ask:' + critter + '|' + at };
+}
+
 // ---- Prompts ----
 // The still follows the scene and character rows word for word where it matters,
 // plus the desk's layout: subject in the middle third, both sides dark for the panels, room for the quote.
