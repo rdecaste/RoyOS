@@ -2,7 +2,7 @@
 // journal's day (focus, win-if, moods, work), the last nights and workouts from the
 // quest D1 (read only), the weather, and the week's world. Plus the day's own edits.
 import { ymd, isoWeek, mondayOf } from './themes.js';
-import { parseIcs, agenda, laneWords } from './calendar.js';
+import { parseIcs, agenda } from './calendar.js';
 import { emptyDay } from './day.js';
 import { stillUrl169, clipUrl, spriteUrl } from './media.js';
 
@@ -168,12 +168,12 @@ export async function weather(env, s, now = Date.now()) {
 }
 
 // ---- The calendars (published iCloud feeds), cached 10 minutes ----
-// The family calendar fills the lanes by the words in each title (an event naming nobody
-// stays in the family lane, Kids) and Coming up; Steph's
+// The family calendar is the Kids lane (Roy: "the kids is actually the family calendar") and
+// fills Coming up; Steph's
 // work calendar fills her lane only (daily shifts would drown Coming up); Roy's personal
 // calendar fills his lane and Coming up, the kids' calendar theirs. All are published feeds, read only.
 const feeds = env => [
-  { key: 'family', url: env.FAMILY_ICS_URL, coming: true, opts: { words: laneWords(env.LANE_WORDS), unnamed: 'kids' } },
+  { key: 'family', url: env.FAMILY_ICS_URL, coming: true, opts: { lane: 'kids' } },
   { key: 'steph', url: env.STEPH_ICS_URL, coming: false, opts: { lane: 'steph', kind: 'work', icon: '💼' } },
   { key: 'roy', url: env.ROY_ICS_URL, coming: true, opts: { lane: 'roy', kind: 'mind', icon: '📅' } },
   { key: 'kids', url: env.KIDS_ICS_URL, coming: true, opts: { lane: 'kids', kind: 'fam', icon: '🧒' } }
