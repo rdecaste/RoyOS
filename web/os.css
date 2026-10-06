@@ -59,14 +59,14 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .board #wall { position: absolute; }
 #wall video { position: absolute; top: 0; height: 100%; width: auto; transition: opacity 1s linear; }
 #wall::after { content: ""; position: absolute; inset: 0; background:
-  linear-gradient(90deg, rgba(0,0,0,.7) 0, rgba(0,0,0,.15) 26%, rgba(0,0,0,0) 40%, rgba(0,0,0,0) 60%, rgba(0,0,0,.15) 74%, rgba(0,0,0,.7) 100%),
-  linear-gradient(180deg, rgba(0,0,0,.6) 0, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 72%, rgba(0,0,0,.6) 100%); }
-.os { position: absolute; inset: 0; --glass: rgba(6, 8, 14, .58); --glass-hover: rgba(6, 8, 14, .66); --edge: rgba(255, 255, 255, .10); color: var(--fg); }
+  linear-gradient(90deg, rgba(0,0,0,.4) 0, rgba(0,0,0,.08) 24%, rgba(0,0,0,0) 36%, rgba(0,0,0,0) 64%, rgba(0,0,0,.08) 76%, rgba(0,0,0,.4) 100%),
+  linear-gradient(180deg, rgba(0,0,0,.45) 0, rgba(0,0,0,0) 14%, rgba(0,0,0,0) 76%, rgba(0,0,0,.45) 100%); }
+.os { position: absolute; inset: 0; --glass: rgba(6, 8, 14, .3); --glass-hover: rgba(6, 8, 14, .44); --edge: rgba(255, 255, 255, .14); color: var(--fg); }
 .os .mut { color: var(--dim); }
 
-/* Tiles: true-black glass, hairline frames */
-.os .t { position: absolute; width: 420px; padding: 18px 20px; border-radius: 20px; background: var(--glass); border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
-  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); transition: background .2s, border-color .2s; }
+/* Tiles: see-through black glass with a light blur, hairline frames; a soft text shadow keeps them readable over the world */
+.os .t { position: absolute; width: 420px; padding: 18px 20px; border-radius: 20px; background: var(--glass); border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(0, 0, 0, .2); text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+  backdrop-filter: blur(8px) saturate(1.2); -webkit-backdrop-filter: blur(8px) saturate(1.2); transition: background .2s, border-color .2s; }
 .os .t[data-open] { cursor: pointer; }
 .os .t[data-open]:hover { background: var(--glass-hover); border-color: rgba(255, 255, 255, .18); }
 .os .tl { display: flex; align-items: center; gap: 10px; min-width: 0; font: 600 13px/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
