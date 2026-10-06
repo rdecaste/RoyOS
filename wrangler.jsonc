@@ -21,8 +21,8 @@
   "vars": {
     "QUEST_ENGINE_URL": "https://quest-engine.quest-engine.workers.dev",
     "IMAGE_MODEL": "gpt-image-2.5-flare",
-    // Veo 3.1 at 1080p since 6 Oct 2026 (omni clips are 1280×720, soft on the 1920×1080 screen); "gemini-omni-flash-preview" switches back.
-    "VIDEO_MODEL": "veo-3.1-generate-preview",
+    // omni at 720p (back since 6 Oct 2026 evening: a Veo 3.1 1080p clip cost Roy €1–2); "veo-3.1-generate-preview" switches to Veo.
+    "VIDEO_MODEL": "gemini-omni-flash-preview",
     "CHAT_MODEL": "gpt-6-astra",
     "WEATHER_LAT": "51.286",
     "WEATHER_LON": "3.828",
