@@ -4,7 +4,8 @@
 //   GET  /                 the board
 //   GET  /login            sign-in page (no cookie)   POST /login (password, next)   POST /logout
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
-//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}
+//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...},
+//                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
 //   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
 //   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
@@ -16,8 +17,8 @@
 // the week has none yet; a failed week is retried on the next tick.
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
-import { board, themeView, gameDay } from './data.js';
-import { loadCatalogue, pickTheme, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
+import { board, themeView, gameDay, focusSession } from './data.js';
+import { loadCatalogue, pickTheme, loreFor, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
 import { MOOD_ART } from './moodart.js';
@@ -67,7 +68,7 @@ async function currentTheme(env, s, now = Date.now()) {
   const catalogue = await loadCatalogue(env.DB).catch(() => []);
   const next = catalogue.length ? pickTheme(catalogue, weekAfter(week, 1)) : null;
   const critter = current ? await s.cached('critter:' + current.week) : null;
-  return themeView(current, next, critter);
+  return themeView(current, next, critter, loreFor(catalogue, current));
 }
 
 // Starts the week's generation when it has none (or the last try failed). Idempotent.
@@ -172,6 +173,11 @@ export default {
 
       if (path === '/act' && request.method === 'POST') {
         const a = await readFields(request), day = ymd(Date.now());
+        if (a.type === 'focus') {
+          const f = focusSession(a, day);
+          if (!f) return json({ ok: 0, code: 'bad_session', message: 'A focus session needs day, at (HH:MM) and 1 to 25 minutes' }, 400);
+          return json({ ok: 1, focus: (await s.addFocus(f)).filter(x => x.day === day) });
+        }
         if (a.type === 'undo') {
           const { undo } = await s.day(day);
           if (!undo) return json({ ok: 0, code: 'nothing_to_undo' });

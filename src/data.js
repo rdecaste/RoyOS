@@ -213,19 +213,30 @@ export async function calendar(env, s, now = Date.now()) {
   return out;
 }
 
+// ---- Focus sessions ----
+// A session the page sends (POST /act {type: focus}): the day it started (today or yesterday, for one that
+// ran past midnight), its start time, whole minutes focused (1 to 25) and whether it ran the full 25.
+export function focusSession(a, today) {
+  const day = String(a.day || ''), at = String(a.at || ''), min = Math.round(Number(a.min));
+  const yesterday = new Date(Date.parse(today + 'T12:00:00Z') - DAY).toISOString().slice(0, 10);
+  if (day !== today && day !== yesterday) return null;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at) || !(min >= 1 && min <= 25)) return null;
+  return { day, at, min, done: a.done === true || a.done === 'true' || a.done === 1 };
+}
+
 // ---- The week's world as the page sees it ----
 // The critter goes to the page only when all three sheets were made; otherwise the drawn cat walks.
 export function critterView(c) {
   if (!c || !['walk', 'rest', 'leap'].every(k => c[k] && c[k].public_id)) return null;
   return { name: c.name, walk: spriteUrl(c.walk.public_id, c.walk.version), rest: spriteUrl(c.rest.public_id, c.rest.version), leap: spriteUrl(c.leap.public_id, c.leap.version) };
 }
-export function themeView(row, next, critter = null) {
+export function themeView(row, next, critter = null, lore = null) {
   if (!row) return null;
   return {
     week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
     still: row.still_public_id ? stillUrl169(row.still_public_id, row.still_version) : null,
     clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
-    critter: critterView(critter),
+    critter: critterView(critter), lore,
     next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
   };
 }
@@ -235,12 +246,14 @@ export function themeView(row, next, critter = null) {
 export async function board(env, s, now = Date.now()) {
   const day = ymd(now), errors = [];
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
+  const focusP = safe('focus', Promise.resolve().then(() => s.focusDay(day)), []);
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);
+  const focus = await focusP;
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
   const P = power(mq, hero, focusQuest);
   const edits = dayState && dayState.data || emptyDay();
@@ -249,6 +262,6 @@ export async function board(env, s, now = Date.now()) {
     main: mainHabits(boss, hero, now), boss: bossView(env, boss, mq, hero),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: safeText(env, focusQuest.quote), author: safeText(env, focusQuest.quoteAuthor), longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
-    weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo)
+    weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo), focus
   };
 }

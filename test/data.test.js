@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, focusSession, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -87,4 +87,13 @@ test('missing days: past weekdays with no place, never today or weekends', () =>
   // 1 and 2 Oct have no row at all: weekdays, so missing; 26 and 27 Sep are a weekend.
   assert.deepEqual(missingDays(ytd, '2026-10-06'), ['2026-09-28', '2026-09-30', '2026-10-01', '2026-10-02']);
   assert.deepEqual(missingDays([], '2026-10-06'), []);
+});
+
+test('focus session: today or yesterday, a start time and 1 to 25 whole minutes', () => {
+  assert.deepEqual(focusSession({ day: '2026-10-06', at: '09:10', min: 25, done: true }, '2026-10-06'), { day: '2026-10-06', at: '09:10', min: 25, done: true });
+  assert.deepEqual(focusSession({ day: '2026-10-05', at: '23:50', min: '12.4', done: 'false' }, '2026-10-06'), { day: '2026-10-05', at: '23:50', min: 12, done: false }, 'one that ran past midnight');
+  assert.equal(focusSession({ day: '2026-10-01', at: '09:10', min: 25 }, '2026-10-06'), null);
+  assert.equal(focusSession({ day: '2026-10-06', at: '9:10', min: 25 }, '2026-10-06'), null);
+  assert.equal(focusSession({ day: '2026-10-06', at: '09:10', min: 0 }, '2026-10-06'), null);
+  assert.equal(focusSession({ day: '2026-10-06', at: '09:10', min: 40 }, '2026-10-06'), null);
 });
