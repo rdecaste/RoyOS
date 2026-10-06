@@ -501,6 +501,27 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .crit.cat[data-mode="stretch"] .torso { transform: rotate(9deg); transform-origin: 14px 26px; }
 .os .crit.cat[data-mode="stretch"] :is(.lff, .lfn) { transform: rotate(-38deg); }
 
+/* The painted cat: one sheet of six poses; the walk flips between two frames */
+.os .crit.painted .cb { position: relative; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6)); }
+.os .crit.painted .pw { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.os .crit.painted .fr { position: absolute; display: none; background-image: var(--sheet); background-repeat: no-repeat; }
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"], [data-mode="freeze"], [data-mode="stretch"], [data-mode="crouch"]) .f-a,
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) .f-b, .os .crit.painted[data-mode="jump"] .f-leap,
+.os .crit.painted[data-mode="sit"] .f-sit, .os .crit.painted[data-mode="sleep"] .f-sleep, .os .crit.painted[data-mode="groom"] .f-groom { display: block; }
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) :is(.f-a, .f-b) { animation: crFrame .6s linear infinite; }
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) .f-b { animation-delay: -.3s; }
+.os .crit.painted[data-mode="trot"] :is(.f-a, .f-b) { animation-duration: .34s; }
+.os .crit.painted[data-mode="trot"] .f-b { animation-delay: -.17s; }
+.os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) .pw { animation: crBob .3s ease-in-out infinite alternate; }
+.os .crit.painted:is([data-mode="sit"], [data-mode="sleep"]) .pw { animation: crRest 3.6s ease-in-out infinite; }
+.os .crit.painted[data-mode="sleep"] .pw { animation-duration: 4.4s; }
+.os .crit.painted[data-mode="groom"] .pw { animation: crLick .32s ease-in-out infinite alternate; }
+.os .crit.painted[data-mode="crouch"] .pw { transform: scaleY(.86); }
+.os .crit.painted[data-mode="stretch"] .pw { transform: scale(1.06, .93); }
+@keyframes crFrame { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes crLick { from { transform: rotate(0); } to { transform: rotate(1.6deg); } }
+@keyframes crRest { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.018); } }
+
 /* Rat: grey-brown fur, pink ears, nose and tail, twitching whiskers */
 .os .crit.rat .fur, .os .crit.rat .leg path { fill: #3d3734; }
 .os .crit.rat .far path { fill: #2c2725; }

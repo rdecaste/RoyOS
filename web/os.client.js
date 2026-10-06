@@ -401,6 +401,20 @@ const CRIT_ART = {
       '<circle class="eye" cx="51.5" cy="9.7" r="1.45"/><path class="pupil" d="M51.5 8.6 L51.5 10.8"/>' +
       '<path class="leg lhn" d="M19 12.5 L16 15.2 L13.5 15.8"/><path class="leg lfn" d="M39 12.5 L42 15.2 L44.5 15.8"/></g></svg>'
 };
+// A painted sheet (CRITTER_ART, flare) replaces the drawn cat when /data has one: one image of six
+// poses, each [x, y, w, h, centre x] in sheet pixels, shown at k of its size.
+const CRIT_SHEET = {
+  cat: { k: .2, W: 1536, H: 1024, f: { a: [24, 148, 455, 282, 251.5], b: [520, 147, 428, 281, 726.5], leap: [1003, 149, 510, 271, 1258], sit: [144, 524, 232, 406, 260], sleep: [574, 661, 391, 244, 769.5], groom: [1131, 544, 270, 388, 1266] } }
+};
+function crPaint(c) {
+  const url = D && D.critters && D.critters[c.sp], P = CRIT_SHEET[c.sp];
+  if (!url || !P || c.painted === url) return;
+  const S = SPECIES[c.sp], k = P.k, px = n => (n * k).toFixed(2) + 'px';
+  c.el.querySelector('.cb').innerHTML = '<div class="pw">' + Object.entries(P.f).map(([n, [x, y, w, h, cx]]) =>
+    '<i class="fr f-' + n + '" style="left:' + px(S.w / 2 / k - (cx - x)) + ';bottom:' + px(-2) + ';width:' + px(w) + ';height:' + px(h) + ';background-size:' + px(P.W) + ' ' + px(P.H) + ';background-position:' + px(-x) + ' ' + px(-y) + '"></i>').join('') + '</div>';
+  c.el.style.setProperty('--sheet', 'url("' + url + '")');
+  c.el.classList.add('painted'); c.painted = url;
+}
 const SPECIES = {
   cat: { w: 64, h: 44, home: e => e.id === 'wAsk', reach: [460, 300, 440], crouch: 240, arc: 40 },
   rat: { w: 56, h: 24, home: e => e.classList.contains('day'), reach: [260, 200, 420], crouch: 0, arc: 26 },
@@ -521,6 +535,7 @@ function crStep(t) {
     crOffNow = portrait() || matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle($('lock')).display !== 'none';
     $('critters').hidden = crOffNow;
     if (!crOffNow) CRP = crPlats();
+    CRITS.forEach(crPaint);
   }
   if (crOffNow || !CRP.length) return;
   CRITS.forEach(c => { crTick(c, t, dt); crDraw(c); });
