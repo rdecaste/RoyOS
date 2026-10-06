@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, mergeWork, focusSession, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, mergeWork, winToday, focusSession, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -104,4 +104,11 @@ test('desk work: a past day set on Roy OS fills in the journal, and wins over an
   assert.deepEqual(merged.map(w => [w.date, w.am, w.pm]), [['2026-09-28', '🇧🇪 Beerse', '🇧🇪 Ghent'], ['2026-09-29', '🇧🇪 Beerse', '🇧🇪 Beerse'], ['2026-09-30', '🇳🇱 Home', '🇳🇱 Home'], ['2026-10-01', '🇳🇱 Home', '🇳🇱 Home']]);
   assert.deepEqual(missingDays(ytd, '2026-10-02'), ['2026-09-28', '2026-09-30']);
   assert.deepEqual(missingDays(merged, '2026-10-02'), [], 'both filled in on the screen');
+});
+
+test('today\'s win: the boss card\'s "Today\'s win" hit on today\'s game day', () => {
+  const boss = { habits: [{ name: "Today's win", last_attack: '2026-10-05T11:31:42.314Z' }] };
+  assert.deepEqual(winToday(boss, NOW), { done: true, at: '13:31' });
+  assert.deepEqual(winToday(boss, Date.parse('2026-10-06T10:00:00Z')), { done: false, at: null }, 'yesterday\'s win is not today\'s');
+  assert.deepEqual(winToday(null, NOW), { done: false, at: null });
 });

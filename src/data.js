@@ -46,6 +46,15 @@ export function mainHabits(boss, hero, now) {
   });
 }
 
+// Today's win is a boss card habit ("Today's win", Quest Engine POST /win): done when it was hit on today's
+// game day. Read only, like every habit here.
+export const WIN_HABIT = "Today's win";
+export function winToday(boss, now = Date.now()) {
+  const h = (boss && boss.habits || []).find(x => x.name === WIN_HABIT);
+  const done = !!(h && h.last_attack) && gameDay(Date.parse(h.last_attack)) === gameDay(now);
+  return { done, at: done ? hhmm(Date.parse(h.last_attack)) : null };
+}
+
 // The boss widget: the boss's HP from the boss card (GET /boss) and Goku's front-of-card
 // metrics (GET /mainquest, live hero HP from /boss, the form from /hero). Read only: habits
 // are ticked on the boss card itself, never here.
@@ -268,7 +277,7 @@ export async function board(env, s, now = Date.now()) {
   const edits = dayState && dayState.data || emptyDay();
   return {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
-    main: mainHabits(boss, hero, now), boss: bossView(env, boss, mq, hero),
+    main: mainHabits(boss, hero, now), win: winToday(boss, now), boss: bossView(env, boss, mq, hero),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: safeText(env, focusQuest.quote), author: safeText(env, focusQuest.quoteAuthor), longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
     weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo), focus

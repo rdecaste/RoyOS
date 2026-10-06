@@ -888,12 +888,17 @@ function renderQuote() {
   el.innerHTML = '<span class="q">“' + esc(q.quote) + '”</span><small>' + esc(q.author || 'The quest') + '</small>';
   el.setAttribute('aria-label', '“' + q.quote + '”' + (q.author ? ', ' + q.author : '') + '. Open Quest');
 }
-// Today's win: ticked here (the day's edits, `win`) or answered yes to "Did it happen?" in the evening journal.
-const isWon = () => (E.win != null ? !!E.win : /^(y|yes|ja|done|true|1|✅)/i.test(String(D.journal.did_it_happen || '').trim()));
-function setWin(done) {
-  E.win = done; renderFocusW(); fitAfterRender(); refreshWin();
-  if (done) { const w = $('winIf'); w.classList.remove('wpop'); void w.offsetWidth; w.classList.add('wpop'); }
-  act({ type: 'win', done }, () => { if (done) notify({ app: 'focus', title: 'Focus', html: '<b>Today is a win.</b> ' + esc(D.journal.win_if) + ' 🎉' }); });
+// Today's win is the game's: the boss card's "Today's win" (Quest Engine POST /win), read from /boss as
+// `win`. A tap on the win line opens the boss card to tick it off there, damage and all; when the card
+// closes the board refreshes, and a win that landed meanwhile gets its moment here too.
+const isWon = () => !!(D.win && D.win.done);
+let winWatch = false;
+function openWinCard() { winWatch = !isWon(); openCard('boss'); }
+function celebrateWin() {
+  if (!winWatch || !isWon()) return;
+  winWatch = false;
+  const w = $('winIf'); w.classList.remove('wpop'); void w.offsetWidth; w.classList.add('wpop');
+  notify({ app: 'focus', title: 'Focus', html: '<b>Today is a win.</b> ' + esc(D.journal.win_if) + ' 🎉' });
 }
 function renderFocusW(max = focusMax) {
   const all = focusList('must').concat(focusList('can'));
@@ -901,8 +906,9 @@ function renderFocusW(max = focusMax) {
   const won = isWon();
   $('wFocus').classList.toggle('won', won);
   $('winIf').dataset.act = D.journal.win_if ? 'win' : '';
-  $('winIf').dataset.tip = D.journal.win_if ? (won ? 'Done. Tap to undo' : 'Tap when it happened') : '';
+  $('winIf').dataset.tip = D.journal.win_if ? (won ? 'Done on the boss card' + (D.win.at ? ' at ' + D.win.at : '') : 'Tap to tick it off on the boss card') : '';
   $('winIf').innerHTML = (won ? '<small>Today is a win<span class="wk"></span></small>' : '<small>Today is a win if' + (D.journal.win_if ? '<span class="wk"></span>' : '') + '</small>') + (D.journal.win_if ? '<span class="wtx">' + esc(D.journal.win_if) + '</span>' : '<span class="say">Not set in your journal yet.</span>');
+  celebrateWin();
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
   $('focusTodos').innerHTML = list.length ? list.slice(0, max).map(o => todoBtn(o.x, o.g)).join('') + (list.length > max ? '<div class="tmore">' + (max ? '+' + (list.length - max) + ' more' : list.length + ' open, tap Focus to see them') + '</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="tsay">No to-dos yet. Add one in Focus.</div>';
 }
@@ -1172,7 +1178,7 @@ function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
-  else if (a === 'win') setWin(!isWon());
+  else if (a === 'win') openWinCard();
   else if (a === 'missday') { missPick = missPick === el.dataset.d ? null : el.dataset.d; refreshWin(); }
   else if (a === 'misscancel') { missPick = null; refreshWin(); }
   else if (a === 'misssave') saveMissing(el.dataset.d);

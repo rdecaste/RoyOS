@@ -40,8 +40,6 @@ export function applyActions(d, list, now = Date.now()) {
       const w = d.work || {}; const am = pick(PLACES, a.am), pm = pick(PLACES, a.pm), ride = pick(RIDES, a.ride || a.commute);
       if (am) w.am = am; if (pm) w.pm = pm; if (ride) w.commute = ride;
       if (am || pm || ride) { d.work = w; n++; }
-    } else if (type === 'win') {
-      d.win = a.done === true || a.done === 'true' || a.done === '1'; n++;
     } else if (type === 'plan' && Array.isArray(a.events)) {
       d.events = a.events.filter(e => e && TIME.test(String(e.from)) && TIME.test(String(e.to)) && minOf(e.to) > minOf(e.from) && String(e.t || '').trim()).slice(0, 60)
         .map(e => ({ id: String(e.id || 'e' + Math.random().toString(36).slice(2, 8)), who: WHO.includes(e.who) ? e.who : 'roy', k: KINDS[e.k] ? e.k : 'mind', ic: KINDS[KINDS[e.k] ? e.k : 'mind'], from: e.from, to: e.to, t: String(e.t).trim().slice(0, 40) })); n++;
