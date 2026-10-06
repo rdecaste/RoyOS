@@ -126,3 +126,14 @@ test('still prompt: a wide shot with the character busy in the scene, never a pi
   assert.match(p, /not a pin-up/); assert.match(p, /not looking at the viewer/); assert.match(p, /Wide shot/); assert.match(p, /Never younger, never childlike/);
   assert.doesNotMatch(p, /waist up:/);
 });
+
+test('pick: a redo variant rotates scene and activity; the Monday pick stays the same', () => {
+  const sc = n => ({ scene_name: 'S' + n, franchise: 'Arcane', canonical_identity: '', canonical_elements: '', signature_features: '', restrictions: '' });
+  const cat = buildCatalogue([{ id: 1, character_name: 'Jinx', franchise: 'Arcane', canonical_identity: '', canonical_elements: '', restrictions: '' }], [sc(1), sc(2), sc(3)]);
+  assert.deepEqual(pickTheme(cat, '2026-W41'), pickTheme(cat, '2026-W41'));
+  const base = pickTheme(cat, '2026-W41', { character: 'Jinx' });
+  for (let v = 1; v <= 10; v++) assert.notEqual(pickTheme(cat, '2026-W41', { character: 'Jinx', variant: v, avoidScene: base.scene }).scene, base.scene);
+  const acts = new Set(Array.from({ length: 12 }, (_, v) => pickTheme(cat, '2026-W41', { character: 'Jinx', variant: v + 1 }).activity));
+  assert.ok(acts.size >= 3, 'activities rotate');
+  assert.match(base.prompts.still, new RegExp(base.activity.slice(0, 20)));
+});

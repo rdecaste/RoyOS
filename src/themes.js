@@ -77,22 +77,39 @@ export function buildCatalogue(chars, scenes) {
   return Object.values(by).filter(f => f.scenes.length && f.characters.length).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// What the character is doing in the still, one per pick so redos don't repeat one pose. Settled poses
+// the clip can hold (it only adds breathing, blinks, glances and small hand movements).
+export const ACTIVITIES = [
+  'sitting on a crate or ledge, tinkering with a small gadget or piece of their gear in their hands',
+  'leaning on a railing, watching the scene below',
+  'sitting at a counter or stall with a drink, half turned towards the street',
+  'crouched on a rooftop edge or high perch, looking out over the place',
+  'working at a bench or device, lit by its glow',
+  'leaning in a doorway or against a wall, arms folded, watching something off to the side',
+  'sitting on steps, elbows on knees, looking at something in their hands',
+  'standing at a window or edge, one hand resting on the frame, looking out'
+];
+
 // The pick for a week: random franchise, random scene and character inside it, seeded by the week.
 // `character` (a name, any case) pins the week to that character, its franchise and one of its
-// scenes, for a remake Roy asks for by name; the scene still follows the week's seed.
-export function pickTheme(catalogue, week, { character: want = null } = {}) {
-  const r = rng('roy-os:' + week);
+// scenes, for a remake Roy asks for by name. `variant` (a redo) reseeds the scene and the activity and
+// avoids `avoidScene` (the scene the week had), so remaking a week doesn't give the same picture again
+// (Roy, 6 Oct 2026: five redos of W41 came out with the same scene and pose). Variant 0 is the Monday pick.
+export function pickTheme(catalogue, week, { character: want = null, variant = 0, avoidScene = null } = {}) {
+  const r = rng('roy-os:' + week + (variant ? ':' + variant : ''));
   let f = catalogue[Math.floor(r() * catalogue.length)];
   if (want) {
     f = catalogue.find(x => x.characters.some(c => c.character_name.toLowerCase() === String(want).trim().toLowerCase()));
     if (!f) throw new Error('No character named ' + want + ' in the catalogue');
   }
-  const scene = f.scenes[Math.floor(r() * f.scenes.length)];
+  const scenes = avoidScene && f.scenes.length > 1 ? f.scenes.filter(x => x.scene_name !== avoidScene) : f.scenes;
+  const scene = scenes[Math.floor(r() * scenes.length)];
   const character = want ? f.characters.find(c => c.character_name.toLowerCase() === String(want).trim().toLowerCase()) : f.characters[Math.floor(r() * f.characters.length)];
+  const activity = ACTIVITIES[Math.floor(r() * ACTIVITIES.length)];
   return {
     week, franchise: f.name, scene: scene.scene_name, character: character.character_name, character_id: character.id,
-    look: scene.canonical_elements, palette: PALETTES[f.name] || DEFAULT_PALETTE,
-    prompts: { still: stillPrompt(scene, character), clip: clipPrompt() }, avatar_url: character.avatar_url || null
+    look: scene.canonical_elements, palette: PALETTES[f.name] || DEFAULT_PALETTE, activity,
+    prompts: { still: stillPrompt(scene, character, activity), clip: clipPrompt() }, avatar_url: character.avatar_url || null
   };
 }
 
@@ -179,12 +196,12 @@ export function critterDue(spec, done) {
 // the viewer (Roy, 6 Oct 2026: "part of the scene, doing something"). Kept short and with the age pinned to
 // the reference: a longer version ("dressed as they are day to day in the show", "nothing that puts the body
 // on display", the reference "for identity only") made W41's Jinx look like a child.
-export function stillPrompt(scene, character) {
+export function stillPrompt(scene, character, activity = ACTIVITIES[1]) {
   return [
     'Semi-realistic anime key art, painterly cinematic lighting, crisp shapes, rich fine detail; the character exactly as in the reference image (face, hair, outfit), rendered in that same style. Not photorealistic.',
     `A wide 16:9 living-wallpaper still for a desk dashboard. Setting: ${scene.scene_name} (${scene.franchise}): ${scene.canonical_identity}. Elements: ${scene.canonical_elements}. Feel: ${scene.signature_features}.`,
     `The character is ${character.character_name} (${character.franchise}): ${character.canonical_identity} ${character.canonical_elements} Same person as in the reference image: same age, adult face and body proportions, hair and outfit. Never younger, never childlike or chibi.`,
-    'Wide shot: the place matters as much as the character, who fills about two thirds of the frame height (cut around the knees or thighs by the bottom edge or foreground). They are absorbed in something they would do there (leaning on a railing watching the street, sitting at a stall, working on a device), seen from the side or three-quarters, not looking at the viewer, in a settled pose they can hold. Not a close-up, not a pin-up or glamour pose.',
+    `Wide shot: the place matters as much as the character, who fills about two thirds of the frame height (cut around the knees or thighs by the bottom edge or foreground). They are ${activity}, absorbed in it the way they would be there, seen from the side or three-quarters, not looking at the viewer, in a settled pose they can hold. Not a close-up, not a pin-up or glamour pose.`,
     'Composition: one continuous scene from edge to edge; the screen\'s own widgets are laid over it later, so none are drawn. Keep the character inside the middle third of the frame width, near the centre, with their head and what they are doing in the upper two thirds of the height. The outer quarter of the width on the left and on the right is more of the same scene (walls, buildings, sky, foliage), darker and calmer, with few bright lights. The bottom fifth holds only ground, foreground and reflections, nothing that matters. Leave the upper area just right of the character open and calm. The top edge is calm. Small in-world signs are fine.',
     `Restrictions: ${scene.restrictions} ${character.restrictions} No watermark. No frames, borders, panels, boxes, windows, cards, rounded rectangles, outlines, grids, timelines, interface or HUD elements, and no text overlays anywhere in the image: only the scene.`
   ].join('\n\n');
