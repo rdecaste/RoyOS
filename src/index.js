@@ -6,7 +6,7 @@
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
 //   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
-//   GET  /theme            this week's world (and next week's pick)
+//   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
 //   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
@@ -66,7 +66,8 @@ async function currentTheme(env, s, now = Date.now()) {
   const current = rows.find(r => r.week === week) || rows.find(r => r.status === 'ready') || null;
   const catalogue = await loadCatalogue(env.DB).catch(() => []);
   const next = catalogue.length ? pickTheme(catalogue, weekAfter(week, 1)) : null;
-  return themeView(current, next);
+  const critter = current ? await s.cached('critter:' + current.week) : null;
+  return themeView(current, next, critter);
 }
 
 // Starts the week's generation when it has none (or the last try failed). Idempotent.
@@ -90,13 +91,13 @@ export async function ensureTheme(env, s, { week = themeWeek(), force = false, r
   return { ok: 1, status: 'started', week, workflow: run.id, pick: { franchise: pick.franchise, scene: pick.scene, character: pick.character } };
 }
 
-// Starts the critter art CRITTER_ART asks for, once: the ask is remembered before the run starts.
+// Starts the week's critter CRITTER_ART asks for, once: the ask is remembered before the run starts.
 async function ensureCritter(env, s) {
-  const first = critterDue(env.CRITTER_ART, false); if (!first) return null;
-  if (await s.cached(first.key)) return null;
-  await s.remember(first.key, { at: new Date().toISOString() }, 3650 * 864e5);
-  const run = await env.DESK_THEME.create({ params: { critter: first.critter } });
-  return { ok: 1, critter: first.critter, workflow: run.id };
+  const ask = critterDue(env.CRITTER_ART, false); if (!ask) return null;
+  if (await s.cached(ask.key)) return null;
+  await s.remember(ask.key, { at: new Date().toISOString() }, 3650 * 864e5);
+  const run = await env.DESK_THEME.create({ params: { critterWeek: ask.week } });
+  return { ok: 1, week: ask.week, workflow: run.id };
 }
 
 // ---- Edits on the board ----
