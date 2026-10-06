@@ -51,6 +51,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-06: the board shows the week's still exactly as uploaded (`stillUrl`), with no Cloudinary crop or re-encode (Roy: "we should not ask cloudinary anything to crop it"); only the clip model's input still uses the 16:9 crop (`stillUrl169`).
 - 2026-10-06: the still prompt asks for a wide shot with the character small and busy in the scene (leaning on a railing, at a stall, working on a device), seen from the side or three-quarters, never facing the viewer, and bans pin-up or glamour posing; the reference image is for identity only. W42's first Lucy still was a waist-up bust facing the camera (Roy: "part of the scene, doing something"). A world remake now keeps the week's critter when all three sheets exist, so it is not painted twice.
 - 2026-10-06: preview the board at another time (Roy: "see the board as it would be next Monday"): `/?at=<time>` (`previewAt`, `previewNote`, `previewWeather`). Read only, nothing saved or started.
 - 2026-10-06: today's win comes from the game (Roy: "needs to be synced with the game engine"): the Focus tile reads the boss card's "Today's win" habit, and a tap opens the boss card to tick it off there; the screen's own win tick is gone.

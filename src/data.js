@@ -4,7 +4,7 @@
 import { ymd, isoWeek, mondayOf } from './themes.js';
 import { parseIcs, agenda } from './calendar.js';
 import { emptyDay } from './day.js';
-import { stillUrl169, clipUrl, spriteUrl } from './media.js';
+import { stillUrl, clipUrl, spriteUrl } from './media.js';
 
 const TZ = 'Europe/Amsterdam';
 const DAY = 864e5;
@@ -286,7 +286,8 @@ export function themeView(row, next, critter = null, lore = null) {
   if (!row) return null;
   return {
     week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
-    still: row.still_public_id ? stillUrl169(row.still_public_id, row.still_version) : null,
+    // The still as uploaded: no Cloudinary crop or re-encode (Roy, 6 Oct 2026); the board covers the screen with it.
+    still: row.still_public_id ? stillUrl(row.still_public_id, row.still_version) : null,
     clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
     critter: critterView(critter), lore,
     next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
