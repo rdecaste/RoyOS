@@ -684,7 +684,7 @@ function renderClock() {
   $('trDate').textContent = dayFmt(new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(t)));
   $('greet').textContent = { morning: 'Good morning, Roy', day: 'Keep going, Roy', evening: 'Good evening, Roy', night: 'Rest up, Roy' }[ph];
 }
-// ---- The weather tile: a small sky for the hour and the weather, the temperature, today's range, the wind, the next 12 hours ----
+// ---- The weather tile: a small sky in the week's world colours for the hour and the weather, the temperature, today's range, the wind, the next 12 hours ----
 const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
 // The sun (or moon) rides an arc across the tile from sunrise to sunset (sunset to sunrise at night).
 function skyScene(w, kind) {
@@ -709,10 +709,10 @@ function wxChart(hrs) {
   const W = 380, H = 30, cw = W / hrs.length, ts = hrs.map(x => x.temp), lo = Math.min(...ts), hi = Math.max(...ts), r = Math.max(3, hi - lo);
   const pts = hrs.map((x, i) => [cw * i + cw / 2, 4 + (1 - (x.temp - lo) / r) * 16]);
   const d = pts.map((p, i) => { if (!i) return 'M' + p[0].toFixed(1) + ' ' + p[1].toFixed(1); const q = pts[i - 1], mx = (q[0] + p[0]) / 2; return 'C' + mx.toFixed(1) + ' ' + q[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + p[1].toFixed(1) + ' ' + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
-  const bars = hrs.map((x, i) => { const p = x.pop || 0, bh = Math.max(1.5, p / 100 * H); return '<rect x="' + (cw * i + 3).toFixed(1) + '" y="' + (H - bh).toFixed(1) + '" width="' + (cw - 6).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2" fill="#78beff" opacity="' + (0.18 + p / 100 * 0.6).toFixed(2) + '"/>'; }).join('');
+  const bars = hrs.map((x, i) => { const p = x.pop || 0, bh = Math.max(1.5, p / 100 * H); return '<rect x="' + (cw * i + 3).toFixed(1) + '" y="' + (H - bh).toFixed(1) + '" width="' + (cw - 6).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2" style="fill:var(--second)" opacity="' + (0.18 + p / 100 * 0.6).toFixed(2) + '"/>'; }).join('');
   const peak = hrs.reduce((b, x, i) => ((x.pop || 0) > (hrs[b].pop || 0) ? i : b), 0), showPeak = (hrs[peak].pop || 0) >= 30;
-  const svg = '<defs><linearGradient id="wxT" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#ffcf5a"/></linearGradient>' +
-    '<linearGradient id="wxA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a" stop-opacity=".28"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></linearGradient>' +
+  const svg = '<defs><linearGradient id="wxT" x1="0" y1="1" x2="0" y2="0"><stop offset="0" style="stop-color:var(--second)"/><stop offset="1" style="stop-color:var(--accent)"/></linearGradient>' +
+    '<linearGradient id="wxA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)" stop-opacity=".3"/><stop offset="1" style="stop-color:var(--accent)" stop-opacity="0"/></linearGradient>' +
     '<filter id="wxG" x="-10%" y="-80%" width="120%" height="260%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>' + bars +
     '<path d="' + d + 'L' + pts[pts.length - 1][0].toFixed(1) + ' ' + H + 'L' + pts[0][0].toFixed(1) + ' ' + H + 'Z" fill="url(#wxA)"/>' +
     '<path d="' + d + '" fill="none" stroke="url(#wxT)" stroke-width="4" opacity=".6" filter="url(#wxG)" vector-effect="non-scaling-stroke"/>' +
