@@ -49,7 +49,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
-- 2026-10-06: Your day: the family calendar is the Kids lane, all of it (Roy: "the kids is actually the family calendar"); its events no longer go to Roy's or Steph's lane by the names in their titles, and none spreads across all three lanes. Roy's lane is his personal calendar, Steph's her work calendar.
+- 2026-10-06: Your day: the family calendar is the Kids lane, all of it (Roy: "the kids is actually the family calendar"); its events no longer go to Roy's or Steph's lane by the names in their titles, and none spreads across all three lanes. Roy's lane is his personal calendar, Steph's her work calendar. The calendar cache key carries a version (`calendar:v2:`) so a lane change shows at once instead of after the 10-minute cache.
 - 2026-10-06: Your day: a family-calendar event that names nobody (Roy's "test") now sits in the family lane (Kids, amber) instead of across all three lanes; only an event naming several of the family spans the lanes. Roy: it's only in the family calendar, so it's not everyone's.
 - 2026-10-06: Your day: calendar events wear their lane's colour (Roy blue, Steph pink, Kids amber) instead of a grey dashed outline, which read as if the calendar wasn't there; an event for everyone spans the lanes in all three colours.
 - 2026-10-06: Your day: an event for everyone (a family event with no family name in its title) shows once, as one block across the three lanes, instead of a copy in each; when something else is on at the same time it falls back to a copy per lane.
