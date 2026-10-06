@@ -119,10 +119,24 @@ function border() {
 // Past work days the journal has no place for (from the server; today is never one).
 const missingWork = () => (D.journal.border && D.journal.border.missing) || [];
 const dayShort = d => wdShort(d) + ' ' + (+d.slice(8)) + ' ' + MON[+d.slice(5, 7) - 1];
+// A tap on a missing day opens its morning, afternoon and ride; Save keeps it in Roy OS (that day's
+// DeskState row), the share and the missing list count it from then on.
+let missPick = null;
+function missFix(d) {
+  const sel = (id, label, list, v) => '<div class="fld"><label for="' + id + '">' + label + '</label><select class="sel" id="' + id + '">' + list.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></div>';
+  return '<div class="missfix"><div class="sh"><span>Fill in</span><b>' + esc(dayShort(d)) + '</b></div><div class="grid3">' + sel('mAm', 'Morning', PLACES, '🇧🇪 Beerse') + sel('mPm', 'Afternoon', PLACES, '🇧🇪 Beerse') + sel('mRide', 'Ride', RIDES, '🚲 E-bike') + '</div>' +
+    '<div class="btns"><span class="sp"></span><button type="button" class="btn" data-act="misscancel">Cancel</button><button type="button" class="btn primary" data-act="misssave" data-d="' + d + '">Save</button></div></div>';
+}
+function saveMissing(d) {
+  const w = { am: $('mAm').value, pm: $('mPm').value, commute: $('mRide').value };
+  missPick = null;
+  post('/act', { type: 'work', day: d, ...w }).then(() => refresh()).then(() => notify({ app: 'commute', html: 'Saved <b>' + esc(dayShort(d)) + '</b>: ' + esc(placeName(w.am)) + (w.pm !== w.am ? ' → ' + esc(placeName(w.pm)) : '') + ', ' + esc(w.commute) + '.' }))
+    .catch(err => notify({ app: 'commute', html: 'Could not save that day: ' + esc(err.message) }));
+}
 function missingSec() {
   const m = missingWork(), n = m.length;
   if (!n) return '<div class="sec"><div class="sh"><span>Missing days</span><b>None</b></div><p class="say">Every work day this year has a place logged.</p></div>';
-  return '<div class="sec"><div class="sh"><span>Missing days</span><b>' + n + ' day' + (n === 1 ? '' : 's') + '</b></div><div class="missd">' + m.map(d => '<span>' + esc(dayShort(d)) + '</span>').join('') + '</div><p class="say">No morning or afternoon place in the journal for ' + (n === 1 ? 'this work day' : 'these work days') + ', so ' + (n === 1 ? 'it is' : 'they are') + ' left out of the Belgium share. Fill ' + (n === 1 ? 'it' : 'them') + ' in on the journal’s border page.</p></div>';
+  return '<div class="sec"><div class="sh"><span>Missing days</span><b>' + n + ' day' + (n === 1 ? '' : 's') + '</b></div><div class="missd">' + m.map(d => '<button type="button" data-act="missday" data-d="' + d + '" aria-pressed="' + (missPick === d) + '">' + esc(dayShort(d)) + '</button>').join('') + '</div>' + (missPick && m.includes(missPick) ? missFix(missPick) : '') + '<p class="say">No morning or afternoon place logged for ' + (n === 1 ? 'this work day' : 'these work days') + ', so ' + (n === 1 ? 'it is' : 'they are') + ' left out of the Belgium share. Tap a day to fill it in; it is kept in Roy OS.</p></div>';
 }
 const workPlace = () => { const T = workToday(); return T.am === T.pm ? T.am : T.am + ' → ' + placeName(T.pm); };
 
@@ -874,10 +888,21 @@ function renderQuote() {
   el.innerHTML = '<span class="q">“' + esc(q.quote) + '”</span><small>' + esc(q.author || 'The quest') + '</small>';
   el.setAttribute('aria-label', '“' + q.quote + '”' + (q.author ? ', ' + q.author : '') + '. Open Quest');
 }
+// Today's win: ticked here (the day's edits, `win`) or answered yes to "Did it happen?" in the evening journal.
+const isWon = () => (E.win != null ? !!E.win : /^(y|yes|ja|done|true|1|✅)/i.test(String(D.journal.did_it_happen || '').trim()));
+function setWin(done) {
+  E.win = done; renderFocusW(); fitAfterRender(); refreshWin();
+  if (done) { const w = $('winIf'); w.classList.remove('wpop'); void w.offsetWidth; w.classList.add('wpop'); }
+  act({ type: 'win', done }, () => { if (done) notify({ app: 'focus', title: 'Focus', html: '<b>Today is a win.</b> ' + esc(D.journal.win_if) + ' 🎉' }); });
+}
 function renderFocusW(max = focusMax) {
   const all = focusList('must').concat(focusList('can'));
   $('focusCount').textContent = all.filter(x => x.done).length + '/' + all.length;
-  $('winIf').innerHTML = '<small>Today is a win if</small>' + (D.journal.win_if ? '<span class="wtx">' + esc(D.journal.win_if) + '</span>' : '<span class="say">Not set in your journal yet.</span>');
+  const won = isWon();
+  $('wFocus').classList.toggle('won', won);
+  $('winIf').dataset.act = D.journal.win_if ? 'win' : '';
+  $('winIf').dataset.tip = D.journal.win_if ? (won ? 'Done. Tap to undo' : 'Tap when it happened') : '';
+  $('winIf').innerHTML = (won ? '<small>Today is a win<span class="wk"></span></small>' : '<small>Today is a win if' + (D.journal.win_if ? '<span class="wk"></span>' : '') + '</small>') + (D.journal.win_if ? '<span class="wtx">' + esc(D.journal.win_if) + '</span>' : '<span class="say">Not set in your journal yet.</span>');
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
   $('focusTodos').innerHTML = list.length ? list.slice(0, max).map(o => todoBtn(o.x, o.g)).join('') + (list.length > max ? '<div class="tmore">' + (max ? '+' + (list.length - max) + ' more' : list.length + ' open, tap Focus to see them') + '</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="tsay">No to-dos yet. Add one in Focus.</div>';
 }
@@ -1003,7 +1028,7 @@ const WINS = {
     render(b) {
       const g0 = $('wAddG') ? $('wAddG').value : 'must';
       const group = (title, g) => { const l = focusList(g); return sec(g, '', '<div class="sh"><span>' + title + '</span><span>' + l.filter(x => x.done).length + '/' + l.length + '</span></div><div class="todos">' + (l.length ? l.map(x => todoBtn(x, g, 'wide')).join('') : '<p class="say">Nothing here yet.</p>') + '</div>'); };
-      b.innerHTML = '<div class="winif" style="margin:0"><small>Today is a win if</small>' + (D.journal.win_if ? esc(D.journal.win_if) : '<span class="say">Not set in your journal yet.</span>') + '</div>' + group('Must do', 'must') + group('Can do', 'can') +
+      b.innerHTML = '<div class="winif" style="margin:0"><small>Today is a win if' + (isWon() ? '<span class="wonchip">✓ Done</span>' : '') + '</small>' + (D.journal.win_if ? esc(D.journal.win_if) : '<span class="say">Not set in your journal yet.</span>') + '</div>' + group('Must do', 'must') + group('Can do', 'can') +
         '<form class="addfull" id="wAddForm" autocomplete="off"><label class="sr" for="wAddIn">New to-do</label><input class="inp" id="wAddIn" type="text" maxlength="120" placeholder="Add a to-do"><label class="sr" for="wAddG">List</label><select class="sel" id="wAddG"><option value="must"' + (g0 === 'must' ? ' selected' : '') + '>Must do</option><option value="can"' + (g0 === 'can' ? ' selected' : '') + '>Can do</option></select><button type="submit" class="btn primary">Add</button></form><p class="say">Ticks and new to-dos live on this screen for the day; the journal stays the record.</p>';
     } },
   mood: { w: 30, title: 'Mood', tags: () => '',
@@ -1147,6 +1172,10 @@ function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
+  else if (a === 'win') setWin(!isWon());
+  else if (a === 'missday') { missPick = missPick === el.dataset.d ? null : el.dataset.d; refreshWin(); }
+  else if (a === 'misscancel') { missPick = null; refreshWin(); }
+  else if (a === 'misssave') saveMissing(el.dataset.d);
   else if (a === 'ftimer') { if (FT) ftStop(); else ftStart(); }
   else if (a === 'ftpause') ftPause();
   else if (a === 'ftstop') ftStop();

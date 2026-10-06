@@ -666,6 +666,26 @@ body.focusing .os .fring { opacity: 1; transform: none; pointer-events: auto; }
 .os .fring .fb button { padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(6, 8, 14, .5); font: 600 13px/1 var(--f-body); color: var(--fg); }
 .os .fring .fb button:hover { border-color: var(--accent); }
 
+/* ---- Today is a win: a tap on the win-if line marks it done (or "Did it happen?" in the evening journal) ---- */
+.os .focus .winif { cursor: pointer; border-radius: 12px; margin-left: -10px; margin-right: -10px; padding: 8px 10px; transition: background .2s, box-shadow .3s; }
+.os .focus .winif:hover { background: rgba(255, 255, 255, .05); }
+.os .focus .winif small .wk { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 8px; border-radius: 4px; border: 1.5px solid rgba(246, 192, 69, .7); vertical-align: -3px; }
+.os .focus.won .winif { background: linear-gradient(135deg, rgba(61, 220, 132, .2), rgba(61, 220, 132, .05)); box-shadow: inset 0 0 0 1.5px rgba(61, 220, 132, .55), 0 0 26px rgba(61, 220, 132, .18); }
+.os .focus.won .winif small { color: var(--good); }
+.os .focus.won .winif small .wk { border-color: var(--good); background: var(--good); }
+.os .focus.won .winif small .wk::after { content: ""; width: 3px; height: 7px; margin-top: -2px; border: solid #06210f; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.os .focus.won .winif .wtx { color: #d9ffe9; }
+.os .focus.won { --ac: var(--good); border-color: rgba(61, 220, 132, .35); }
+.os .focus.won .winif.wpop { animation: winpop .7s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes winpop { 40% { transform: scale(1.04); box-shadow: inset 0 0 0 1.5px var(--good), 0 0 50px rgba(61, 220, 132, .55); } }
+.os .wonchip { margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: rgba(61, 220, 132, .16); color: var(--good); font: 700 11px/1.3 var(--f-sys); letter-spacing: .1em; }
+
+/* ---- Missing days: each chip opens that day's places and ride ---- */
+.missd button { padding: .3rem .7rem; border-radius: 99px; border: 1px solid rgba(255, 159, 90, .5); background: rgba(255, 159, 90, .1); color: #ffc79a; font: 600 .8rem/1 var(--f-body); white-space: nowrap; }
+.missd button:hover, .missd button[aria-pressed="true"] { background: rgba(255, 159, 90, .25); border-color: #ff9f5a; color: #fff; }
+.missfix { display: grid; gap: .6rem; padding: .75rem .8rem .8rem; border-radius: .7rem; border: 1px solid rgba(255, 159, 90, .45); background: rgba(255, 159, 90, .07); animation: lorein .25s ease-out; }
+.missfix .sh b { color: #ffc79a; }
+
 /* ---- Tap the world: a tap on the scene (not on a tile) shows the week's show, character and a line of lore ---- */
 .os .lore { position: absolute; left: 520px; top: 300px; width: 880px; z-index: 8; padding: 18px 22px 16px; display: grid; gap: 6px; border-radius: 20px; border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
   background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 16%, transparent), transparent 55%), rgba(6, 8, 14, .78); box-shadow: 0 20px 60px rgba(0, 0, 0, .55), 0 0 40px color-mix(in oklab, var(--accent) 18%, transparent);

@@ -4,7 +4,7 @@
 //   GET  /                 the board
 //   GET  /login            sign-in page (no cookie)   POST /login (password, next)   POST /logout
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
-//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...},
+//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|win|plan|undo, ...}; work with a past `day` fills in that day,
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
 //   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
@@ -173,6 +173,12 @@ export default {
 
       if (path === '/act' && request.method === 'POST') {
         const a = await readFields(request), day = ymd(Date.now());
+        // A missing day filled in: a past day this year gets its places and ride in its own DeskState row.
+        if (a.type === 'work' && a.day && a.day !== day) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.day)) || a.day > day || a.day.slice(0, 4) !== day.slice(0, 4)) return json({ ok: 0, code: 'bad_day', message: 'Only a past day this year can be filled in' }, 400);
+          const n = await edit(env, s, a.day, data => ({ applied: applyActions(data, [{ ...a, type: 'work' }], Date.now()) }));
+          return json({ ok: 1, day: a.day, applied: n.applied });
+        }
         if (a.type === 'focus') {
           const f = focusSession(a, day);
           if (!f) return json({ ok: 0, code: 'bad_session', message: 'A focus session needs day, at (HH:MM) and 1 to 25 minutes' }, 400);

@@ -96,24 +96,32 @@ export function power(mq, hero, quest) {
 // ---- Journal and health from the quest D1 (read only) ----
 async function rows(db, sql, ...binds) { return ((await db.prepare(sql).bind(...binds).all()).results) || []; }
 
-export async function journalDay(env, day) {
+export async function journalDay(env, day, desk = []) {
   const db = env.DB;
-  const j = (await rows(db, 'SELECT id, win_if, mood_morning, mood_evening FROM journal WHERE date = ? ORDER BY updated_at DESC LIMIT 1', day))[0] || null;
+  const j = (await rows(db, 'SELECT id, win_if, did_it_happen, mood_morning, mood_evening FROM journal WHERE date = ? ORDER BY updated_at DESC LIMIT 1', day))[0] || null;
   const focus = j ? await rows(db, 'SELECT grp, position, text, done FROM journal_focus WHERE journal_id = ? ORDER BY grp, position', j.id) : [];
   const group = g => focus.filter(f => f.grp === g).map(f => ({ t: f.text || '', done: !!f.done }));
   const todos = await rows(db, "SELECT task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
   const work = (await rows(db, 'SELECT am, pm, commute FROM work_location WHERE date = ? LIMIT 1', day))[0] || null;
   const year = day.slice(0, 4);
-  const ytd = await rows(db, 'SELECT date, am, pm, weekend FROM work_location WHERE date >= ? AND date < ? ORDER BY date', `${year}-01-01`, day);
+  const ytd = mergeWork(await rows(db, 'SELECT date, am, pm, weekend FROM work_location WHERE date >= ? AND date < ? ORDER BY date', `${year}-01-01`, day), desk);
   let be = 0, nl = 0;
   for (const w of ytd) if (!w.weekend) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
   return {
-    win_if: j ? safeText(env, j.win_if) : '', must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
+    win_if: j ? safeText(env, j.win_if) : '', did_it_happen: j && j.did_it_happen || null, must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
     mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
     steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
     // A row with empty fields (the day not filled in yet) counts as no row.
     work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl, missing: missingDays(ytd, day) }
   };
+}
+
+// The places set on Roy OS for past days (DeskState, read only D1 can't take them) fill in the journal's
+// work_location: a day set on the screen wins over the journal's row for that day.
+export function mergeWork(ytd, desk) {
+  const by = new Map((ytd || []).map(w => [w.date, w]));
+  for (const w of desk || []) if (w && w.date && (w.am || w.pm)) by.set(w.date, { ...(by.get(w.date) || {}), date: w.date, am: w.am || null, pm: w.pm || w.am || null, weekend: 0 });
+  return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 // Past work days with no place logged: a weekday row with neither morning nor afternoon
@@ -247,9 +255,10 @@ export async function board(env, s, now = Date.now()) {
   const day = ymd(now), errors = [];
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
   const focusP = safe('focus', Promise.resolve().then(() => s.focusDay(day)), []);
+  const deskWork = safe('desk work', Promise.resolve().then(() => s.works(day.slice(0, 4) + '-01-01', day)), []);
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
-    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
+    safe('journal', deskWork.then(desk => journalDay(env, day, desk)), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);

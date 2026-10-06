@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, focusSession, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, mergeWork, focusSession, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -96,4 +96,12 @@ test('focus session: today or yesterday, a start time and 1 to 25 whole minutes'
   assert.equal(focusSession({ day: '2026-10-06', at: '9:10', min: 25 }, '2026-10-06'), null);
   assert.equal(focusSession({ day: '2026-10-06', at: '09:10', min: 0 }, '2026-10-06'), null);
   assert.equal(focusSession({ day: '2026-10-06', at: '09:10', min: 40 }, '2026-10-06'), null);
+});
+
+test('desk work: a past day set on Roy OS fills in the journal, and wins over an empty row', () => {
+  const ytd = [{ date: '2026-09-28', am: '', pm: '', weekend: 0 }, { date: '2026-09-29', am: '🇧🇪 Beerse', pm: '🇧🇪 Beerse', weekend: 0 }, { date: '2026-10-01', am: '🇳🇱 Home', pm: '🇳🇱 Home', weekend: 0 }];
+  const merged = mergeWork(ytd, [{ date: '2026-09-28', am: '🇧🇪 Beerse', pm: '🇧🇪 Ghent', commute: '🚲 E-bike' }, { date: '2026-09-30', am: '🇳🇱 Home' }]);
+  assert.deepEqual(merged.map(w => [w.date, w.am, w.pm]), [['2026-09-28', '🇧🇪 Beerse', '🇧🇪 Ghent'], ['2026-09-29', '🇧🇪 Beerse', '🇧🇪 Beerse'], ['2026-09-30', '🇳🇱 Home', '🇳🇱 Home'], ['2026-10-01', '🇳🇱 Home', '🇳🇱 Home']]);
+  assert.deepEqual(missingDays(ytd, '2026-10-02'), ['2026-09-28', '2026-09-30']);
+  assert.deepEqual(missingDays(merged, '2026-10-02'), [], 'both filled in on the screen');
 });
