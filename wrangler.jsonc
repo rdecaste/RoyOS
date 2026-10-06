@@ -27,8 +27,8 @@
     "WEATHER_PLACE": "Terneuzen",
     // A one-off remake the hourly cron runs: "<week>|<character>|<ISO time>" (see remakeDue in src/themes.js).
     "REMAKE": "2026-W41|Jinx|2026-10-06T07:00:00Z",
-    // A critter's art, made once per ask: "<critter>|<ISO time>" (see critterDue in src/themes.js).
-    "CRITTER_ART": "catwalk|2026-10-06T07:55:00Z"
+    // A week's critter outside the Monday run, made once per ask: "<week>|<ISO time>" (see critterDue in src/themes.js).
+    "CRITTER_ART": "2026-W41|2026-10-06T08:20:00Z"
   }
   // Secrets (npx wrangler secret put <NAME>):
   //   DESK_PASSWORD           the screen's login (one cookie, 30 days)

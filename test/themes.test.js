@@ -72,19 +72,37 @@ test('remake from the config: once, for its week, while the row is older than th
   assert.equal(remakeDue('2026-W41|Jinx|soon', null, '2026-W41'), null);
 });
 
-test('critter art: asked for by name and time, only for known critters', async () => {
-  const { critterDue, CRITTER_PROMPTS } = await import('../src/themes.js');
-  assert.deepEqual(critterDue('cat|2026-10-06T07:45:00Z', false), { critter: 'cat', key: 'critter-ask:cat|2026-10-06T07:45:00Z' });
-  assert.equal(critterDue('cat|2026-10-06T07:45:00Z', true), null);
-  assert.equal(critterDue('dragon|2026-10-06T07:45:00Z', false), null);
+test('the week\'s critter: asked for by week and time, once', async () => {
+  const { critterDue } = await import('../src/themes.js');
+  assert.deepEqual(critterDue('2026-W41|2026-10-06T08:20:00Z', false), { week: '2026-W41', key: 'critter-ask:2026-W41|2026-10-06T08:20:00Z' });
+  assert.equal(critterDue('2026-W41|2026-10-06T08:20:00Z', true), null);
+  assert.equal(critterDue('cat|2026-10-06T07:45:00Z', false), null);
   assert.equal(critterDue('', false), null);
-  assert.ok(/Transparent background/.test(CRITTER_PROMPTS.cat));
 });
 
-test('the walk cycle sheet is the same cat: the cat sheet goes in as its reference', async () => {
-  const { critterDue, CRITTER_PROMPTS, CRITTER_REFS } = await import('../src/themes.js');
-  assert.equal(critterDue('catwalk|2026-10-06T07:55:00Z', false).critter, 'catwalk');
-  assert.equal(CRITTER_REFS.catwalk, 'cat');
-  assert.ok(CRITTER_PROMPTS[CRITTER_REFS.catwalk]);
-  assert.ok(/8-frame walk cycle/.test(CRITTER_PROMPTS.catwalk) && /4 by 2 grid/.test(CRITTER_PROMPTS.catwalk));
+test('the week\'s critter: a fantasy creature of the world, three sheets of 8 frames, the walk as reference', async () => {
+  const { critterPickMessages, critterFromAnswer, critterPrompts, CRITTER_SHEETS, CRITTER_FALLBACK } = await import('../src/themes.js');
+  const theme = { franchise: 'Arcane', scene: 'Zaun', look: 'chem-lit undercity', character: 'Jinx' };
+  const msgs = critterPickMessages(theme);
+  assert.ok(/fantasy creature/.test(msgs[0].content) && /four legs/.test(msgs[0].content));
+  assert.ok(/Zaun/.test(msgs[1].content) && /Jinx/.test(msgs[1].content));
+  assert.deepEqual(critterFromAnswer({ name: 'Chem \"lynx\"', look: 'small and\nglowing' }), { name: 'Chem lynx', look: 'small and glowing' });
+  assert.deepEqual(critterFromAnswer(null), CRITTER_FALLBACK);
+  assert.deepEqual(CRITTER_SHEETS, ['walk', 'rest', 'leap']);
+  const p = critterPrompts({ name: 'Chem lynx', look: 'A small glowing lynx.' }, theme);
+  for (const k of CRITTER_SHEETS) {
+    assert.ok(/4 by 2 grid/.test(p[k]) && /Transparent background/.test(p[k]) && /Zaun/.test(p[k]), k);
+    assert.ok(/standing still on all four legs/.test(p[k]) || k === 'walk', k + ' has a standing frame to size it by');
+  }
+  assert.ok(!/reference/.test(p.walk) && /reference/.test(p.rest) && /reference/.test(p.leap));
+});
+
+test('the critter reaches the page only with all three sheets', async () => {
+  const { critterView } = await import('../src/data.js');
+  const sheet = k => ({ public_id: 'Desk-Themes/2026-W41-critter-' + k, version: 7 });
+  assert.equal(critterView(null), null);
+  assert.equal(critterView({ name: 'Chem lynx', walk: sheet('walk'), rest: { error: 'x' } }), null);
+  const v = critterView({ name: 'Chem lynx', walk: sheet('walk'), rest: sheet('rest'), leap: sheet('leap') });
+  assert.equal(v.name, 'Chem lynx');
+  assert.ok(/\/v7\/Desk-Themes\/2026-W41-critter-rest\.png$/.test(v.rest));
 });

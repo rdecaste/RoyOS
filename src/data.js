@@ -4,7 +4,7 @@
 import { ymd, isoWeek, mondayOf } from './themes.js';
 import { parseIcs, agenda, laneWords } from './calendar.js';
 import { emptyDay } from './day.js';
-import { stillUrl169, clipUrl } from './media.js';
+import { stillUrl169, clipUrl, spriteUrl } from './media.js';
 
 const TZ = 'Europe/Amsterdam';
 const DAY = 864e5;
@@ -197,12 +197,18 @@ export async function calendar(env, s, now = Date.now()) {
 }
 
 // ---- The week's world as the page sees it ----
-export function themeView(row, next) {
+// The critter goes to the page only when all three sheets were made; otherwise the drawn cat walks.
+export function critterView(c) {
+  if (!c || !['walk', 'rest', 'leap'].every(k => c[k] && c[k].public_id)) return null;
+  return { name: c.name, walk: spriteUrl(c.walk.public_id, c.walk.version), rest: spriteUrl(c.rest.public_id, c.rest.version), leap: spriteUrl(c.leap.public_id, c.leap.version) };
+}
+export function themeView(row, next, critter = null) {
   if (!row) return null;
   return {
     week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
     still: row.still_public_id ? stillUrl169(row.still_public_id, row.still_version) : null,
     clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
+    critter: critterView(critter),
     next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
   };
 }

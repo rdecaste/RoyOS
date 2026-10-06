@@ -1,8 +1,8 @@
 // The weekly world, as a Workflow: pick, still, clip, each paid step run once and its
 // result kept small (Cloudinary ids only), so a retry never pays twice.
 import { WorkflowEntrypoint } from 'cloudflare:workers';
-import { generateStill, generateClip, generateSprite, spriteUrl, cloudinaryUpload, stillUrl169, THEME_FOLDER } from './media.js';
-import { CRITTER_PROMPTS, CRITTER_REFS } from './themes.js';
+import { generateStill, generateClip, generateSprite, spriteUrl, cloudinaryUpload, chatJson, stillUrl169, THEME_FOLDER } from './media.js';
+import { CRITTER_SHEETS, critterPickMessages, critterFromAnswer, critterPrompts } from './themes.js';
 import { state } from './state.js';
 
 const CHEAP = { retries: { limit: 3, delay: '10 seconds', backoff: 'exponential' }, timeout: '2 minutes' };
@@ -12,17 +12,8 @@ export class DeskTheme extends WorkflowEntrypoint {
   async run(event, step) {
     const { week } = event.payload;
     const s = state(this.env);
-    // A critter's art (CRITTER_ART): one paid image, kept in Cloudinary and remembered.
-    if (event.payload.critter) {
-      const { critter } = event.payload;
-      const art = await step.do('critter art', ONCE_PAID, async () => {
-        const ref = CRITTER_REFS[critter] ? spriteUrl(`${THEME_FOLDER}/critter-${CRITTER_REFS[critter]}`) : null;
-        const image = await generateSprite(this.env, CRITTER_PROMPTS[critter], ref);
-        return cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/critter-${critter}`, assetFolder: THEME_FOLDER, tags: 'desk-critter' });
-      });
-      await step.do('save critter', CHEAP, async () => s.remember('critter:' + critter, { public_id: art.public_id, version: art.version }, 3650 * 864e5));
-      return { ok: 1, critter };
-    }
+    // Only the week's critter (CRITTER_ART asks for one outside the Monday run).
+    if (event.payload.critterWeek) return this.critter(event.payload.critterWeek, step, s);
     try {
       const theme = await step.do('load pick', CHEAP, async () => {
         const t = await s.theme(week);
@@ -44,10 +35,34 @@ export class DeskTheme extends WorkflowEntrypoint {
         return cloudinaryUpload(this.env, video.bytes, { resourceType: 'video', mimeType: video.mimeType, publicId: `${THEME_FOLDER}/${week}-clip`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
       });
       await step.do('save clip', CHEAP, async () => s.updateTheme(week, { clip_public_id: clip.public_id, clip_version: String(clip.version), status: 'ready', finished_at: new Date().toISOString() }));
-      return { ok: 1, week };
     } catch (err) {
       await s.updateTheme(week, { status: 'failed', error: String(err && err.message || err).slice(0, 500), finished_at: new Date().toISOString() });
       throw err;
     }
+    // The critter comes after the world is ready; when it fails the world stays and the board shows the drawn cat.
+    await this.critter(week, step, s).catch(err => console.error('critter ' + week + ': ' + (err && err.message || err)));
+    return { ok: 1, week };
+  }
+
+  // The week's critter: picked by the chat model, painted as three sheets (walk, then rest and leap
+  // with the walk as reference), each paid once; what was made is remembered as critter:<week>.
+  async critter(week, step, s) {
+    const theme = await step.do('critter world', CHEAP, async () => {
+      const t = await s.theme(week);
+      if (!t) throw new Error(`No pick stored for ${week}`);
+      return { franchise: t.franchise, scene: t.scene, look: t.look, character: t.character };
+    });
+    const critter = await step.do('critter pick', CHEAP, async () => critterFromAnswer(await chatJson(this.env, critterPickMessages(theme), { maxTokens: 300 }).catch(() => null)));
+    const prompts = critterPrompts(critter, theme), made = {};
+    for (const sheet of CRITTER_SHEETS) {
+      made[sheet] = await step.do('critter ' + sheet, ONCE_PAID, async () => {
+        const image = await generateSprite(this.env, prompts[sheet], sheet === 'walk' ? null : spriteUrl(made.walk.public_id, made.walk.version));
+        const up = await cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/${week}-critter-${sheet}`, assetFolder: THEME_FOLDER, tags: 'desk-critter' });
+        return { public_id: up.public_id, version: up.version };
+      }).catch(err => ({ error: String(err && err.message || err).slice(0, 300) }));
+      if (sheet === 'walk' && made.walk.error) break;
+    }
+    await step.do('save critter', CHEAP, async () => s.remember('critter:' + week, { ...critter, ...made, made_at: new Date().toISOString() }, 3650 * 864e5));
+    return { ok: 1, week, critter: critter.name };
   }
 }

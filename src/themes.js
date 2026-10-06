@@ -107,26 +107,52 @@ export function remakeDue(spec, row, week) {
   return character;
 }
 
-// ---- Critter art ----
-// CRITTER_ART is "<critter>|<ISO time>": the art for that critter is made once per ask.
-export const CRITTER_PROMPTS = {
-  cat: 'A sprite sheet of one black cat for an animated desk dashboard: six separate poses of the SAME cat, side view, every pose facing right, all at the same size and scale, evenly spaced in a 3 by 2 grid with generous empty space around each pose so they can be cut apart. ' +
-    'Top row, left to right: walking with the near front paw forward and the near hind leg back; walking in the passing pose with the legs under the body; leaping with the body stretched long, front paws reaching forward and hind legs pushing back. ' +
-    'Bottom row, left to right: sitting upright with the tail wrapped around the front paws; curled up asleep; sitting and licking a raised front paw. ' +
-    'A sleek short-haired black cat with green-gold eyes, realistic proportions, painterly semi-realistic anime key art, soft rim light in magenta and teal from a neon city at night, crisp silhouette, fine fur detail. ' +
-    'Transparent background. No ground, no floor, no cast shadows, no text, no labels, no grid lines, no frames, nothing else in the image.',
-  catwalk: 'The reference image is a sprite sheet of a black cat. Make a new sprite sheet of exactly the SAME cat (same fur, same green-gold eyes, same build, same magenta and teal rim light, same painterly style): an 8-frame walk cycle for an animated desk dashboard. ' +
-    'Eight frames in a 4 by 2 grid, read left to right, top row first, with generous empty space around each frame so they can be cut apart. Side view, every frame facing right, all at the same size and scale as each other, the head and back at the same height in every frame, so the frames line up when played in a loop. ' +
-    'One full stride, evenly spaced in time: 1 near front paw reaching forward and touching down, far hind leg pushed back; 2 weight moving onto the near front paw; 3 passing pose, the near hind leg swinging forward under the body; 4 near hind paw reaching forward, far front leg pushed back; 5 far front paw reaching forward and touching down, near hind leg pushed back; 6 weight moving onto the far front paw; 7 passing pose, the far hind leg swinging forward under the body; 8 far hind paw reaching forward, near front leg pushed back, leading back into frame 1. ' +
-    'Calm unhurried walk, tail held low in a soft curve, swaying only a little from frame to frame. ' +
-    'Transparent background. No ground, no floor, no cast shadows, no text, no numbers, no labels, no grid lines, no frames, nothing else in the image.'
-};
-// A sheet that must match an earlier one gets that sheet as its reference.
-export const CRITTER_REFS = { catwalk: 'cat' };
+// ---- The week's critter ----
+// Every week a small fantasy creature that belongs in the week's world walks the tops of the tiles.
+// The chat model picks and describes it; flare paints it as three transparent sheets of 8 frames
+// (4 by 2): the walk first, then rest and leap with the walk sheet as the reference, so it stays
+// the same creature. Each sheet has one plain standing frame, so the board can size them alike.
+export const CRITTER_SHEETS = ['walk', 'rest', 'leap'];
+export const CRITTER_FALLBACK = { name: 'Black cat', look: 'a sleek short-haired black cat with green-gold eyes' };
+
+export function critterPickMessages(theme) {
+  return [
+    { role: 'system', content: 'You pick the one small creature that lives on a desk dashboard for a week, walking along the tops of its panels. It must be a fantasy creature that belongs in the given world: invented for it or drawn from its lore and mood, never a named character, never a person or humanoid. It has four legs and the body of a small agile animal, so it can walk, sit upright, groom a raised front paw, curl up asleep and leap like a cat. No big wings, no long trailing parts, no text or logos on it. Answer as JSON: {"name": "2 to 3 words", "look": "one sentence of at most 35 words: body shape, size like a cat, colours, markings, eyes, any glow, in plain visual words"}.' },
+    { role: 'user', content: `World: ${theme.franchise}, ${theme.scene}. Look of the scene: ${theme.look || 'not given'}. The week's character (not the creature): ${theme.character}.` }
+  ];
+}
+
+// The chat model's answer, cleaned; anything unusable falls back to the black cat.
+export function critterFromAnswer(a) {
+  const clean = (v, n) => String(v || '').replace(/["\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  const name = clean(a && a.name, 40), look = clean(a && a.look, 300);
+  return name && look ? { name, look } : { ...CRITTER_FALLBACK };
+}
+
+const SHEET = 'Eight frames in a 4 by 2 grid, read left to right, top row first, with generous empty space around each frame so they can be cut apart. Side view, every frame facing right, all at the same size and scale.';
+const STYLE = 'Painterly semi-realistic anime key art, crisp silhouette, fine detail, soft rim light in the colours of the world it lives in.';
+const SAME = 'The reference image is a sprite sheet of this creature. Draw exactly the SAME creature (same body, colours, markings, eyes, glow and painterly style) at the same scale as in the reference.';
+const BARE = 'Transparent background. No ground, no floor, no cast shadows, no text, no numbers, no labels, no grid lines, no frames, nothing else in the image.';
+export function critterPrompts(critter, theme) {
+  const who = `${critter.look} It lives in ${theme.scene} (${theme.franchise}).`;
+  return {
+    walk: [`A sprite sheet of one small fantasy creature for an animated desk dashboard: ${who}`, 'An 8-frame walk cycle.', SHEET,
+      'The head and back at the same height in every frame, so the frames line up when played in a loop. One full stride, evenly spaced in time: 1 near front paw reaching forward and touching down, far hind leg pushed back; 2 weight moving onto the near front paw; 3 passing pose, the near hind leg swinging forward under the body; 4 near hind paw reaching forward, far front leg pushed back; 5 far front paw reaching forward and touching down, near hind leg pushed back; 6 weight moving onto the far front paw; 7 passing pose, the far hind leg swinging forward under the body; 8 far hind paw reaching forward, near front leg pushed back, leading back into frame 1. Calm unhurried walk, tail low in a soft curve, swaying a little.',
+      STYLE, BARE].join(' '),
+    rest: [SAME, `The creature: ${who}`, 'Eight resting poses.', SHEET,
+      '1 sitting upright, tail around the front paws, looking ahead; 2 the same sitting pose with the head turned, looking over its shoulder; 3 sitting, one front paw raised to the mouth; 4 sitting, licking the raised paw, eyes half closed; 5 curled up asleep, eyes closed; 6 the same curled sleeping pose breathing in, the body a little rounder; 7 standing still on all four legs, calm, looking ahead; 8 a long stretch, front legs reaching far forward, chest low, hind end up.',
+      STYLE, BARE].join(' '),
+    leap: [SAME, `The creature: ${who}`, 'One leap from one ledge to another, in 8 frames.', SHEET,
+      '1 standing still on all four legs, calm, looking ahead; 2 crouched low, hind legs bunched, ready to spring; 3 pushing off, hind legs extending, front paws leaving the ground; 4 rising, body angled up, front legs tucked; 5 fully stretched in mid-air, front paws reaching forward, hind legs trailing; 6 starting to come down, front legs reaching down; 7 landing on the front paws, hind legs still in the air; 8 landed on all four paws, settling.',
+      STYLE, BARE].join(' ')
+  };
+}
+
+// CRITTER_ART asks for a week's critter outside the Monday run: "<week>|<ISO time>", made once per ask.
 export function critterDue(spec, done) {
-  const [critter, at] = String(spec || '').split('|').map(x => x.trim());
-  if (!CRITTER_PROMPTS[critter] || isNaN(Date.parse(at || '')) || done) return null;
-  return { critter, key: 'critter-ask:' + critter + '|' + at };
+  const [week, at] = String(spec || '').split('|').map(x => x.trim());
+  if (!/^\d{4}-W\d{2}$/.test(week || '') || isNaN(Date.parse(at || '')) || done) return null;
+  return { week, key: 'critter-ask:' + week + '|' + at };
 }
 
 // ---- Prompts ----
