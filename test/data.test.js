@@ -106,9 +106,10 @@ test('desk work: a past day set on Roy OS fills in the journal, and wins over an
   assert.deepEqual(missingDays(merged, '2026-10-02'), [], 'both filled in on the screen');
 });
 
-test('today\'s win: the boss card\'s "Today\'s win" hit on today\'s game day', () => {
-  const boss = { habits: [{ name: "Today's win", last_attack: '2026-10-05T11:31:42.314Z' }] };
-  assert.deepEqual(winToday(boss, NOW), { done: true, at: '13:31' });
-  assert.deepEqual(winToday(boss, Date.parse('2026-10-06T10:00:00Z')), { done: false, at: null }, 'yesterday\'s win is not today\'s');
-  assert.deepEqual(winToday(null, NOW), { done: false, at: null });
+test('today\'s win: the boss card\'s win (/boss `win`), Done on today\'s game day', () => {
+  const boss = { habits: [], win: { day: '2026-10-05', done: 1, hit: { damage: 48 } } };
+  assert.deepEqual(winToday(boss, NOW), { done: true, dmg: 48 });
+  assert.deepEqual(winToday({ win: { ...boss.win, done: 0, hit: null } }, NOW), { done: false, dmg: null }, 'not ticked yet');
+  assert.deepEqual(winToday(boss, Date.parse('2026-10-07T10:00:00Z')), { done: false, dmg: null }, 'yesterday\'s win is not today\'s');
+  assert.deepEqual(winToday(null, NOW), { done: false, dmg: null });
 });
