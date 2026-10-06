@@ -89,6 +89,20 @@ async function geminiStill(env, model, prompt, referenceUrls) {
   return { bytes: fromBase64(image.inlineData.data), mimeType: image.inlineData.mimeType || 'image/jpeg' };
 }
 
+// A critter's art: one sheet of poses on a transparent background, from the same image model.
+export async function generateSprite(env, prompt) {
+  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+  const model = /^gpt-image/.test(env.IMAGE_MODEL || '') ? env.IMAGE_MODEL : 'gpt-image-2.5-flare';
+  const response = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt, n: 1, size: '1536x1024', quality: 'high', background: 'transparent', moderation: 'low', output_format: 'png' }) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${(data.error && data.error.message) || 'image generation failed'}`);
+  const b64 = data.data && data.data[0] && data.data[0].b64_json;
+  if (!b64) throw new Error('OpenAI returned no image');
+  return { bytes: fromBase64(b64), mimeType: 'image/png' };
+}
+export const spriteUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${version ? 'v' + version + '/' : ''}${publicId}.png`;
+
 // ---- The clip: Gemini omni (the quest engine's video model, Interactions API) or Veo, by VIDEO_MODEL ----
 export async function generateClip(env, stillUrl, prompt) {
   const model = env.VIDEO_MODEL || 'gemini-omni-flash-preview';

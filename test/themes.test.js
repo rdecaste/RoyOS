@@ -71,3 +71,12 @@ test('remake from the config: once, for its week, while the row is older than th
   assert.equal(remakeDue('', null, '2026-W41'), null);
   assert.equal(remakeDue('2026-W41|Jinx|soon', null, '2026-W41'), null);
 });
+
+test('critter art: asked for by name and time, only for known critters', async () => {
+  const { critterDue, CRITTER_PROMPTS } = await import('../src/themes.js');
+  assert.deepEqual(critterDue('cat|2026-10-06T07:45:00Z', false), { critter: 'cat', key: 'critter-ask:cat|2026-10-06T07:45:00Z' });
+  assert.equal(critterDue('cat|2026-10-06T07:45:00Z', true), null);
+  assert.equal(critterDue('dragon|2026-10-06T07:45:00Z', false), null);
+  assert.equal(critterDue('', false), null);
+  assert.ok(/Transparent background/.test(CRITTER_PROMPTS.cat));
+});
