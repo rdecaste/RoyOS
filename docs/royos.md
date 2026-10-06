@@ -51,6 +51,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-06: W42's first Veo clip was refused by Veo's audio check ("an issue with the audio for your prompt"; Veo makes sound with every clip). The clip prompt now asks for soft ambient sound only (no voices or music) instead of "silent", and a Veo failure falls back to omni (`generateClip`), so a week keeps a clip. The board plays clips muted.
 - 2026-10-06: clips are made with Veo 3.1 at 1080p (`VIDEO_MODEL` `veo-3.1-generate-preview`); omni's 1280×720 clips looked soft on the screen (Roy: "lets try veo"). `POST /theme/retry {week}` redoes only a week's clip and keeps its still and critter.
 - 2026-10-06: the board shows the week's still exactly as uploaded (`stillUrl`), with no Cloudinary crop or re-encode (Roy: "we should not ask cloudinary anything to crop it"); only the clip model's input still uses the 16:9 crop (`stillUrl169`).
 - 2026-10-06: the still prompt asks for a wide shot with the character small and busy in the scene (leaning on a railing, at a stall, working on a device), seen from the side or three-quarters, never facing the viewer, and bans pin-up or glamour posing; the reference image is for identity only. W42's first Lucy still was a waist-up bust facing the camera (Roy: "part of the scene, doing something"). A world remake now keeps the week's critter when all three sheets exist, so it is not painted twice.
