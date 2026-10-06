@@ -13,7 +13,7 @@ export class DeskTheme extends WorkflowEntrypoint {
     const { week } = event.payload;
     const s = state(this.env);
     // Only the week's critter (CRITTER_ART asks for one outside the Monday run).
-    if (event.payload.critterWeek) return this.critter(event.payload.critterWeek, step, s);
+    if (event.payload.critterWeek) return this.critter(event.payload.critterWeek, step, s, event.payload.critterSheet || null);
     try {
       const theme = await step.do('load pick', CHEAP, async () => {
         const t = await s.theme(week);
@@ -46,15 +46,19 @@ export class DeskTheme extends WorkflowEntrypoint {
 
   // The week's critter: picked by the chat model, painted as three sheets (walk, then rest and leap
   // with the walk as reference), each paid once; what was made is remembered as critter:<week>.
-  async critter(week, step, s) {
+  // With `only`, the week's critter keeps its pick and other sheets and that one sheet is repainted.
+  async critter(week, step, s, only = null) {
     const theme = await step.do('critter world', CHEAP, async () => {
       const t = await s.theme(week);
       if (!t) throw new Error(`No pick stored for ${week}`);
       return { franchise: t.franchise, scene: t.scene, look: t.look, character: t.character };
     });
-    const critter = await step.do('critter pick', CHEAP, async () => critterFromAnswer(await chatJson(this.env, critterPickMessages(theme), { maxTokens: 300 }).catch(() => null)));
-    const prompts = critterPrompts(critter, theme), made = {};
+    const kept = only ? await step.do('critter kept', CHEAP, async () => s.cached('critter:' + week)) : null;
+    if (only && !(kept && kept.walk && kept.walk.public_id)) throw new Error(`No critter with a walk sheet for ${week}`);
+    const critter = kept ? { name: kept.name, look: kept.look } : await step.do('critter pick', CHEAP, async () => critterFromAnswer(await chatJson(this.env, critterPickMessages(theme), { maxTokens: 300 }).catch(() => null)));
+    const prompts = critterPrompts(critter, theme), made = kept ? { walk: kept.walk, rest: kept.rest, leap: kept.leap } : {};
     for (const sheet of CRITTER_SHEETS) {
+      if (only && sheet !== only) continue;
       made[sheet] = await step.do('critter ' + sheet, ONCE_PAID, async () => {
         const image = await generateSprite(this.env, prompts[sheet], sheet === 'walk' ? null : spriteUrl(made.walk.public_id, made.walk.version));
         const up = await cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/${week}-critter-${sheet}`, assetFolder: THEME_FOLDER, tags: 'desk-critter' });

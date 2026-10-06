@@ -131,7 +131,7 @@ export function critterFromAnswer(a) {
 
 const SHEET = 'Eight frames in a 4 by 2 grid, read left to right, top row first, with generous empty space around each frame so they can be cut apart. Side view, every frame facing right, all at the same size and scale.';
 const STYLE = 'Painterly semi-realistic anime key art, crisp silhouette, fine detail, soft rim light in the colours of the world it lives in.';
-const SAME = 'The reference image is a sprite sheet of this creature. Draw exactly the SAME creature (same body, colours, markings, eyes, glow and painterly style) at the same scale as in the reference.';
+const SAME = 'The reference image is a sprite sheet of this creature. Draw exactly the SAME creature, copied from the reference: the same head shape, ears, crest or spines, fur, colours, markings, glowing parts, eyes, paws and tail, in the same painterly style and at the same scale. Where the words below and the reference differ, follow the reference.';
 const BARE = 'Transparent background. No ground, no floor, no cast shadows, no text, no numbers, no labels, no grid lines, no frames, nothing else in the image.';
 export function critterPrompts(critter, theme) {
   const who = `${critter.look} It lives in ${theme.scene} (${theme.franchise}).`;
@@ -148,11 +148,14 @@ export function critterPrompts(critter, theme) {
   };
 }
 
-// CRITTER_ART asks for a week's critter outside the Monday run: "<week>|<ISO time>", made once per ask.
+// CRITTER_ART asks for a week's critter outside the Monday run, made once per ask: "<week>|<ISO time>"
+// for a whole new critter, or "<week>|<sheet>|<ISO time>" to repaint one sheet of the week's critter.
 export function critterDue(spec, done) {
-  const [week, at] = String(spec || '').split('|').map(x => x.trim());
+  const parts = String(spec || '').split('|').map(x => x.trim()), [week] = parts, at = parts[parts.length - 1];
+  const sheet = parts.length === 3 ? parts[1] : null;
   if (!/^\d{4}-W\d{2}$/.test(week || '') || isNaN(Date.parse(at || '')) || done) return null;
-  return { week, key: 'critter-ask:' + week + '|' + at };
+  if (parts.length > 3 || (sheet && !CRITTER_SHEETS.includes(sheet))) return null;
+  return { week, sheet, key: 'critter-ask:' + parts.join('|') };
 }
 
 // ---- Prompts ----

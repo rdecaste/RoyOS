@@ -74,7 +74,9 @@ test('remake from the config: once, for its week, while the row is older than th
 
 test('the week\'s critter: asked for by week and time, once', async () => {
   const { critterDue } = await import('../src/themes.js');
-  assert.deepEqual(critterDue('2026-W41|2026-10-06T08:20:00Z', false), { week: '2026-W41', key: 'critter-ask:2026-W41|2026-10-06T08:20:00Z' });
+  assert.deepEqual(critterDue('2026-W41|2026-10-06T08:20:00Z', false), { week: '2026-W41', sheet: null, key: 'critter-ask:2026-W41|2026-10-06T08:20:00Z' });
+  assert.deepEqual(critterDue('2026-W41|rest|2026-10-06T08:30:00Z', false), { week: '2026-W41', sheet: 'rest', key: 'critter-ask:2026-W41|rest|2026-10-06T08:30:00Z' });
+  assert.equal(critterDue('2026-W41|tail|2026-10-06T08:30:00Z', false), null);
   assert.equal(critterDue('2026-W41|2026-10-06T08:20:00Z', true), null);
   assert.equal(critterDue('cat|2026-10-06T07:45:00Z', false), null);
   assert.equal(critterDue('', false), null);
@@ -95,6 +97,7 @@ test('the week\'s critter: a fantasy creature of the world, three sheets of 8 fr
     assert.ok(/standing still on all four legs/.test(p[k]) || k === 'walk', k + ' has a standing frame to size it by');
   }
   assert.ok(!/reference/.test(p.walk) && /reference/.test(p.rest) && /reference/.test(p.leap));
+  assert.ok(/follow the reference/.test(p.rest) && /follow the reference/.test(p.leap));
 });
 
 test('the critter reaches the page only with all three sheets', async () => {

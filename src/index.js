@@ -96,8 +96,8 @@ async function ensureCritter(env, s) {
   const ask = critterDue(env.CRITTER_ART, false); if (!ask) return null;
   if (await s.cached(ask.key)) return null;
   await s.remember(ask.key, { at: new Date().toISOString() }, 3650 * 864e5);
-  const run = await env.DESK_THEME.create({ params: { critterWeek: ask.week } });
-  return { ok: 1, week: ask.week, workflow: run.id };
+  const run = await env.DESK_THEME.create({ params: { critterWeek: ask.week, critterSheet: ask.sheet } });
+  return { ok: 1, week: ask.week, sheet: ask.sheet, workflow: run.id };
 }
 
 // ---- Edits on the board ----
