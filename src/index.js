@@ -11,6 +11,9 @@
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
 //   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
+//   POST /redo             {what: clip|all, week}: the menu's paid redo of a week's world (this week or the next only):
+//                          `clip` keeps the still (and the critter) and makes a new clip, `all` a new still and clip
+//                          with the same character. Refused while that week is being made.
 //   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
@@ -201,6 +204,17 @@ export default {
       }
       if (path === '/theme') return json({ ok: 1, theme: await currentTheme(env, s) });
       if (path.startsWith('/card/') && CARDS[path.slice(6)]) return card(env, path.slice(6));
+
+      if (path === '/redo' && request.method === 'POST') {
+        const f = await readFields(request), now = themeWeek();
+        const week = String(f.week || now), what = f.what === 'all' ? 'all' : f.what === 'clip' ? 'clip' : null;
+        if (!what) return json({ ok: 0, code: 'bad_what', message: 'what must be clip or all' }, 400);
+        if (week !== now && week !== weekAfter(now, 1)) return json({ ok: 0, code: 'bad_week', message: 'Only this week or next week can be redone' }, 400);
+        const row = await s.theme(week);
+        if (!row) return json({ ok: 0, code: 'no_world', message: 'That week has no world yet' }, 404);
+        if (['running', 'still'].includes(row.status)) return json({ ok: 0, code: 'busy', message: 'That week is being made right now' }, 409);
+        return json(await ensureTheme(env, s, what === 'all' ? { week, force: true, character: row.character } : { week, retry: true }));
+      }
 
       if (path === '/act' && request.method === 'POST') {
         const a = await readFields(request), day = ymd(Date.now());

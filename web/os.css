@@ -117,6 +117,7 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .mtimes button { padding: 5px 12px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255, 255, 255, .05); font-size: 14px; }
 .os .mtimes button:hover { border-color: rgba(255, 255, 255, .3); }
 .os .mtimes button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.os .mredo button.arm { border-color: var(--warn); color: var(--warn); }
 .os .msep { height: 1px; margin: 3px 6px; background: var(--edge); }
 .os .mitem { padding: 9px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-size: 15px; }
 .os .mitem:hover { background: rgba(var(--accent-rgb), .16); }

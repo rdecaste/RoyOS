@@ -634,6 +634,7 @@ function critters() {
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(', ');
 let wallNow = null, wallAr = 16 / 9, wallChoice = null;
 function applyTheme(t) {
+  setTimeout(renderRedo, 0);
   const p = (t && t.palette) || { accent: '#6fd8ff', second: '#ff7ac8', tint: '9, 14, 27' }, st = document.documentElement.style;
   st.setProperty('--accent', p.accent); st.setProperty('--accent-rgb', hexRgb(p.accent)); st.setProperty('--second', p.second); st.setProperty('--tint', p.tint);
   $('mTheme').innerHTML = t ? '<span>' + esc(t.week) + (t.status === 'ready' ? ' · since Monday 06:00' : ' · ' + esc(t.status) + (t.error ? ': ' + esc(t.error) : '')) + '</span><b>' + esc(t.franchise) + ' · ' + esc(t.scene) + '</b><span>' + esc(t.character) + ' · ' + esc(t.look || '') + '</span>' +
@@ -643,6 +644,26 @@ function applyTheme(t) {
   const want = walls.find(w => w.id === wallChoice) || walls[0] || null;
   if (want && (!wallNow || wallNow.video !== want.video || wallNow.src !== want.src)) setWall(want);
   qa('[data-w]').forEach(b => b.setAttribute('aria-pressed', String(!!want && b.dataset.w === want.id)));
+}
+// ---- Redo the world from the menu (paid: a tap arms it, a second tap within 5 s starts it) ----
+let redoArm = null, redoTimer = 0;
+function renderRedo() {
+  const t = D.theme, box = $('mRedo'); if (!box) return;
+  if (!t || !t.still) { box.innerHTML = ''; return; }
+  if (t.status === 'running' || t.status === 'still') { box.innerHTML = '<span class="mnote" style="padding:0">Being made now, it shows here when ready.</span>'; return; }
+  const b = (w, label) => '<button type="button" data-act="redo" data-what="' + w + '"' + (redoArm === w ? ' class="arm"' : '') + '>' + (redoArm === w ? 'Tap again: paid redo' : label) + '</button>';
+  box.innerHTML = b('clip', 'Redo clip') + b('all', 'Redo still + clip');
+}
+async function redo(what) {
+  if (redoArm !== what) { redoArm = what; clearTimeout(redoTimer); redoTimer = setTimeout(() => { redoArm = null; renderRedo(); }, 5000); renderRedo(); return; }
+  redoArm = null; clearTimeout(redoTimer);
+  try {
+    const r = await fetch('/redo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what, week: D.theme.week }) });
+    const out = await r.json().catch(() => ({}));
+    if (!out.ok) throw new Error(out.message || out.code || 'failed');
+    notify({ app: 'os', html: (what === 'all' ? 'A new still and clip are' : 'A new clip is') + ' being made for ' + esc(D.theme.week) + '. It shows up by itself when ready.', ttl: 9000 });
+    closeMenu(); refresh();
+  } catch (err) { notify({ app: 'os', html: 'Could not start the redo: ' + esc(err.message) }); renderRedo(); }
 }
 function placeWall() {
   if (!wallNow) return;
@@ -1200,6 +1221,7 @@ function doAct(el, e) {
   else if (a === 'island') setIsland(!$('island').classList.contains('open'));
   else if (a === 'fs') fullscreen();
   else if (a === 'refresh') { closeMenu(); refresh(); }
+  else if (a === 'redo') redo(el.dataset.what);
   else if (a === 'wall') { wallChoice = el.dataset.w; applyTheme(D.theme); }
   else if (a === 'sugg') { const i = $('askIn'); i.value = el.dataset.q; hideAsk(); i.focus(); }
   else if (a === 'undo') undo();
