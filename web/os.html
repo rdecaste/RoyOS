@@ -1,5 +1,6 @@
 <div class="board" id="board">
 <div id="wall" aria-hidden="true"></div>
+<div class="fdim" aria-hidden="true"></div>
 <div class="os" id="os">
   <header class="menubar">
     <div class="sysmenu">
@@ -32,7 +33,7 @@
   <div class="clockw"><div class="hm" id="clock">--:--</div><div class="d" id="dateline"></div><div class="g" id="greet"></div></div>
 
   <section class="t focus" id="wFocus" data-open="focus" aria-labelledby="hFocus">
-    <div class="tl"><span class="dot"></span><span class="tt" id="hFocus">Focus</span><b id="focusCount"></b></div>
+    <div class="tl"><span class="dot"></span><span class="tt" id="hFocus">Focus</span><button type="button" class="ftbtn" id="ftBtn" data-act="ftimer" data-tip="Start a 25 minute focus session"></button><b id="focusCount"></b></div>
     <div class="winif" id="winIf"></div>
     <div class="todos" id="focusTodos"></div>
   </section>
@@ -49,6 +50,15 @@
   </section>
 
   <button type="button" class="wquote" id="quote" data-open="quest" hidden></button>
+
+  <div class="fring" id="fRing" aria-live="polite">
+    <button type="button" class="rg" data-act="ftpause" aria-label="Pause or resume the focus timer"><svg viewBox="0 0 480 480" aria-hidden="true">
+      <circle class="trk" cx="240" cy="240" r="226"/><circle class="tks" cx="240" cy="240" r="208" pathLength="25" stroke-dasharray=".04 .96"/>
+      <circle class="arc" id="fArc" cx="240" cy="240" r="226" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="1000"/></svg></button>
+    <div class="fi"><div class="ft" id="fTime">25:00</div><div class="fl" id="fLabel"></div>
+      <div class="fb"><button type="button" data-act="ftpause" id="fPause">Pause</button><button type="button" data-act="ftstop">Stop</button></div></div>
+  </div>
+  <div class="lore" id="lore" role="dialog" aria-label="This week's world" hidden></div>
 
   <section class="t wx" id="wWx" data-tip="@weather" aria-label="Weather at home">
     <div class="wx-scene" id="wxScene" aria-hidden="true"></div>
@@ -96,7 +106,7 @@
 </div>
 </div>
 
-<div class="lock" id="lock" role="button" tabindex="-1" aria-label="Night: the screen is off. Tap to wake it"></div>
+<div class="lock" id="lock" role="button" tabindex="-1" aria-label="Night: the board is resting. Tap to wake it"><div class="nightc" id="nightC"><div class="nh" id="nClock"></div><div class="nd" id="nDate"></div><div class="nn" id="nNext"></div></div></div>
 <div class="pop" id="moodPop" hidden><form id="moodForm" autocomplete="off"><img id="moodPopImg" alt=""><label class="sr" for="moodNote">A few words about your mood</label><input class="inp" id="moodNote" type="text" maxlength="80" placeholder="A few words (optional)"><button type="submit" class="btn primary">Log</button></form></div>
 <div id="winLayer"></div>
 <div class="cardpop" id="cardPop" role="dialog" aria-modal="true" aria-label="Card" hidden>

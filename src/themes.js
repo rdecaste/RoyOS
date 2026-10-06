@@ -96,6 +96,19 @@ export function pickTheme(catalogue, week, { character: want = null } = {}) {
   };
 }
 
+// The lore for tap the world: the scene's and the character's own descriptions from the catalogue
+// (canonical_identity) and the scene's signature features as a few short words. Read only, nothing generated.
+export function loreFor(catalogue, row) {
+  if (!row || !Array.isArray(catalogue)) return null;
+  const f = catalogue.find(x => x.name === row.franchise);
+  if (!f) return null;
+  const scene = f.scenes.find(x => x.scene_name === row.scene), ch = f.characters.find(x => (row.character_id && String(x.id) === String(row.character_id)) || x.character_name === row.character);
+  const clip = t => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= 420) return t; const cut = t.slice(0, 420), end = cut.lastIndexOf('. '); return end > 200 ? cut.slice(0, end + 1) : cut.replace(/\s+\S*$/, '') + '…'; };
+  const feel = String(scene && scene.signature_features || '').split(/[;,\n]+/).map(x => x.trim().replace(/\.$/, '')).filter(x => x && x.length <= 40).slice(0, 5);
+  const lore = { scene: clip(scene && scene.canonical_identity), character: clip(ch && ch.canonical_identity), feel };
+  return lore.scene || lore.character || feel.length ? lore : null;
+}
+
 // A remake asked for in the config, for when no one can call /theme/run: REMAKE is
 // "<week>|<character>|<ISO time>". The hourly cron remakes that week with that character once,
 // only while the week's row was started before that time; a later deploy can ask again.

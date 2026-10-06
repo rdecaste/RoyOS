@@ -23,7 +23,9 @@ const dur = min => { min = Math.max(0, Math.round(min)); const h = Math.floor(mi
 const sleepTxt = h => { if (h == null) return '–'; const m = Math.round(h * 60); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0'); };
 const one = n => (n == null ? '–' : String(Math.round(n * 10) / 10));
 const pct = (a, b) => (a > 0 && b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0);
-const phaseOf = m => { const h = Math.floor(m / 60); return h >= 23 || h < 4 ? 'night' : h < 10 ? 'morning' : h < 18 ? 'day' : 'evening'; };
+// Night (the OLED rest) runs from 23:00 to 06:30.
+const NIGHT0 = 23 * 60, NIGHT1 = 6 * 60 + 30;
+const phaseOf = m => { const h = Math.floor(m / 60); return m >= NIGHT0 || m < NIGHT1 ? 'night' : h < 10 ? 'morning' : h < 18 ? 'day' : 'evening'; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const wdShort = d => new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' }).format(new Date(d + 'T12:00:00Z'));
 const dayFmt = d => { const x = new Date(d + 'T12:00:00Z'); return wdShort(d) + ' ' + x.getUTCDate() + ' ' + MON[x.getUTCMonth()]; };
@@ -113,6 +115,14 @@ function border() {
   const B = D.journal.border, T = workToday();
   const be = B.be + (isBE(T.am) ? .5 : 0) + (isBE(T.pm) ? .5 : 0), nl = B.nl + (isNL(T.am) ? .5 : 0) + (isNL(T.pm) ? .5 : 0);
   return { be, nl, share: be + nl ? Math.round(be / (be + nl) * 100) : 0, spare: Math.floor(be - nl) };
+}
+// Past work days the journal has no place for (from the server; today is never one).
+const missingWork = () => (D.journal.border && D.journal.border.missing) || [];
+const dayShort = d => wdShort(d) + ' ' + (+d.slice(8)) + ' ' + MON[+d.slice(5, 7) - 1];
+function missingSec() {
+  const m = missingWork(), n = m.length;
+  if (!n) return '<div class="sec"><div class="sh"><span>Missing days</span><b>None</b></div><p class="say">Every work day this year has a place logged.</p></div>';
+  return '<div class="sec"><div class="sh"><span>Missing days</span><b>' + n + ' day' + (n === 1 ? '' : 's') + '</b></div><div class="missd">' + m.map(d => '<span>' + esc(dayShort(d)) + '</span>').join('') + '</div><p class="say">No morning or afternoon place in the journal for ' + (n === 1 ? 'this work day' : 'these work days') + ', so ' + (n === 1 ? 'it is' : 'they are') + ' left out of the Belgium share. Fill ' + (n === 1 ? 'it' : 'them') + ' in on the journal’s border page.</p></div>';
 }
 const workPlace = () => { const T = workToday(); return T.am === T.pm ? T.am : T.am + ' → ' + placeName(T.pm); };
 
@@ -269,7 +279,7 @@ const TIPS = {
   ratio: () => { const R2 = RATIO(); if (!R2) return ''; const z = [0, R2.zone, ZC[R2.zone]], rp = R2.yesterday, Pk = F().peak, why = Pk && L().length > 1 && Pk.date === PREV().date ? ' after the ' + esc(Pk.what) : '';
     return '<span class="tt">Load ratio · fatigue ÷ fitness · from the quest engine</span><b style="color:' + z[2] + '">' + R2.value.toFixed(2) + ' · ' + esc(R2.zone) + '</b>' + (R2.tsb != null ? ' <span class="mut">· TSB ' + (R2.tsb > 0 ? '+' : '') + R2.tsb + ' ' + esc(R2.state || '') + '</span>' : '') + '<br>' + esc(RSAY[R2.zone] || '') + '<span class="hint">' + (rp && rp.value != null ? 'Yesterday ' + rp.value.toFixed(2) + why + '. ' : '') + 'Low under ' + R2.bands.low + ', optimal to ' + R2.bands.optimal + ', high to ' + R2.bands.high + ', risk above.</span>'; },
   ki: () => { const k = F().ki; return k ? '<span class="tt">Ki charge</span><b>' + k.level + ' of ' + k.peak + ' · ' + kiState(k) + '</b><div class="kv"><span>Healing cap</span><b>' + (k.heal_cap || '–') + ' HP</b><span></span><span>Overnight bonus</span><b>+' + Math.round((k.recovery_bonus || 0) * 100) + '%</b><span></span></div>' : ''; },
-  commute: () => { const b = border(), T = workToday(); return '<span class="tt">Commute</span><div class="kv"><span>Morning</span><b>' + esc(T.am) + '</b><span></span><span>Afternoon</span><b>' + esc(T.pm) + '</b><span></span><span>Ride</span><b>' + esc(T.commute) + '</b><span></span></div><span class="hint">' + b.share + '% of this year’s work days in Belgium (minimum 50%), ' + b.spare + ' days to spare. Tap to change today.</span>'; },
+  commute: () => { const b = border(), T = workToday(); return '<span class="tt">Commute</span><div class="kv"><span>Morning</span><b>' + esc(T.am) + '</b><span></span><span>Afternoon</span><b>' + esc(T.pm) + '</b><span></span><span>Ride</span><b>' + esc(T.commute) + '</b><span></span></div><span class="hint">' + b.share + '% of this year’s work days in Belgium (minimum 50%), ' + b.spare + ' days to spare.' + (missingWork().length ? ' ' + missingWork().length + ' day' + (missingWork().length === 1 ? '' : 's') + ' missing.' : '') + ' Tap to change today.</span>'; },
   steph: () => { const open = stephList().filter(x => !x.done); return '<span class="tt">From Steph</span>' + (open.length ? '<ul>' + open.map(x => '<li>' + esc(x.t) + (x.due ? ' <span class="mut">· ' + esc(x.due) + '</span>' : '') + '</li>').join('') + '</ul>' : 'Nothing open. To-dos tagged Steph in the journal land here.'); },
   dates: () => { const l = COMING().slice(0, 6); return '<span class="tt">Coming up · family calendar</span>' + (l.length ? '<div class="kv">' + l.map(i => '<span>' + esc(daySpan(i)) + '</span><b>' + esc(i.t) + '</b><span class="mut">' + esc(WHO[i.who] === 'Everyone' ? '' : WHO[i.who] || '') + '</span>').join('') + '</div>' : 'Nothing in the next 30 days.') + '<span class="hint">' + (D.calendar ? 'Read from the shared iCloud calendar, refreshed every 10 minutes.' : 'No calendar connected.') + '</span>'; },
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
@@ -654,6 +664,110 @@ function setWall(w) {
 }
 addEventListener('resize', () => { fitBoard(); placeWall(); });
 
+// ---- OLED care: the night scene ----
+// From 23:00 to 06:30 the tiles hide and the world dims (the clip paused); a small dim clock with the next
+// thing on the calendar moves to a new spot every two minutes and the world shifts a few pixels with it.
+// A tap wakes the board for five minutes.
+let nightAt = 0, wakeTimer = 0;
+const isDark = () => document.body.dataset.phase === 'night' && !document.body.classList.contains('awake');
+const NSPOTS = [[50, 46], [30, 30], [70, 62], [36, 68], [66, 32], [24, 50], [76, 48], [50, 24], [44, 74], [58, 58]];
+function renderNight(t = now()) {
+  const dark = isDark();
+  qa('#wall video').forEach(v => { if (dark) v.pause(); else if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); });
+  if (!dark) return;
+  $('nClock').textContent = hm(t);
+  $('nDate').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(t));
+  const nx = COMING()[0];
+  $('nNext').innerHTML = nx ? 'Next: <b>' + esc(nx.t) + '</b> · ' + esc(dayFmt(nx.day)) + (nx.all_day ? '' : ' ' + esc(nx.from)) : 'Rest up, Roy';
+}
+function moveNight() {
+  if (!isDark()) return;
+  const c = $('nightC'), [x, y] = NSPOTS[++nightAt % NSPOTS.length], st = document.documentElement.style;
+  c.classList.add('fade');
+  setTimeout(() => { c.style.setProperty('--cx', x + '%'); c.style.setProperty('--cy', y + '%'); c.classList.remove('fade'); }, 1300);
+  st.setProperty('--nx', (Math.round(Math.random() * 16) - 8) + 'px'); st.setProperty('--ny', (Math.round(Math.random() * 12) - 6) + 'px');
+}
+function wake() {
+  document.body.classList.add('awake'); renderClock();
+  clearTimeout(wakeTimer); wakeTimer = setTimeout(() => { document.body.classList.remove('awake'); renderClock(); }, 5 * 60e3);
+}
+
+// ---- Focus timer: 25 minutes, the world dims around a ring that fills up ----
+// The running session is kept in this browser (localStorage), so a refresh keeps it going. Each finished
+// or stopped session is saved on the server (POST /act {type: focus}) in DeskState's focus table;
+// /data sends today's back as `focus`. A session stopped before a minute is not kept.
+const FT_KEY = 'royos.focus', FT_MIN = 25;
+let FT = null, ftTick = 0;
+try { FT = JSON.parse(localStorage.getItem(FT_KEY) || 'null'); } catch { FT = null; }
+const ftSave = () => { try { FT ? localStorage.setItem(FT_KEY, JSON.stringify(FT)) : localStorage.removeItem(FT_KEY); } catch {} };
+const ftLeft = () => (!FT ? 0 : FT.paused != null ? FT.paused : Math.max(0, FT.end - now()));
+const mmss = ms => { const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const SESSIONS = () => (Array.isArray(D.focus) ? D.focus : []);
+const focusedMin = () => SESSIONS().reduce((n, x) => n + (x.min || 0), 0);
+function ftStart(ms = FT_MIN * 60e3) {
+  hideLore(); hideAsk(); closePop(); setIsland(false);
+  FT = { end: now() + ms, dur: ms, paused: null, at: hm(), day: D.today };
+  ftSave(); closeMenu(); closeWin(); renderFocusTimer();
+}
+function ftPause() {
+  if (!FT || FT.doneAt) return;
+  if (FT.paused != null) { FT.end = now() + FT.paused; FT.paused = null; } else FT.paused = Math.max(0, FT.end - now());
+  ftSave(); renderFocusTimer();
+}
+function ftSaveSession(done) {
+  if (!FT) return;
+  const min = done ? FT_MIN : Math.floor((FT.dur - ftLeft()) / FT.dur * FT_MIN);
+  if (min < 1) return;
+  const s = { day: FT.day || D.today, at: FT.at, min, done };
+  D.focus = SESSIONS().concat(s);
+  post('/act', { type: 'focus', ...s }).then(out => { if (out && Array.isArray(out.focus)) D.focus = out.focus; renderFocusTimer(); })
+    .catch(err => { if (err.message !== 'signed out') notify({ app: 'focus', html: 'Could not save that focus session: ' + esc(err.message) }); });
+}
+function ftStop() { if (FT && !FT.doneAt) ftSaveSession(false); FT = null; ftSave(); renderFocusTimer(); }
+function renderFocusTimer() {
+  const run = !!FT, left = ftLeft();
+  document.body.classList.toggle('focusing', run);
+  $('ftBtn').innerHTML = run ? (FT.paused != null ? '❚❚ ' : '') + mmss(left) : '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.8v8.4L10 6Z"/></svg>' + FT_MIN + ' min';
+  $('ftBtn').dataset.tip = run ? 'Focus session running' : 'Start a 25 minute focus session' + (SESSIONS().length ? ' · today: ' + SESSIONS().length + ' done, ' + dur(focusedMin()) : '');
+  clearInterval(ftTick);
+  if (!run) { renderIsland(); return; }
+  const ring = $('fRing'), f = 1 - left / FT.dur;
+  ring.classList.toggle('paused', FT.paused != null); ring.classList.toggle('done', !!FT.doneAt);
+  $('fArc').style.strokeDashoffset = String(Math.round(1000 * (1 - f)));
+  $('fTime').textContent = FT.doneAt ? 'Done' : mmss(left);
+  const n = SESSIONS().length + (FT.doneAt ? 0 : 1), m = focusedMin();
+  $('fLabel').innerHTML = '<small>Session ' + n + ' today</small>' + (m ? dur(m) + ' focused so far' : 'First one of the day');
+  $('fPause').textContent = FT.paused != null ? 'Resume' : 'Pause'; $('fPause').hidden = !!FT.doneAt;
+  renderIsland();
+  if (FT.doneAt) { if (now() - FT.doneAt > 5000) ftStop(); return; }
+  if (left <= 0) {
+    ftSaveSession(true); FT.doneAt = now(); ftSave(); renderFocusTimer();
+    notify({ app: 'focus', title: 'Focus', html: '<b>' + FT_MIN + ' minutes</b> done. That’s <b>' + dur(focusedMin()) + '</b> focused today over ' + SESSIONS().length + ' session' + (SESSIONS().length > 1 ? 's' : '') + '. Stand up and stretch for a bit.', ttl: 9000 });
+    setTimeout(() => { if (FT && FT.doneAt) ftStop(); }, 5000);
+    return;
+  }
+  if (FT.paused == null) ftTick = setInterval(() => { const l = ftLeft(); $('fTime').textContent = mmss(l); $('ftBtn').textContent = mmss(l); $('fArc').style.strokeDashoffset = String(Math.round(1000 * l / FT.dur)); if (now() % 60e3 < 1000) renderIsland(); if (l <= 0) renderFocusTimer(); }, 1000);
+}
+
+// ---- Tap the world: the week's show and character, with lore from the quest catalogue ----
+let loreTimer = 0;
+function hideLore() { const el = $('lore'); if (el.hidden) return false; clearTimeout(loreTimer); el.classList.add('out'); setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 300); return true; }
+function showLore(e) {
+  const t = D.theme, el = $('lore'), L = (t && t.lore) || {};
+  if (e) {
+    const r = $('board').getBoundingClientRect(), s = r.width / BW, dot = document.createElement('i');
+    dot.className = 'ripple'; dot.style.left = Math.round((e.clientX - r.left) / s) + 'px'; dot.style.top = Math.round((e.clientY - r.top) / s) + 'px';
+    $('os').appendChild(dot); setTimeout(() => dot.remove(), 1000);
+  }
+  el.innerHTML = t ? '<div class="lk"><span>This week’s world</span><span>' + esc(t.week) + '</span></div><h2>' + esc(t.scene) + '</h2><div class="lw">' + esc(t.franchise) + ' · ' + esc(t.character) + '</div>' +
+    (L.scene || L.character ? '<div class="lg">' + (L.scene ? '<div><h3>The scene<b>' + esc(t.scene) + '</b></h3><p>' + esc(L.scene) + '</p></div>' : '') + (L.character ? '<div><h3>The character<b>' + esc(t.character) + '</b></h3><p>' + esc(L.character) + '</p></div>' : '') + '</div>' : '') +
+    (L.feel && L.feel.length ? '<div class="lchips">' + L.feel.map(f => '<span>' + esc(f) + '</span>').join('') + '</div>' : '') +
+    '<div class="lf">' + (t.critter ? 'Your critter this week: <b>' + esc(t.critter.name) + '</b>. ' : '') + (t.next ? 'Next Monday: ' + esc(t.next.franchise) + ' · ' + esc(t.next.character) + '.' : 'A new world arrives Monday at 06:00.') + '</div>'
+    : '<div class="lk"><span>This week’s world</span></div><p>No world has been made yet. The Monday cron makes one.</p>';
+  el.classList.remove('out'); el.hidden = false;
+  clearTimeout(loreTimer); loreTimer = setTimeout(hideLore, 25e3);
+}
+
 // ---- Rendering ----
 // ---- The light of day on the glass ----
 // A tint over the panels that follows the real sun: amber around sunrise, neutral by day,
@@ -679,6 +793,7 @@ function renderClock() {
   renderLight(m);
   if (ph !== clockPhase) { clockPhase = ph; document.body.classList.remove('awake'); }
   document.body.dataset.phase = ph;
+  renderNight(t);
   $('clock').textContent = $('trTime').textContent = hm(t);
   $('dateline').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(t));
   $('trDate').textContent = dayFmt(new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(t)));
@@ -744,7 +859,7 @@ function renderWeather() {
 const leftTxt = min => (min < 60 ? Math.max(1, Math.round(min)) + ' min' : dur(min));
 function renderIsland() {
   const m = nowMin(), r = laneNow('roy', m);
-  $('islPill').innerHTML = r.cur ? '<em>NOW</em><span class="it">' + esc(r.cur.t) + ' · ' + leftTxt(r.cur.z - m) + ' left</span>'
+  $('islPill').innerHTML = FT && !FT.doneAt ? '<em>FOCUS</em><span class="it">' + (FT.paused != null ? 'Paused · ' : '') + leftTxt(ftLeft() / 60e3) + ' left · session ' + (SESSIONS().length + 1) + ' today</span>' : r.cur ? '<em>NOW</em><span class="it">' + esc(r.cur.t) + ' · ' + leftTxt(r.cur.z - m) + ' left</span>'
     : r.next ? '<em>NEXT</em><span class="it">' + esc(r.next.t) + ' · in ' + leftTxt(r.next.a - m) + '</span>'
     : '<em>' + (ALLEV().length ? 'FREE' : 'PLAN') + '</em><span class="it">' + (ALLEV().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane to add.') + '</span>';
   $('islPanel').innerHTML = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']].map(([w, name]) => { const x = laneNow(w, m);
@@ -904,7 +1019,8 @@ const WINS = {
       const T = workToday(), x = border();
       const sel = (id, label, list, v) => '<div class="fld"><label for="' + id + '">' + label + '</label><select class="sel" id="' + id + '">' + list.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></div>';
       b.innerHTML = '<div class="sec"><div class="sh"><span>Today</span></div><div class="grid3">' + sel('wAm', 'Morning', PLACES, T.am) + sel('wPm', 'Afternoon', PLACES, T.pm) + sel('wRide', 'Ride', RIDES, T.commute) + '</div></div>' +
-        '<div class="sec"><div class="sh"><span>Work days this year</span><b>' + x.share + '% in Belgium</b></div><div class="bbar"><i style="width:' + x.share + '%"></i><i style="width:' + (100 - x.share) + '%"></i><span class="half"></span></div><div class="bnums"><span>🇧🇪 Belgium <b>' + one(x.be) + '</b></span><span>minimum 50%</span><span>🇳🇱 Netherlands <b>' + one(x.nl) + '</b></span></div><p class="say">You have <b>' + x.spare + ' days</b> to spare before Belgium drops under half of your work days. A change here is kept on this screen for today; the journal’s border page stays the record.</p></div>';
+        '<div class="sec"><div class="sh"><span>Work days this year</span><b>' + x.share + '% in Belgium</b></div><div class="bbar"><i style="width:' + x.share + '%"></i><i style="width:' + (100 - x.share) + '%"></i><span class="half"></span></div><div class="bnums"><span>🇧🇪 Belgium <b>' + one(x.be) + '</b></span><span>minimum 50%</span><span>🇳🇱 Netherlands <b>' + one(x.nl) + '</b></span></div><p class="say">You have <b>' + x.spare + ' days</b> to spare before Belgium drops under half of your work days. A change here is kept on this screen for today; the journal’s border page stays the record.</p></div>' +
+        missingSec();
     } },
   steph: { w: 28, title: 'From Steph', tags: () => '', render(b) { const l = stephList(); b.innerHTML = l.length ? '<div class="todos">' + l.map(x => todoBtn(x, 'steph', 'wide')).join('') + '</div><p class="say">Tap one to tick it off.</p>' : '<p class="say">Nothing open. To-dos tagged “Steph” in the journal land here.</p>'; } },
   dates: { w: 30, title: 'Coming up', tags: () => (D.calendar ? '<span class="tag">Family calendar · next 30 days</span>' : ''), render(b) {
@@ -1031,6 +1147,9 @@ function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
+  else if (a === 'ftimer') { if (FT) ftStop(); else ftStart(); }
+  else if (a === 'ftpause') ftPause();
+  else if (a === 'ftstop') ftStop();
   else if (a === 'cardclose') closeCard();
   else if (a === 'face') pickFace(+el.dataset.m, el);
   else if (a === 'wface') { moodPick = moodPick === +el.dataset.m ? 0 : +el.dataset.m; refreshWin(); if (moodPick && $('wMoodNote')) $('wMoodNote').focus(); }
@@ -1047,10 +1166,14 @@ function doAct(el, e) {
   else if (a === 'undo') undo();
   else if (a === 'askclose') hideAsk();
 }
+// During a focus session only the ring (pause, stop) and the notifications take a tap or a key.
+const focusLock = e => { if (!document.body.classList.contains('focusing') || e.target.closest('.fring, .note')) return; e.preventDefault(); e.stopImmediatePropagation(); };
+['click', 'pointerdown', 'dblclick', 'contextmenu'].forEach(k => document.addEventListener(k, focusLock, true));
+document.addEventListener('keydown', e => { if (document.body.classList.contains('focusing') && !(e.target.closest && e.target.closest('.fring')) && e.key !== 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 document.addEventListener('click', e => {
   const t = e.target;
   if (t.closest('.note')) return;
-  if (t.closest('#lock')) { document.body.classList.add('awake'); return; }
+  if (t.closest('#lock')) { wake(); return; }
   if (cardOpen && !t.closest('.cardbox')) { closeCard(); return; }
   if (t.closest('[data-close]')) { closeWin(); return; }
   const inWin = !!t.closest('.win'), inPop = !!t.closest('#moodPop');
@@ -1063,8 +1186,11 @@ document.addEventListener('click', e => {
   if (actEl) { doAct(actEl, e); return; }
   if (inWin || t.closest('input, select, textarea, label, form')) return;
   const op = t.closest('[data-open]');
-  if (op) { openWin(op.dataset.open, op, op.dataset.arg); return; }
-  if (WIN) closeWin();
+  if (op) { hideLore(); openWin(op.dataset.open, op, op.dataset.arg); return; }
+  if (WIN) { closeWin(); return; }
+  if (t.closest('#lore')) { hideLore(); return; }
+  // A tap on the world itself (not on a tile, the menu bar, the quote or the focus ring) tells its story.
+  if (t.closest('#board') && !t.closest('.t, .menubar, .clockw, .wquote, .fring')) { if (!hideLore()) showLore(e); }
 });
 document.addEventListener('submit', e => {
   const f = e.target;
@@ -1081,7 +1207,7 @@ document.addEventListener('change', e => {
   act({ type: 'work', am: w.am, pm: w.pm, commute: w.commute }, () => notify({ app: 'commute', html: 'Saved: ' + { am: 'morning', pm: 'afternoon', commute: 'ride' }[key] + ' <b>' + esc(e.target.value) + '</b>.' }));
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (cardOpen) closeCard(); else if (!$('moodPop').hidden) closePop(); else if (WIN) closeWin(); else if (!$('sysMenu').hidden) closeMenu(); else if (!$('askPop').hidden) hideAsk(); else setIsland(false); return; }
+  if (e.key === 'Escape') { if (hideLore()) return; if (cardOpen) closeCard(); else if (!$('moodPop').hidden) closePop(); else if (WIN) closeWin(); else if (!$('sysMenu').hidden) closeMenu(); else if (!$('askPop').hidden) hideAsk(); else setIsland(false); return; }
   if (e.key === '/' && !e.target.closest('input, textarea, select')) { e.preventDefault(); $('askIn').focus(); return; }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]:not(button)')) { e.preventDefault(); e.target.click(); }
 });
@@ -1128,6 +1254,8 @@ setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
 setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
 setInterval(drift, 4 * 60e3);
+setInterval(moveNight, 120e3);
+renderFocusTimer();
 critters();
 // A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });

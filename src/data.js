@@ -104,16 +104,31 @@ export async function journalDay(env, day) {
   const todos = await rows(db, "SELECT task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
   const work = (await rows(db, 'SELECT am, pm, commute FROM work_location WHERE date = ? LIMIT 1', day))[0] || null;
   const year = day.slice(0, 4);
-  const ytd = await rows(db, "SELECT am, pm FROM work_location WHERE date >= ? AND date < ? AND (weekend IS NULL OR weekend = 0)", `${year}-01-01`, day);
+  const ytd = await rows(db, 'SELECT date, am, pm, weekend FROM work_location WHERE date >= ? AND date < ? ORDER BY date', `${year}-01-01`, day);
   let be = 0, nl = 0;
-  for (const w of ytd) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
+  for (const w of ytd) if (!w.weekend) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
   return {
     win_if: j ? safeText(env, j.win_if) : '', must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
     mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
     steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
     // A row with empty fields (the day not filled in yet) counts as no row.
-    work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl }
+    work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl, missing: missingDays(ytd, day) }
   };
+}
+
+// Past work days with no place logged: a weekday row with neither morning nor afternoon
+// filled in, or a weekday with no row at all since the first row of the year. Today is not
+// counted (it is still being filled in), and rows marked weekend never are.
+export function missingDays(ytd, day) {
+  const seen = new Map((ytd || []).map(w => [w.date, w]));
+  if (!seen.size) return [];
+  const out = [], first = [...seen.keys()].sort()[0];
+  for (let t = Date.parse(first + 'T12:00:00Z'), end = Date.parse(day + 'T12:00:00Z'); t < end; t += 864e5) {
+    const d = new Date(t), date = d.toISOString().slice(0, 10), dow = d.getUTCDay(), w = seen.get(date);
+    if (w ? w.weekend || w.am || w.pm : dow === 0 || dow === 6) continue;
+    out.push(date);
+  }
+  return out;
 }
 
 // Recovery comes from the engine's /recovery (the readiness rules, one place for every dashboard).
@@ -198,19 +213,30 @@ export async function calendar(env, s, now = Date.now()) {
   return out;
 }
 
+// ---- Focus sessions ----
+// A session the page sends (POST /act {type: focus}): the day it started (today or yesterday, for one that
+// ran past midnight), its start time, whole minutes focused (1 to 25) and whether it ran the full 25.
+export function focusSession(a, today) {
+  const day = String(a.day || ''), at = String(a.at || ''), min = Math.round(Number(a.min));
+  const yesterday = new Date(Date.parse(today + 'T12:00:00Z') - DAY).toISOString().slice(0, 10);
+  if (day !== today && day !== yesterday) return null;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at) || !(min >= 1 && min <= 25)) return null;
+  return { day, at, min, done: a.done === true || a.done === 'true' || a.done === 1 };
+}
+
 // ---- The week's world as the page sees it ----
 // The critter goes to the page only when all three sheets were made; otherwise the drawn cat walks.
 export function critterView(c) {
   if (!c || !['walk', 'rest', 'leap'].every(k => c[k] && c[k].public_id)) return null;
   return { name: c.name, walk: spriteUrl(c.walk.public_id, c.walk.version), rest: spriteUrl(c.rest.public_id, c.rest.version), leap: spriteUrl(c.leap.public_id, c.leap.version) };
 }
-export function themeView(row, next, critter = null) {
+export function themeView(row, next, critter = null, lore = null) {
   if (!row) return null;
   return {
     week: row.week, franchise: row.franchise, scene: row.scene, character: row.character, look: row.look, palette: row.palette, status: row.status, error: row.error || null,
     still: row.still_public_id ? stillUrl169(row.still_public_id, row.still_version) : null,
     clip: row.clip_public_id ? clipUrl(row.clip_public_id, row.clip_version) : null,
-    critter: critterView(critter),
+    critter: critterView(critter), lore,
     next: next ? { week: next.week, franchise: next.franchise, scene: next.scene, character: next.character, palette: next.palette } : null
   };
 }
@@ -220,12 +246,14 @@ export function themeView(row, next, critter = null) {
 export async function board(env, s, now = Date.now()) {
   const day = ymd(now), errors = [];
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
+  const focusP = safe('focus', Promise.resolve().then(() => s.focusDay(day)), []);
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
-    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
+    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);
+  const focus = await focusP;
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
   const P = power(mq, hero, focusQuest);
   const edits = dayState && dayState.data || emptyDay();
@@ -234,6 +262,6 @@ export async function board(env, s, now = Date.now()) {
     main: mainHabits(boss, hero, now), boss: bossView(env, boss, mq, hero),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: safeText(env, focusQuest.quote), author: safeText(env, focusQuest.quoteAuthor), longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
-    weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo)
+    weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo), focus
   };
 }

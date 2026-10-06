@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCatalogue, pickTheme, isoWeek, weekAfter, mondayOf, rng, NOT_FOR_DESK, PALETTES } from '../src/themes.js';
+import { buildCatalogue, pickTheme, loreFor, isoWeek, weekAfter, mondayOf, rng, NOT_FOR_DESK, PALETTES } from '../src/themes.js';
 
 const chars = [
   { id: 'c1', character_name: 'Jinx', franchise: 'Arcane', canonical_identity: 'Arcane Jinx.', canonical_elements: 'Long blue braids.', restrictions: 'No gore.', avatar_url: 'https://x/jinx.jpg' },
@@ -108,4 +108,14 @@ test('the critter reaches the page only with all three sheets', async () => {
   const v = critterView({ name: 'Chem lynx', walk: sheet('walk'), rest: sheet('rest'), leap: sheet('leap') });
   assert.equal(v.name, 'Chem lynx');
   assert.ok(/\/v7\/Desk-Themes\/2026-W41-critter-rest\.png$/.test(v.rest));
+});
+
+test('lore: the scene and character descriptions from the catalogue, the scene\'s features as short words', () => {
+  const cat = buildCatalogue(chars, [{ ...scenes[0], signature_features: 'teal and magenta; chem smog, a feature that is far too long to show as one small chip' }, ...scenes.slice(1)]);
+  const lore = loreFor(cat, { franchise: 'Arcane', scene: 'Zaun — The Lanes', character: 'Jinx', character_id: 'c1' });
+  assert.deepEqual(lore, { scene: 'The Lanes.', character: 'Arcane Jinx.', feel: ['teal and magenta', 'chem smog'] });
+  const long = loreFor(buildCatalogue([{ ...chars[0], canonical_identity: 'A sentence. '.repeat(60) }], scenes), { franchise: 'Arcane', scene: 'Zaun — The Lanes', character: 'Jinx' });
+  assert.ok(long.character.length <= 420 && long.character.endsWith('.'), 'cut at a sentence end');
+  assert.equal(loreFor(cat, { franchise: 'Unknown', scene: 'x', character: 'y' }), null);
+  assert.equal(loreFor(cat, null), null);
 });

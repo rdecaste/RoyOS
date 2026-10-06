@@ -1,5 +1,5 @@
 // Roy OS's own state, in one SQLite Durable Object: the weekly worlds and what Roy
-// does on the screen during the day (ticks, moods, the plan, the commute). The quest
+// does on the screen during the day (ticks, moods, the plan, the commute, focus sessions). The quest
 // D1 is never written from here; the journal stays the record of the day.
 import { DurableObject } from 'cloudflare:workers';
 import { emptyDay } from './day.js';
@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS themes (
 );
 CREATE TABLE IF NOT EXISTS days (day TEXT PRIMARY KEY, data TEXT, undo TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expires INTEGER);
+CREATE TABLE IF NOT EXISTS focus (id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT NOT NULL, at TEXT NOT NULL, min INTEGER NOT NULL, done INTEGER NOT NULL, created_at TEXT);
+CREATE INDEX IF NOT EXISTS focus_day ON focus (day);
 `;
 
 export class DeskState extends DurableObject {
@@ -54,6 +56,15 @@ export class DeskState extends DurableObject {
   saveDay(day, data, undo) {
     this.sql.exec('INSERT INTO days (day, data, undo, updated_at) VALUES (?,?,?,?) ON CONFLICT(day) DO UPDATE SET data = excluded.data, undo = excluded.undo, updated_at = excluded.updated_at',
       day, JSON.stringify(data), undo === undefined ? null : JSON.stringify(undo), new Date().toISOString());
+  }
+
+  // ---- Focus sessions (the focus timer): one row per finished or stopped session, kept for good ----
+  focusDay(day) {
+    return this.sql.exec('SELECT day, at, min, done FROM focus WHERE day = ? ORDER BY id', day).toArray().map(r => ({ ...r, done: !!r.done }));
+  }
+  addFocus(f) {
+    this.sql.exec('INSERT INTO focus (day, at, min, done, created_at) VALUES (?,?,?,?,?)', f.day, f.at, f.min, f.done ? 1 : 0, new Date().toISOString());
+    return this.focusDay(f.day);
   }
 
   // ---- Small cache (weather) ----
