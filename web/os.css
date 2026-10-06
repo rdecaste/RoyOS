@@ -504,7 +504,7 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 /* The painted cat: one sheet of six poses; the walk flips between two frames */
 .os .crit.painted .cb { position: relative; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6)); }
 .os .crit.painted .pw { position: absolute; inset: 0; transform-origin: 50% 100%; }
-.os .crit.painted .fr { position: absolute; display: none; background-image: var(--sheet); background-repeat: no-repeat; }
+.os .crit.painted .fr { position: absolute; display: none; background-repeat: no-repeat; }
 .os .crit.painted:is([data-mode="walk"], [data-mode="trot"], [data-mode="freeze"], [data-mode="stretch"], [data-mode="crouch"]) .f-a,
 .os .crit.painted:is([data-mode="walk"], [data-mode="trot"]) .f-b, .os .crit.painted[data-mode="jump"] .f-leap,
 .os .crit.painted[data-mode="sit"] .f-sit, .os .crit.painted[data-mode="sleep"] .f-sleep, .os .crit.painted[data-mode="groom"] .f-groom { display: block; }
@@ -518,6 +518,14 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .crit.painted[data-mode="groom"] .pw { animation: crLick .32s ease-in-out infinite alternate; }
 .os .crit.painted[data-mode="crouch"] .pw { transform: scaleY(.86); }
 .os .crit.painted[data-mode="stretch"] .pw { transform: scale(1.06, .93); }
+/* With the walk sheet: eight frames of one stride, each shown for an eighth of the cycle */
+.os .crit.painted.walk8 { --cyc: 1.1s; }
+.os .crit.painted.walk8[data-mode="trot"] { --cyc: .6s; }
+.os .crit.painted.walk8:is([data-mode="walk"], [data-mode="trot"], [data-mode="freeze"], [data-mode="stretch"], [data-mode="crouch"]) :is(.f-a, .f-b) { display: none; }
+.os .crit.painted.walk8:is([data-mode="freeze"], [data-mode="stretch"], [data-mode="crouch"]) .f-w0 { display: block; }
+.os .crit.painted.walk8:is([data-mode="walk"], [data-mode="trot"]) [class*="f-w"] { display: block; animation: crFrame8 var(--cyc) linear infinite; animation-delay: calc((var(--i) - 8) * var(--cyc) / 8); }
+.os .crit.painted.walk8:is([data-mode="walk"], [data-mode="trot"]) .pw { animation: none; }
+@keyframes crFrame8 { 0%, 12.5% { opacity: 1; } 12.6%, 100% { opacity: 0; } }
 @keyframes crFrame { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes crLick { from { transform: rotate(0); } to { transform: rotate(1.6deg); } }
 @keyframes crRest { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.018); } }

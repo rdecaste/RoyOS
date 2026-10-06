@@ -401,19 +401,25 @@ const CRIT_ART = {
       '<circle class="eye" cx="51.5" cy="9.7" r="1.45"/><path class="pupil" d="M51.5 8.6 L51.5 10.8"/>' +
       '<path class="leg lhn" d="M19 12.5 L16 15.2 L13.5 15.8"/><path class="leg lfn" d="M39 12.5 L42 15.2 L44.5 15.8"/></g></svg>'
 };
-// A painted sheet (CRITTER_ART, flare) replaces the drawn cat when /data has one: one image of six
-// poses, each [x, y, w, h, centre x] in sheet pixels, shown at k of its size.
+// Painted sheets (CRITTER_ART, flare) replace the drawn cat when /data has them: each is one image of
+// poses, each pose [x, y, w, h, centre x] in sheet pixels, shown at k of its size. The walk sheet
+// (8 frames of one stride) is the same cat and, when there, takes over the walk from frames a and b.
 const CRIT_SHEET = {
-  cat: { k: .2, W: 1536, H: 1024, f: { a: [24, 148, 455, 282, 251.5], b: [520, 147, 428, 281, 726.5], leap: [1003, 149, 510, 271, 1258], sit: [144, 524, 232, 406, 260], sleep: [574, 661, 391, 244, 769.5], groom: [1131, 544, 270, 388, 1266] } }
+  cat: { of: 'cat', k: .2, W: 1536, H: 1024, f: { a: [24, 148, 455, 282, 251.5], b: [520, 147, 428, 281, 726.5], leap: [1003, 149, 510, 271, 1258], sit: [144, 524, 232, 406, 260], sleep: [574, 661, 391, 244, 769.5], groom: [1131, 544, 270, 388, 1266] } },
+  catwalk: { of: 'cat', k: .265, W: 1536, H: 1024, f: { w0: [28, 217, 353, 214, 204.5], w1: [408, 217, 333, 213, 579.5], w2: [778, 217, 344, 213, 958.5], w3: [1154, 217, 337, 213, 1327.5], w4: [27, 637, 358, 213, 199.5], w5: [402, 637, 338, 213, 577.5], w6: [784, 637, 339, 213, 959.5], w7: [1153, 638, 350, 211, 1335.5] } }
 };
 function crPaint(c) {
-  const url = D && D.critters && D.critters[c.sp], P = CRIT_SHEET[c.sp];
-  if (!url || !P || c.painted === url) return;
-  const S = SPECIES[c.sp], k = P.k, px = n => (n * k).toFixed(2) + 'px';
-  c.el.querySelector('.cb').innerHTML = '<div class="pw">' + Object.entries(P.f).map(([n, [x, y, w, h, cx]]) =>
-    '<i class="fr f-' + n + '" style="left:' + px(S.w / 2 / k - (cx - x)) + ';bottom:' + px(-2) + ';width:' + px(w) + ';height:' + px(h) + ';background-size:' + px(P.W) + ' ' + px(P.H) + ';background-position:' + px(-x) + ' ' + px(-y) + '"></i>').join('') + '</div>';
-  c.el.style.setProperty('--sheet', 'url("' + url + '")');
-  c.el.classList.add('painted'); c.painted = url;
+  const have = D && D.critters || {}, keys = Object.keys(CRIT_SHEET).filter(n => CRIT_SHEET[n].of === c.sp && have[n]);
+  const sig = keys.map(n => have[n]).join(' ');
+  if (!have[c.sp] || c.painted === sig) return;
+  const S = SPECIES[c.sp];
+  c.el.querySelector('.cb').innerHTML = '<div class="pw">' + keys.map(n => {
+    const P = CRIT_SHEET[n], k = P.k, px = v => (v * k).toFixed(2) + 'px';
+    return Object.entries(P.f).map(([f, [x, y, w, h, cx]], i) =>
+      '<i class="fr f-' + f + '" style="--i:' + i + ';background-image:var(--s-' + n + ');left:' + px(S.w / 2 / k - (cx - x)) + ';bottom:' + px(-2) + ';width:' + px(w) + ';height:' + px(h) + ';background-size:' + px(P.W) + ' ' + px(P.H) + ';background-position:' + px(-x) + ' ' + px(-y) + '"></i>').join('');
+  }).join('') + '</div>';
+  keys.forEach(n => c.el.style.setProperty('--s-' + n, 'url("' + have[n] + '")'));
+  c.el.classList.add('painted'); c.el.classList.toggle('walk8', keys.includes(c.sp + 'walk')); c.painted = sig;
 }
 const SPECIES = {
   cat: { w: 64, h: 44, home: e => e.id === 'wAsk', reach: [460, 300, 440], crouch: 240, arc: 40 },
