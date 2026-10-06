@@ -536,13 +536,11 @@ function renderMe() {
       '<div class="r" data-tip="@ki"><span class="mut">Ki charge</span>' + (k ? '<span class="kpips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</span>' : '<b class="mut">–</b>') + '</div>' +
       '<div class="r"><span class="mut">Training</span><b>' + one(wk.hours) + ' of ' + wk.target + ' h</b></div></div>';
 }
-// Mood: five faces (the last one logged lit; a tap logs one) and today's moods on a strip with the now line.
+// Mood: five faces (the last one logged lit; a tap logs one). Today's timeline opens with a tap on the tile.
 function renderMood() {
-  const lm = lastMood(), so = moodsSoFar(), m = nowMin();
+  const lm = lastMood();
   $('moodLast').textContent = lm ? FEEL[lm.m - 1] + ' · ' + hhmm(lm.at) : 'Not logged yet';
   $('moodFaces').innerHTML = FEEL.map((f, i) => '<button type="button" class="face' + (lm && lm.m === i + 1 ? ' on' : '') + '" data-act="face" data-m="' + (i + 1) + '" data-tip="' + f + '" aria-label="Log mood: ' + f + '">' + faceImg(i + 1, '') + '</button>').join('');
-  $('moodStrip').innerHTML = so.map(x => '<img src="' + D.moodArt[x.m - 1] + '" alt="' + esc(FEEL[x.m - 1] + ' at ' + hhmm(x.at)) + '" style="left:' + xOf(x.at) + '%" data-tip="' + esc(hhmm(x.at) + ' · ' + FEEL[x.m - 1] + (x.note ? ': ' + x.note : '')) + '">').join('') +
-    (m >= DAY0 * 60 && m <= DAY1 * 60 ? '<span class="nowm" style="left:' + xOf(m) + '%"></span>' : '');
 }
 // Commute: morning and afternoon places, the ride, and the year's share of work days in Belgium.
 function renderCommute() {

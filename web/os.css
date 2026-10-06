@@ -227,11 +227,8 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .face img { display: block; width: 30px; height: 30px; object-fit: contain; }
 .os .face:hover { filter: none; opacity: 1; background: rgba(255, 255, 255, .1); }
 .os .face.on { filter: none; opacity: 1; background: rgba(126, 224, 195, .16); box-shadow: inset 0 0 0 1.5px #7ee0c3; }
-.os .strip { position: relative; height: 22px; margin-top: 12px; border-radius: 6px; background: rgba(255, 255, 255, .04); }
-.os .strip img { position: absolute; top: 50%; width: 18px; height: 18px; object-fit: contain; transform: translate(-50%, -50%); }
-.os .nowm { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--second); }
 
-.os .comm { left: 1476px; top: 716px; --ac: #6fd8ff; }
+.os .comm { left: 1476px; top: 696px; --ac: #6fd8ff; }
 .os .cg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px; gap: 12px; align-items: center; margin-top: 12px; font-size: 16px; font-weight: 600; }
 .os .cg .pl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .os .cg small { display: block; margin-bottom: 4px; font: 600 11px/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
