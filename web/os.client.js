@@ -363,74 +363,179 @@ const DRIFT = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -
 let driftAt = 0;
 function drift() { const [x, y] = DRIFT[++driftAt % DRIFT.length]; $('os').style.translate = x + 'px ' + y + 'px'; }
 
-// ---- The critter ----
-// A small creature that lives on the board: it walks the top edges of the tiles, sits a while,
-// and jumps from tile to tile. It never takes a tap (pointer-events: none), hides at night,
-// in the phone layout and with reduced motion, and only runs while the page is visible.
-const CR = { w: 48, h: 36, speed: 46, el: null, plats: [], p: -1, x: 0, y: 0, dir: 1, mode: 'sit', until: 0, jump: null, last: 0, seen: 0 };
+// ---- The critters ----
+// Three small animals live on the board: a black cat, a Zaun rat and a gecko. They walk the top
+// edges of the tiles, stop, and jump from tile to tile; the gecko also climbs down the tiles' sides.
+// They never take a tap (pointer-events: none), hide at night, in the phone layout and with
+// reduced motion, and only run while the page is visible.
+const CRIT_ART = {
+  cat: '<svg viewBox="0 0 64 44" width="64" height="44">' +
+    '<g class="p-walk"><path class="tail" d="M13 21 C6 20 3 13 5 5"/>' +
+      '<g class="leg far lhf"><path d="M14 23 C12 29 15.5 33 14.6 37.5 L13.4 43.6 L17.6 43.6 L19 37.5 C20.6 33 22 29 23 24 Z"/></g>' +
+      '<g class="torso"><g class="leg far lff"><path d="M39.6 24 L39 43.6 L43 43.6 L44.4 24 Z"/></g>' +
+        '<path d="M10 24 C10 16 18 13.5 27 14.5 C35 15.2 42 13.8 47 15.6 C51 17.2 51.5 25 48 28 C41 31 23 31.2 16 30 C12 29.2 10 27 10 24 Z"/>' +
+        '<g class="leg lfn"><path d="M43 24 L42.4 43.6 L46.4 43.6 L47.8 24 Z"/></g>' +
+        '<g class="head"><path d="M44 19 C45 13.5 48.5 10 53 10 C57.5 10 60.5 12.6 60.5 16 C60.5 18.5 59 20.3 56 21 C52 22 47 22.5 44 19 Z"/><path d="M48.8 11.6 L49.6 4.8 L53.6 9.6 Z"/><path d="M54.2 9.8 L57.8 4.6 L58.6 11.2 Z"/><ellipse class="eye" cx="56.3" cy="14.4" rx="1.35" ry=".75"/></g></g>' +
+      '<g class="leg lhn"><path d="M18 23 C16 29 19.5 33 18.6 37.5 L17.4 43.6 L21.6 43.6 L23 37.5 C24.6 33 26 29 27 24 Z"/></g></g>' +
+    '<g class="p-sit"><path class="tail" d="M13 42.6 C21 45 36 45 45 42.6"/>' +
+      '<ellipse cx="23" cy="35.5" rx="11.5" ry="8.4"/><path d="M22 31 C23 23 28 18 35 17 C40 16.6 43 20 42.5 26 L41.6 43.6 L35 43.6 C34 38 30 34 22 31 Z"/>' +
+      '<path d="M36.4 27 L35.8 43.6 L39.2 43.6 L40.2 27 Z"/><g class="paw"><path d="M38.6 30 C39.6 26 41.4 22 43 18.8 L45.6 19.8 C44.2 23 42.6 27 41.6 31 Z"/></g>' +
+      '<g class="head"><path d="M33 12.5 C33 8 36.5 5 41 5 C45.5 5 48.5 8 48 12 C47.5 15.5 44.5 17.5 41 17.5 C36.5 17.5 33 16 33 12.5 Z"/><path d="M35 7.6 L35.6 .6 L40 4.8 Z"/><path d="M41.6 5 L45.6 .4 L46.6 7 Z"/><ellipse class="eye" cx="44.4" cy="10.6" rx="1.3" ry=".75"/></g></g>' +
+    '<g class="p-sleep"><path class="tail" d="M16 41 C18 46.5 38 47 48 42"/><ellipse class="breathe" cx="31" cy="37.6" rx="16" ry="6.6"/>' +
+      '<g class="head"><path d="M38 38 C38 33.5 41.5 31 45.5 31 C49.5 31 52 33.5 52 37 C52 40.5 49 42.5 45 42.5 C41 42.5 38 41 38 38 Z"/><path d="M41.5 32.6 L42.5 27.6 L45.6 31.4 Z"/><path d="M46.4 31.2 L50 27.8 L50.4 33 Z"/></g></g></svg>',
+  rat: '<svg viewBox="0 0 56 24" width="56" height="24">' +
+    '<g class="body"><path class="tail" d="M10 19 C3 19.5 -4 22.5 -14 21"/>' +
+      '<g class="leg far lhf"><path d="M16 18 C15 21 15.4 23 16.4 24 L19.4 24 C19 22 19.4 20 20.4 18 Z"/></g>' +
+      '<g class="leg far lff"><path d="M38 18 L37.5 24 L40 24 L40.5 18 Z"/></g>' +
+      '<g class="torso"><path class="fur" d="M8 18.5 C8 11.5 16 8.5 26 9 C33 9.4 39 11 43 13.6 C46 15.6 46 18.8 43.5 19.8 C38 21.6 26 22 18 21.8 C11 21.6 8 20.6 8 18.5 Z"/>' +
+        '<g class="snout"><path class="fur" d="M39 12.5 C43 11.6 48.5 13.4 53.2 16.4 C54.6 17.4 54 18.8 52.2 18.9 C48 19.2 43.5 19 40.5 18.2 Z"/><circle class="nose" cx="53.6" cy="17.3" r=".9"/><path class="whisk" d="M51 17 L58 14.4 M51 17.4 L58.6 17.6 M51 17.8 L57.6 20.6"/></g>' +
+        '<circle class="ear" cx="41" cy="10.4" r="3.3"/><circle class="earin" cx="41.3" cy="10.6" r="1.9"/><circle class="eye" cx="46.6" cy="14" r="1.05"/><circle class="glint" cx="46.9" cy="13.7" r=".35"/></g>' +
+      '<g class="leg lhn"><path d="M13 16 C11.5 20 12 22.5 13.5 24 L17 24 C16 22 16.6 19.5 18.5 17 Z"/></g>' +
+      '<g class="leg lfn"><path d="M41 18 L40.6 24 L43 24 L43.4 18 Z"/></g></g></svg>',
+  gecko: '<svg viewBox="0 0 62 16" width="62" height="16">' +
+    '<g class="body"><path class="fur tailg" d="M17 10.2 C9 9.6 1 11 -10 12.8 C1 13.2 9 13.6 17 13.4 Z"/>' +
+      '<path class="leg far lhf" d="M21 12 L24.5 15.2 L27 15.6"/><path class="leg far lff" d="M36 12 L33.5 15.2 L31 15.6"/>' +
+      '<path class="fur" d="M15 10.5 C19 7.4 30 6.6 38 7.6 C42.5 8.2 45 9.6 45 11.4 C45 12.9 41.5 13.8 37 13.9 C29 14.1 21 13.9 15 13.4 Z"/>' +
+      '<path class="fur head" d="M43 8.4 C47 6.8 53 7.2 57.5 9.6 C59 10.5 58.6 12.2 56.6 12.6 C52 13.3 47 13.2 44 12.7 Z"/>' +
+      '<g class="spots"><circle cx="20" cy="10.6" r=".9"/><circle cx="25" cy="9.2" r="1"/><circle cx="30" cy="8.8" r=".9"/><circle cx="35" cy="9.1" r="1"/><circle cx="39.5" cy="9.8" r=".8"/><circle cx="27.5" cy="11.6" r=".7"/><circle cx="33" cy="11.5" r=".7"/><circle cx="9" cy="11.2" r=".7"/><circle cx="3" cy="11.9" r=".6"/></g>' +
+      '<circle class="eye" cx="51.5" cy="9.7" r="1.45"/><path class="pupil" d="M51.5 8.6 L51.5 10.8"/>' +
+      '<path class="leg lhn" d="M19 12.5 L16 15.2 L13.5 15.8"/><path class="leg lfn" d="M39 12.5 L42 15.2 L44.5 15.8"/></g></svg>'
+};
+const SPECIES = {
+  cat: { w: 64, h: 44, home: e => e.id === 'wAsk', reach: [460, 300, 440], crouch: 240, arc: 40 },
+  rat: { w: 56, h: 24, home: e => e.classList.contains('day'), reach: [260, 200, 420], crouch: 0, arc: 26 },
+  gecko: { w: 62, h: 16, home: e => e.id === 'wFocus', reach: [190, 40, 300], crouch: 0, arc: 16 }
+};
 const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = w => { let r = rnd(0, Object.values(w).reduce((n, x) => n + x, 0)); for (const k in w) { r -= w[k]; if (r <= 0) return k; } return Object.keys(w)[0]; };
+let CRP = [], CRITS = [], crLast = 0, crSeen = 0, crOffNow = true;
 function crPlats() {
-  return qa('.os > .t').filter(e => e.offsetParent && !e.hidden).map(e => ({ el: e, x1: e.offsetLeft + 12, x2: e.offsetLeft + e.offsetWidth - 12, y: e.offsetTop }));
+  return qa('.os > .t').filter(e => e.offsetParent && !e.hidden).map(e => ({ el: e, x1: e.offsetLeft + 12, x2: e.offsetLeft + e.offsetWidth - 12, y: e.offsetTop, l: e.offsetLeft, r: e.offsetLeft + e.offsetWidth, b: e.offsetTop + e.offsetHeight }));
 }
-function crOff() { return portrait() || matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle($('lock')).display !== 'none'; }
-function crPlace() {
-  const c = CR.el;
-  c.style.transform = 'translate(' + Math.round(CR.x - CR.w / 2) + 'px, ' + Math.round(CR.y - CR.h + 2) + 'px)';
-  c.classList.toggle('left', CR.dir < 0);
-  c.className = c.className.replace(/\b(walk|sit|air)\b/g, '').trim() + ' ' + (CR.mode === 'jump' ? 'air' : CR.mode);
-}
-// A jump: somewhere on another tile within reach, preferring the way it faces.
-function crLeap(t) {
-  const here = CR.plats[CR.p], opts = [];
-  CR.plats.forEach((q, i) => {
-    if (i === CR.p) return;
-    [CR.dir, -CR.dir].forEach(dir => {
-      const tx = Math.min(q.x2, Math.max(q.x1, CR.x + dir * rnd(60, 280))), dx = tx - CR.x, dy = q.y - here.y;
-      if (Math.abs(dx) < 40 || Math.abs(dx) > 440 || dy < -280 || dy > 420) return; // never straight up or down
-      opts.push({ i, tx, w: (Math.sign(dx) === CR.dir ? 3 : 1) / (1 + Math.abs(dx) / 200) });
+const crPl = c => CRP.find(q => q.el === c.pe);
+function crGo(c, mode, ms, t) { c.mode = mode; c.until = t + ms; }
+function crWalk(c, t, v, ms) { c.v = v; crGo(c, 'walk', ms, t); }
+// A jump to another tile within the species' reach, preferring the way it faces; never straight up or down.
+function crLeap(c, t) {
+  const S = SPECIES[c.sp], here = crPl(c), opts = [];
+  CRP.forEach(q => {
+    if (q === here) return;
+    [c.dir, -c.dir].forEach(dir => {
+      const tx = Math.min(q.x2, Math.max(q.x1, c.x + dir * rnd(60, S.reach[0] * .7))), dx = tx - c.x, dy = q.y - here.y;
+      if (Math.abs(dx) < 40 || Math.abs(dx) > S.reach[0] || dy < -S.reach[1] || dy > S.reach[2]) return;
+      opts.push({ q, tx, w: (Math.sign(dx) === c.dir ? 3 : 1) / (1 + Math.abs(dx) / 200) });
     });
   });
   if (!opts.length) return false;
   let r = rnd(0, opts.reduce((n, o) => n + o.w, 0)), o = opts[0];
   for (const x of opts) { r -= x.w; if (r <= 0) { o = x; break; } }
-  const to = CR.plats[o.i], d = .5 + Math.abs(o.tx - CR.x) / 900 + Math.max(0, here.y - to.y) / 1200;
-  CR.dir = o.tx >= CR.x ? 1 : -1;
-  CR.jump = { x0: CR.x, y0: CR.y, x1: o.tx, p: o.i, t0: t, d, H: 46 + Math.max(0, here.y - to.y) };
-  CR.mode = 'jump';
+  const up = Math.max(0, here.y - o.q.y);
+  c.dir = o.tx >= c.x ? 1 : -1;
+  c.jump = { x0: c.x, y0: c.y, x1: o.tx, pe: o.q.el, d: .42 + Math.abs(o.tx - c.x) / 1000 + up / 1400, H: S.arc + up };
+  if (S.crouch) crGo(c, 'crouch', S.crouch, t); else { c.jump.t0 = t; c.mode = 'jump'; }
   return true;
+}
+// What each animal does next: at an edge, after landing, or when its current move runs out.
+const CR_NEXT = {
+  cat(c, t, why) {
+    if (why === 'edge') { if (Math.random() < .75 && crLeap(c, t)) return; c.dir = -c.dir; return crWalk(c, t, 50, rnd(1500, 4000)); }
+    if (why === 'land') return Math.random() < .4 ? crGo(c, 'sit', rnd(3000, 7000), t) : crWalk(c, t, 50, rnd(2000, 5000));
+    if (c.mode === 'sleep') return crGo(c, 'stretch', 1600, t);
+    if (c.mode === 'stretch') return crWalk(c, t, 50, rnd(2000, 5000));
+    if (c.mode === 'sit') { const k = pick({ groom: 1.2, sleep: .5, walk: 2, leap: 1.2 }); if (k === 'leap' && crLeap(c, t)) return; if (k === 'groom') return crGo(c, 'groom', rnd(2500, 5000), t); if (k === 'sleep') return crGo(c, 'sleep', rnd(15000, 40000), t); return crWalk(c, t, 50, rnd(2000, 6000)); }
+    if (c.mode === 'groom') return crGo(c, 'sit', rnd(2000, 5000), t);
+    const k = pick({ walk: 2.5, trot: .6, sit: 2, leap: 2, turn: 1 });
+    if (k === 'leap' && crLeap(c, t)) return;
+    if (k === 'sit') return crGo(c, 'sit', rnd(3000, 8000), t);
+    if (k === 'turn') c.dir = -c.dir;
+    crWalk(c, t, k === 'trot' ? 95 : 50, rnd(1500, 5000));
+  },
+  rat(c, t, why) {
+    if (why === 'edge') { if (Math.random() < .85 && crLeap(c, t)) return; c.dir = -c.dir; return crWalk(c, t, 150, rnd(300, 900)); }
+    if (why === 'land') return crGo(c, 'sniff', rnd(600, 1500), t);
+    const k = pick({ scurry: 4, sniff: c.mode === 'walk' ? 3 : .8, rear: c.mode === 'walk' ? .2 : 1, leap: 1.2, turn: 1 });
+    if (k === 'leap' && crLeap(c, t)) return;
+    if (k === 'sniff') return crGo(c, 'sniff', rnd(600, 2200), t);
+    if (k === 'rear') return crGo(c, 'rear', rnd(1000, 2600), t);
+    if (k === 'turn') c.dir = -c.dir;
+    crWalk(c, t, rnd(120, 170), rnd(350, 1400));
+  },
+  gecko(c, t, why) {
+    const pl = crPl(c);
+    if (why === 'edge') {
+      if (pl.b - pl.y > 70 && Math.random() < .6) { c.wall = { side: c.dir > 0 ? 'R' : 'L', x: c.dir > 0 ? pl.r : pl.l, top: pl.y, bottom: pl.b - 10 }; c.cy = pl.y; c.vdir = 1; c.cyTo = rnd(pl.y + 30, pl.b - 14); c.v = 150; c.mode = 'climb'; return; }
+      if (Math.random() < .4 && crLeap(c, t)) return;
+      c.dir = -c.dir; return crGo(c, 'freeze', rnd(500, 2000), t);
+    }
+    if (why === 'land') return crGo(c, 'freeze', rnd(800, 2500), t);
+    if (c.mode === 'cling') {
+      if (c.vdir > 0 && Math.random() < .35) { c.cyTo = Math.min(c.wall.bottom, c.cy + rnd(20, 90)); c.mode = 'climb'; return; }
+      c.vdir = -1; c.cyTo = c.wall.top; c.mode = 'climb'; return;
+    }
+    if (c.mode === 'walk') return crGo(c, 'freeze', rnd(600, 3500), t);
+    if (Math.random() < .3) c.dir = -c.dir;
+    crWalk(c, t, rnd(150, 210), rnd(150, 550));
+  }
+};
+function crTick(c, t, dt) {
+  const pl = crPl(c);
+  if (!pl) { const h = CRP.find(q => SPECIES[c.sp].home(q.el)) || CRP[0]; c.pe = h.el; c.x = rnd(h.x1, h.x2); c.y = h.y; c.wall = null; return crGo(c, 'freeze', 1000, t); }
+  if (c.mode === 'jump') {
+    const j = c.jump, k = Math.min(1, (t - j.t0) / (j.d * 1000)), to = CRP.find(q => q.el === j.pe) || pl;
+    c.x = j.x0 + (j.x1 - j.x0) * k;
+    c.y = j.y0 + (to.y - j.y0) * k - j.H * 4 * k * (1 - k);
+    if (k >= 1) { c.pe = to.el; c.y = to.y; CR_NEXT[c.sp](c, t, 'land'); }
+    return;
+  }
+  if (c.mode === 'crouch') { c.y = pl.y; if (t > c.until) { c.jump.t0 = t; c.mode = 'jump'; } return; }
+  if (c.mode === 'climb') {
+    c.cy += c.vdir * c.v * dt;
+    if (c.vdir > 0 && c.cy >= c.cyTo) { c.cy = c.cyTo; crGo(c, 'cling', rnd(1200, 4500), t); }
+    else if (c.vdir < 0 && c.cy <= c.wall.top) { c.dir = c.wall.side === 'R' ? -1 : 1; c.x = c.wall.side === 'R' ? pl.x2 : pl.x1; c.y = pl.y; c.wall = null; crGo(c, 'freeze', rnd(500, 1500), t); }
+    return;
+  }
+  if (c.mode === 'cling') { if (t > c.until) CR_NEXT[c.sp](c, t, 'end'); return; }
+  c.y = pl.y;
+  if (c.mode === 'walk') {
+    c.x += c.dir * c.v * dt;
+    if (c.x <= pl.x1 || c.x >= pl.x2) { c.x = Math.min(pl.x2, Math.max(pl.x1, c.x)); return CR_NEXT[c.sp](c, t, 'edge'); }
+  }
+  if (t > c.until) CR_NEXT[c.sp](c, t, 'end');
+}
+function crDraw(c) {
+  const S = SPECIES[c.sp], wall = c.mode === 'climb' || c.mode === 'cling';
+  let flip = c.dir < 0;
+  if (wall) {
+    c.el.style.transform = 'translate(' + Math.round(c.wall.x - S.w / 2) + 'px, ' + Math.round(c.cy - S.h) + 'px) rotate(' + (c.wall.side === 'R' ? 90 : -90) + 'deg)';
+    flip = c.wall.side === 'R' ? c.vdir < 0 : c.vdir > 0;
+  } else c.el.style.transform = 'translate(' + Math.round(c.x - S.w / 2) + 'px, ' + Math.round(c.y - S.h + 1) + 'px)';
+  c.el.classList.toggle('left', flip);
+  const m = c.mode === 'walk' && c.v > 80 && c.sp === 'cat' ? 'trot' : c.mode;
+  if (c.el.dataset.mode !== m) c.el.dataset.mode = m;
 }
 function crStep(t) {
   requestAnimationFrame(crStep);
-  const dt = Math.min(.1, (t - (CR.last || t)) / 1000); CR.last = t;
-  if (t - CR.seen > 1000) {
-    CR.seen = t;
-    const off = crOff(); CR.el.hidden = off; if (off) return;
-    CR.plats = crPlats();
-    if (CR.p < 0 || !CR.plats[CR.p]) { CR.p = Math.max(0, CR.plats.findIndex(q => q.el.id === 'wAsk')); CR.x = rnd(CR.plats[CR.p].x1, CR.plats[CR.p].x2); CR.mode = 'sit'; CR.until = t + 3000; }
+  const dt = Math.min(.1, (t - (crLast || t)) / 1000); crLast = t;
+  if (t - crSeen > 1000) {
+    crSeen = t;
+    crOffNow = portrait() || matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle($('lock')).display !== 'none';
+    $('critters').hidden = crOffNow;
+    if (!crOffNow) CRP = crPlats();
   }
-  if (CR.el.hidden || !CR.plats.length) return;
-  const pl = CR.plats[CR.p];
-  if (CR.mode === 'jump') {
-    const j = CR.jump, k = Math.min(1, (t - j.t0) / (j.d * 1000)), to = CR.plats[j.p] || pl;
-    CR.x = j.x0 + (j.x1 - j.x0) * k;
-    CR.y = j.y0 + (to.y - j.y0) * k - j.H * 4 * k * (1 - k);
-    if (k >= 1) { CR.p = j.p; CR.y = to.y; CR.mode = Math.random() < .35 ? 'sit' : 'walk'; CR.until = t + (CR.mode === 'sit' ? rnd(2500, 7000) : rnd(1500, 6000)); }
-  } else {
-    CR.y = pl.y;
-    if (CR.mode === 'walk') {
-      CR.x += CR.dir * CR.speed * dt;
-      const atEdge = CR.x <= pl.x1 || CR.x >= pl.x2;
-      CR.x = Math.min(pl.x2, Math.max(pl.x1, CR.x));
-      if (atEdge && !(Math.random() < .7 && crLeap(t))) CR.dir = -CR.dir;
-      else if (t > CR.until) { const r = Math.random(); if (r < .4) crLeap(t); else if (r < .7) { CR.mode = 'sit'; CR.until = t + rnd(3000, 9000); } else { CR.dir = -CR.dir; CR.until = t + rnd(1500, 5000); } }
-    } else if (t > CR.until) {
-      if (Math.random() < .3 && crLeap(t)) return crPlace();
-      CR.mode = 'walk'; if (Math.random() < .5) CR.dir = -CR.dir; CR.until = t + rnd(2000, 7000);
-    }
-  }
-  crPlace();
+  if (crOffNow || !CRP.length) return;
+  CRITS.forEach(c => { crTick(c, t, dt); crDraw(c); });
 }
-function critter() { CR.el = $('critter'); if (CR.el) requestAnimationFrame(crStep); }
+function critters() {
+  const box = $('critters'); if (!box) return;
+  CRITS = Object.keys(SPECIES).map(sp => {
+    const el = document.createElement('div'), S = SPECIES[sp];
+    el.className = 'crit ' + sp; el.style.width = S.w + 'px'; el.style.height = S.h + 'px'; el.style.transformOrigin = S.w / 2 + 'px ' + S.h + 'px';
+    el.innerHTML = '<div class="cb">' + CRIT_ART[sp] + '</div>';
+    box.appendChild(el);
+    return { sp, el, pe: null, x: 0, y: 0, dir: Math.random() < .5 ? 1 : -1, mode: 'freeze', until: 0, v: 0 };
+  });
+  requestAnimationFrame(crStep);
+}
 
 // ---- Theme and wallpaper ----
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(', ');
@@ -920,7 +1025,7 @@ setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
 setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
 setInterval(drift, 4 * 60e3);
-critter();
+critters();
 // A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });
 })();
