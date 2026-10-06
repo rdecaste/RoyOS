@@ -40,7 +40,10 @@ export class DeskTheme extends WorkflowEntrypoint {
       throw err;
     }
     // The critter comes after the world is ready; when it fails the world stays and the board shows the drawn cat.
-    await this.critter(week, step, s).catch(err => console.error('critter ' + week + ': ' + (err && err.message || err)));
+    // A remake of the world keeps a critter the week already has in full (it belongs to the scene, not the
+    // character's pose), so remaking a still never pays for the sheets twice; CRITTER_ART repaints one on purpose.
+    const had = await step.do('critter had', CHEAP, async () => { const c = await s.cached('critter:' + week); return !!(c && CRITTER_SHEETS.every(k => c[k] && c[k].public_id)); });
+    if (!had) await this.critter(week, step, s).catch(err => console.error('critter ' + week + ': ' + (err && err.message || err)));
     return { ok: 1, week };
   }
 
