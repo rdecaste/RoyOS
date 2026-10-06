@@ -8,6 +8,8 @@
   --glass-hover: rgba(var(--tint), .72);
   --glass-strong: rgba(var(--tint), .93);
   --well: rgba(255, 255, 255, .05);
+  --day-tint: 255, 255, 255; --day-amt: 0;
+  --daylight: rgba(var(--day-tint), var(--day-amt));
   --well-hover: rgba(255, 255, 255, .095);
   --accent-rgb: 111, 216, 255;
   --edge: rgba(var(--accent-rgb), .16);
@@ -176,7 +178,7 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .stack { display: flex; flex-direction: column; gap: .8rem; }
 
 /* Widgets */
-.w { position: relative; padding: .75rem .9rem .8rem; border-radius: var(--r); border: 1px solid var(--edge); background: var(--glass); box-shadow: 0 .6rem 2rem rgba(0, 0, 0, .22);
+.w { position: relative; padding: .75rem .9rem .8rem; border-radius: var(--r); border: 1px solid var(--edge); background: var(--glass); box-shadow: inset 0 0 0 100vmax var(--daylight), 0 .6rem 2rem rgba(0, 0, 0, .22);
   backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); cursor: pointer; transition: background .2s, border-color .2s; }
 .w:hover { background: var(--glass-hover); border-color: var(--edge-hi); }
 .wh { display: flex; align-items: center; gap: .5rem; min-height: 1.15rem; }
@@ -582,3 +584,10 @@ body[data-phase="night"]:not(.awake) .lock { display: grid; }
 .form-chip.fs-Building { background: rgba(255, 214, 92, .2); color: #ffd65c; } .form-chip.fs-Overreaching { background: rgba(255, 95, 95, .2); color: #ff9f9f; }
 .form-chip.rc-good { background: rgba(61, 220, 132, .18); color: #7dffb0; } .form-chip.rc-steady { background: rgba(255, 214, 92, .2); color: #ffd65c; }
 .form-chip.rc-easy { background: rgba(255, 95, 95, .2); color: #ff9f9f; } .form-chip.rc-none { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .6); }
+
+/* ---- light of day: a tint on the glass that follows the real sun (set by renderLight) ---- */
+.menubar { box-shadow: inset 0 0 0 100vmax var(--daylight); }
+.dock { box-shadow: inset 0 0 0 100vmax var(--daylight), var(--shadow); }
+.isl-pill { box-shadow: inset 0 0 0 100vmax var(--daylight); }
+.win { box-shadow: inset 0 0 0 100vmax var(--daylight), var(--shadow); }
+.menubar, .dock, .isl-pill { transition: box-shadow 2.5s linear; }

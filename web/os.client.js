@@ -435,8 +435,28 @@ function setWall(w) {
 addEventListener('resize', placeWall);
 
 // ---- Rendering ----
+// ---- The light of day on the glass ----
+// A tint over the panels that follows the real sun: amber around sunrise, neutral by day,
+// orange around sunset, a cool blue at night. The world clip is never tinted.
+function daylight(m, sunrise, sunset) {
+  const bell = (c, before, after) => (m < c ? Math.max(0, 1 - (c - m) / before) : Math.max(0, 1 - (m - c) / after));
+  const dawn = bell(sunrise, 60, 90), dusk = bell(sunset, 60, 90);
+  const night = m < sunrise - 60 || m > sunset + 90 ? 1 : m < sunrise ? (sunrise - m) / 60 : m > sunset ? (m - sunset) / 90 : 0;
+  const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  let tint = [255, 255, 255], amt = 0;
+  if (dawn >= dusk && dawn > 0) { tint = [255, 178, 96]; amt = .16 * dawn; }
+  else if (dusk > 0) { tint = [255, 138, 84]; amt = .17 * dusk; }
+  if (night > 0) { const k = Math.min(1, night); tint = mix(tint, [86, 118, 255], amt ? k * .6 : 1); amt = Math.max(amt, .11 * k); }
+  return { tint, amt: +amt.toFixed(3), word: amt < .02 ? 'day' : dawn >= dusk && dawn > 0 && night < 1 ? 'dawn' : dusk > 0 && night < 1 ? 'dusk' : 'night' };
+}
+function renderLight(m) {
+  const w = D.weather || {}, sr = minOf(w.sunrise || '07:30'), ss = minOf(w.sunset || '19:00');
+  const L = daylight(m, sr, ss), r = document.documentElement.style;
+  r.setProperty('--day-tint', L.tint.join(',')); r.setProperty('--day-amt', L.amt); document.body.dataset.light = L.word;
+}
 function renderClock() {
   const t = now(), m = minAt(t), ph = phaseOf(m);
+  renderLight(m);
   if (ph !== clockPhase) { clockPhase = ph; document.body.classList.remove('awake'); }
   document.body.dataset.phase = ph;
   $('clock').textContent = $('lockClock').textContent = hm(t);

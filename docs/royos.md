@@ -8,6 +8,7 @@ The desk screen next to Roy all day (16-inch ASUS ZenScreen, 1920×1080, landsca
 - **Right:** Me today (recovery ring, long and short term load with a 14-day sparkline, load ratio bar, ki charge, mood faces, commute); From Steph (journal to-dos tagged "Steph"); Coming up (the next three dates from the family calendar; the window lists 30 days).
 - **Bottom:** Your day, three lanes (Roy, Steph, Kids), editable, with today's timed events from the family calendar, Steph's work calendar and Roy's personal calendar as dashed blocks (read only); the dock with one icon per app and the Ask box.
 - Hover shows details; a click opens the app's window (Body, Focus, Main habits, Mood, Commute, From Steph, Coming up, Quest).
+- The light of day: the glass of the panels, the menu bar, the now pill and the dock carry a faint tint that follows the real sun from the weather data: amber from an hour before sunrise to ninety minutes after, neutral by day, orange around sunset, a cool blue at night. The world clip is never tinted. `body[data-light]` is dawn, day, dusk or night.
 - The clip loops through a one-second crossfade (two copies take turns), so the seam never jumps.
 - From 23:00 to 04:00 a lock screen dims the board; a tap wakes it until the next phase.
 
@@ -41,6 +42,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-06: the light of day on the glass: panels, menu bar, now pill and dock take a sunrise, sunset or night tint from the real sun times; the clip stays untouched.
 - 2026-10-06: the still is framed as a medium shot (waist up, head above centre, nothing that matters in the bottom quarter) so the Your day lanes and dock no longer cut the character at the knees; this week's world remade.
 - 2026-10-05: the weather tile under the clock: an animated sky from the current weather code, the day's range and wind, and the next 12 hours with rain chance; the clock is a touch smaller to make room.
 - 2026-10-05: Roy's personal calendar (third iCloud feed) fills his lane and Coming up.
