@@ -27,12 +27,12 @@ export class DeskTheme extends WorkflowEntrypoint {
       });
       const still = theme.still || await step.do('still', ONCE_PAID, async () => {
         const image = await generateStill(this.env, theme.prompts.still, avatar ? [avatar] : []);
-        return cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/${week}-still`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
+        return cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/${week}-still-${Date.now().toString(36)}`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
       });
       await step.do('save still', CHEAP, async () => s.updateTheme(week, { still_public_id: still.public_id, still_version: String(still.version), status: 'still' }));
       const clip = await step.do('clip', ONCE_PAID, async () => {
         const video = await generateClip(this.env, stillUrl169(still.public_id, still.version), theme.prompts.clip);
-        return cloudinaryUpload(this.env, video.bytes, { resourceType: 'video', mimeType: video.mimeType, publicId: `${THEME_FOLDER}/${week}-clip`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
+        return cloudinaryUpload(this.env, video.bytes, { resourceType: 'video', mimeType: video.mimeType, publicId: `${THEME_FOLDER}/${week}-clip-${Date.now().toString(36)}`, assetFolder: THEME_FOLDER, tags: 'desk-theme' });
       });
       await step.do('save clip', CHEAP, async () => s.updateTheme(week, { clip_public_id: clip.public_id, clip_version: String(clip.version), status: 'ready', finished_at: new Date().toISOString() }));
     } catch (err) {
