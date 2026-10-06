@@ -1,2 +1,2 @@
 // The shape of one day's edits on the screen (kept per Amsterdam day in DeskState).
-export const emptyDay = () => ({ events: null, moods: [], ticks: {}, added: [], work: null });
+export const emptyDay = () => ({ events: null, moods: [], ticks: {}, added: [], work: null, win: null });

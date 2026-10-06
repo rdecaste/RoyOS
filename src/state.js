@@ -53,6 +53,11 @@ export class DeskState extends DurableObject {
     const row = this.sql.exec('SELECT data, undo FROM days WHERE day = ?', day).toArray()[0];
     return { data: row && row.data ? JSON.parse(row.data) : emptyDay(), undo: row && row.undo ? JSON.parse(row.undo) : null };
   }
+  // The places Roy set on the screen for past days (today's commute, or a missing day filled in), for the Belgium share.
+  works(from, to) {
+    return this.sql.exec("SELECT day, json_extract(data, '$.work') AS work FROM days WHERE day >= ? AND day < ? AND json_extract(data, '$.work') IS NOT NULL ORDER BY day", from, to).toArray()
+      .map(r => ({ date: r.day, ...JSON.parse(r.work) }));
+  }
   saveDay(day, data, undo) {
     this.sql.exec('INSERT INTO days (day, data, undo, updated_at) VALUES (?,?,?,?) ON CONFLICT(day) DO UPDATE SET data = excluded.data, undo = excluded.undo, updated_at = excluded.updated_at',
       day, JSON.stringify(data), undo === undefined ? null : JSON.stringify(undo), new Date().toISOString());
