@@ -96,7 +96,8 @@ export async function ensureTheme(env, s, { week = themeWeek(), force = false, r
   if (row && row.status === 'ready' && !force && !retry) return { ok: 1, status: 'ready', week };
   const catalogue = await loadCatalogue(env.DB);
   if (!catalogue.length) throw new Error('No franchises with scenes and characters in the catalogue');
-  const pick = pickTheme(catalogue, week, { character: character || (row && !force ? row.character : null) });
+  // A forced remake rotates the scene and the activity (a new variant, avoiding the week's scene); a retry keeps the pick.
+  const pick = pickTheme(catalogue, week, { character: character || (row && !force ? row.character : null), ...(force ? { variant: Date.now(), avoidScene: row && row.scene } : {}) });
   const run = await env.DESK_THEME.create({ params: { week } });
   if (!force && row && row.still_public_id && row.franchise === pick.franchise && row.character === pick.character) {
     // A retry of the same pick with a still already made: only the clip is redone, with the current prompt.
