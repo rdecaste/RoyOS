@@ -499,11 +499,19 @@ function renderFocusW(max = focusMax) {
 // least 16 px, so the left column never runs together. (In the phone layout everything flows.)
 let focusMax = 3;
 const GAP = 16;
+// The side columns share the screen's 1080 px: each stack runs from its top to 16 px above the
+// day row, its tiles spaced evenly, so the bottoms line up with Your day and Ask Claude.
+const COLS = [{ ids: ['wFocus', 'wBoss', 'wMe'], top: 262 }, { ids: ['wWx', 'wDates', 'wSteph', 'wMood', 'wCommute'], top: 54 }], COL_END = 892 - GAP;
+const colRoom = c => COL_END - c.top - c.ids.reduce((n, id) => n + $(id).offsetHeight, 0) - GAP * (c.ids.length - 1);
+function stackCol(c) {
+  const els = c.ids.map($), free = COL_END - c.top - els.reduce((n, e) => n + e.offsetHeight, 0), gap = Math.max(GAP, free / (els.length - 1));
+  let y = c.top;
+  for (const e of els) { e.style.top = Math.round(y) + 'px'; y += e.offsetHeight + gap; }
+}
 function fitLeft() {
-  if (portrait()) return;
-  const f = $('wFocus'), b = $('wBoss');
-  const over = () => f.offsetTop + f.offsetHeight > b.offsetTop - GAP;
-  for (focusMax = 3; focusMax > 0 && over(); ) renderFocusW(--focusMax);
+  if (portrait()) { COLS.forEach(c => c.ids.forEach(id => { $(id).style.top = ''; })); return; }
+  for (focusMax = 3; focusMax > 0 && colRoom(COLS[0]) < 0; ) renderFocusW(--focusMax);
+  COLS.forEach(stackCol);
 }
 function fitAfterRender() { if (focusMax !== 3) { focusMax = 3; renderFocusW(); } fitLeft(); }
 // Showdown: the boss's HP and Goku's front-of-card metrics, read from the quest engine.

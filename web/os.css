@@ -176,7 +176,7 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 /* A line written on the world: the focus quest's quote, beside the character */
 .os .wquote { position: absolute; left: 1050px; top: 120px; width: 380px; padding: 0; border: 0; background: none; text-align: left; color: #fff; cursor: pointer;
   font: 700 44px/1.05 var(--f-hand); text-shadow: 0 2px 16px rgba(0, 0, 0, .8), 0 0 2px rgba(0, 0, 0, .6); transform: rotate(-3deg); }
-.os .wquote .q { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.os .wquote .q { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: .12em; }
 .os .wquote small { display: block; margin-top: 10px; font: 600 14px/1 var(--f-sys); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); transform: rotate(3deg); }
 
 /* Right: the weather, Coming up, From Steph, Mood, Commute */
