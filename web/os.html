@@ -1,105 +1,91 @@
+<div class="board" id="board">
 <div id="wall" aria-hidden="true"></div>
-<div class="os">
+<div class="os" id="os">
   <header class="menubar">
-    <div class="mb-left">
-      <div class="sysmenu">
-        <button type="button" class="logo" id="logoBtn" data-act="menu" aria-haspopup="true" aria-expanded="false" aria-controls="sysMenu"><i data-ic="logo"></i><span>Roy OS</span><em id="liveTag">Live</em></button>
-        <div class="menu" id="sysMenu" hidden>
-          <div class="mhead">This week’s world</div>
-          <div class="mtheme" id="mTheme"></div>
-          <div class="mhead">Wallpaper</div>
-          <div class="mtimes" id="mWalls"></div>
-          <div class="msep"></div>
-          <button type="button" class="mitem" data-act="fs">Full screen</button>
-          <button type="button" class="mitem" data-act="refresh">Refresh now</button>
-          <form method="post" action="/logout" style="display:contents"><button type="submit" class="mitem">Sign out</button></form>
-        </div>
+    <div class="sysmenu">
+      <button type="button" class="logo" id="logoBtn" data-act="menu" aria-haspopup="true" aria-expanded="false" aria-controls="sysMenu"><span aria-hidden="true">◆</span> Roy OS<em id="liveTag" hidden>Stale</em></button>
+      <div class="menu" id="sysMenu" hidden>
+        <div class="mhead">This week’s world</div>
+        <div class="mtheme" id="mTheme"></div>
+        <div class="mhead">Wallpaper</div>
+        <div class="mtimes" id="mWalls"></div>
+        <div class="msep"></div>
+        <button type="button" class="mitem" data-act="fs">Full screen</button>
+        <button type="button" class="mitem" data-act="refresh">Refresh now</button>
+        <form method="post" action="/logout" style="display:contents"><button type="submit" class="mitem">Sign out</button></form>
       </div>
-      <span class="mode" id="mode" data-tip="@mode"></span>
-      <button type="button" class="themechip" id="themeChip" data-act="menu" data-tip="@theme"></button>
     </div>
+    <nav class="apps" id="apps" aria-label="Apps"></nav>
     <div class="island" id="island">
       <button type="button" class="isl-pill" id="islPill" data-act="island" aria-expanded="false" aria-controls="islPanel"></button>
       <div class="isl-panel" id="islPanel"></div>
     </div>
-    <div class="mb-right">
-      <span class="tray" id="trWeather" data-tip="@weather"></span>
-      <button type="button" class="tray" id="trRec" data-open="body" data-arg="recovery" data-tip="@recovery"></button>
-      <span class="tray time" id="trTime"></span>
-    </div>
+    <span class="mdate" id="trDate"></span><span class="mtime" id="trTime"></span>
   </header>
 
-  <main class="desktop">
-    <div class="col left">
-      <div class="clockw">
-        <div class="clock" id="clock">--:--</div>
-        <div class="dateline" id="dateline"></div>
-        <div class="greet" id="greet"></div>
-        <button type="button" class="questchip" id="questChip" data-open="quest" data-tip="@quest"></button>
-      </div>
-      <section class="w wx" id="wWx" data-tip="@weather" aria-label="Weather at home">
-        <div class="wx-sky" id="wxSky" aria-hidden="true"></div>
-        <div class="wx-main"><b class="wx-temp" id="wxTemp"></b><div class="wx-txt" id="wxTxt"></div></div>
-        <div class="wx-hours" id="wxHours"></div>
-      </section>
-      <div class="stack">
-        <section class="w focus" id="wFocus" data-open="focus" aria-labelledby="hFocus">
-          <header class="wh"><span class="wl" id="hFocus"><i data-ic="focus"></i>Focus</span><span class="wr" id="focusCount"></span><button type="button" class="wopen" data-open="focus" aria-label="Open Focus"><i data-ic="chev"></i></button></header>
-          <div class="winif" id="winIf"></div>
-          <div class="todos" id="focusTodos"></div>
-          <form class="addrow" id="addForm" autocomplete="off"><i data-ic="plus"></i><label class="sr" for="addTodo">New to-do</label><input id="addTodo" type="text" maxlength="120" placeholder="Add a to-do"></form>
-        </section>
-        <section class="w bossw" id="wBoss" aria-labelledby="hBoss">
-          <header class="wh"><span class="wl" id="hBoss"><i data-ic="boss"></i><span id="bossTitle">Goku vs the boss</span></span><span class="wr" id="bossHabits" data-tip="@habits"></span><button type="button" class="wopen" data-act="card" data-card="boss" aria-label="Open the boss card"><i data-ic="chev"></i></button></header>
-          <div class="bossrows">
-            <button type="button" class="bside boss" id="bossSide" data-act="card" data-card="boss" data-tip="@boss"></button>
-            <button type="button" class="bside goku" id="gokuSide" data-act="card" data-card="goku" data-tip="@goku"></button>
-          </div>
-        </section>
-      </div>
-    </div>
-    <div class="col center" aria-hidden="true"></div>
-    <div class="col right">
-      <section class="w me" id="wMe" aria-labelledby="hMe" style="--ac:#ff7a7a">
-        <header class="wh"><span class="wl" id="hMe"><i data-ic="body"></i>Me today</span></header>
-        <div class="cells2">
-          <div class="cell" id="cRec" role="button" tabindex="0" aria-label="Recovery, open Body" data-open="body" data-arg="recovery" data-tip="@recovery"></div>
-          <div class="cell" id="cLoad" role="button" tabindex="0" aria-label="Training load, open Body" data-open="body" data-arg="load"></div>
-        </div>
-        <div class="cell" id="cRatio" role="button" tabindex="0" aria-label="Load ratio, open Body" data-open="body" data-arg="ratio" data-tip="@ratio"></div>
-        <div class="cell" id="cKi" role="button" tabindex="0" aria-label="Ki charge, open Body" data-open="body" data-arg="ki" data-tip="@ki"></div>
-        <div class="cell" id="cMood" role="button" tabindex="0" aria-label="Mood, open Mood" data-open="mood"></div>
-        <div class="cell" id="cCommute" role="button" tabindex="0" aria-label="Commute, open Commute" data-open="commute" data-tip="@commute"></div>
-      </section>
-      <div class="minis">
-        <section class="w mini" id="wSteph" data-open="steph" data-tip="@steph" aria-labelledby="hSteph">
-          <header class="wh"><span class="wl" id="hSteph"><i data-ic="steph"></i>From Steph</span><button type="button" class="wopen" data-open="steph" aria-label="Open From Steph"><i data-ic="chev"></i></button></header>
-          <div id="stephBody"></div>
-        </section>
-        <section class="w mini" id="wDates" data-open="dates" data-tip="@dates" aria-labelledby="hDates">
-          <header class="wh"><span class="wl" id="hDates"><i data-ic="dates"></i>Coming up</span><button type="button" class="wopen" data-open="dates" aria-label="Open Coming up"><i data-ic="chev"></i></button></header>
-          <div id="datesBody"></div>
-        </section>
-      </div>
-    </div>
-  </main>
+  <div class="clockw"><div class="hm" id="clock">--:--</div><div class="d" id="dateline"></div><div class="g" id="greet"></div></div>
 
-  <section class="day" aria-labelledby="hDay">
-    <header class="dayhead"><span class="wl" id="hDay"><i data-ic="day"></i>Your day</span><span class="dhint">Hover a block for details, tap it to edit, tap an empty spot to add</span><button type="button" class="addev" data-act="addev"><i data-ic="plus"></i>Add</button></header>
-    <div class="daybody"><div class="lanes" id="lanes"></div></div>
+  <section class="t focus" id="wFocus" data-open="focus" aria-labelledby="hFocus">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hFocus">Focus</span><b id="focusCount"></b></div>
+    <div class="winif" id="winIf"></div>
+    <div class="todos" id="focusTodos"></div>
   </section>
 
-  <footer class="dockwrap">
-    <nav class="dock" id="dock" aria-label="Dock">
-      <div class="apps" id="apps" style="display:contents"></div>
-      <span class="dsep" aria-hidden="true"></span>
-      <form class="ask" id="askForm" autocomplete="off"><i data-ic="claude"></i><label class="sr" for="askIn">Ask Claude</label><input id="askIn" type="text" maxlength="240" placeholder="Ask Claude, or tell it what changed today"><kbd>/</kbd><button type="submit" id="askBtn">Ask</button></form>
-      <div class="askpop" id="askPop" hidden></div>
-    </nav>
-  </footer>
+  <section class="t show" id="wBoss" aria-labelledby="bossTitle">
+    <div class="tl"><span class="dot"></span><span class="tt" id="bossTitle">Goku vs the boss</span><b id="bossHabits" data-tip="@habits"></b></div>
+    <button type="button" class="srow" id="bossSide" data-act="card" data-card="boss" data-tip="@boss"></button>
+    <button type="button" class="srow" id="gokuSide" data-act="card" data-card="goku" data-tip="@goku"></button>
+  </section>
+
+  <section class="t me" id="wMe" data-open="body" aria-labelledby="hMe">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hMe">Me today</span><b class="mut" id="meSay"></b></div>
+    <div class="g2" id="meBody"></div>
+  </section>
+
+  <button type="button" class="wquote" id="quote" data-open="quest" hidden></button>
+
+  <section class="t wx" id="wWx" data-tip="@weather" aria-label="Weather at home">
+    <div class="wx-sky" id="wxSky" aria-hidden="true"></div>
+    <div><div class="tmp" id="wxTemp"></div><div class="s" id="wxTxt"></div></div>
+    <div class="hl" id="wxHl"></div>
+  </section>
+
+  <section class="t dates" id="wDates" data-open="dates" data-tip="@dates" aria-labelledby="hDates">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hDates">Coming up</span></div>
+    <div id="datesBody"></div>
+  </section>
+
+  <section class="t steph" id="wSteph" data-open="steph" data-tip="@steph" aria-labelledby="hSteph">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hSteph">From Steph</span><b id="stephCount"></b></div>
+    <p id="stephBody"></p>
+  </section>
+
+  <section class="t mood" id="wMood" data-open="mood" aria-labelledby="hMood">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hMood">Mood</span><b class="mut" id="moodLast" data-tip="@lastmood"></b></div>
+    <div class="faces moods" id="moodFaces" role="group" aria-label="Log your mood"></div>
+  </section>
+
+  <section class="t comm" id="wCommute" data-open="commute" data-tip="@commute" aria-labelledby="hComm">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hComm">Commute</span><b id="commRide"></b></div>
+    <div class="cg" id="commBody"></div>
+    <div class="cnote" id="commNote"></div>
+  </section>
+
+  <section class="t day" aria-labelledby="hDay">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hDay">Your day</span><b class="mut hours" id="dayHours"></b></div>
+    <div class="lanes" id="lanes"></div>
+  </section>
+
+  <section class="t askt" id="wAsk" aria-labelledby="hAsk">
+    <div class="tl"><span class="dot"></span><span class="tt" id="hAsk">Ask Claude</span></div>
+    <button type="button" class="try" id="askTry" data-act="sugg"></button>
+    <form class="askin" id="askForm" autocomplete="off"><span class="star" aria-hidden="true">✦</span><label class="sr" for="askIn">Ask Claude</label><input id="askIn" type="text" maxlength="240" placeholder="Tell it what changed today"><button type="submit" id="askBtn">Ask</button></form>
+    <div class="askpop" id="askPop" hidden></div>
+  </section>
+</div>
 </div>
 
-<div class="lock" id="lock" role="button" tabindex="-1" aria-label="Wake the screen"><div><div class="lclock" id="lockClock">--:--</div><p>Lights out. Tomorrow you come back and earn it.</p><small>Tap to wake</small></div></div>
+<div class="lock" id="lock" role="button" tabindex="-1" aria-label="Night: the screen is off. Tap to wake it"></div>
 <div class="pop" id="moodPop" hidden><form id="moodForm" autocomplete="off"><img id="moodPopImg" alt=""><label class="sr" for="moodNote">A few words about your mood</label><input class="inp" id="moodNote" type="text" maxlength="80" placeholder="A few words (optional)"><button type="submit" class="btn primary">Log</button></form></div>
 <div id="winLayer"></div>
 <div class="cardpop" id="cardPop" role="dialog" aria-modal="true" aria-label="Card" hidden>

@@ -45,20 +45,28 @@ export async function generateStill(env, prompt, referenceUrls = []) {
   return /^gpt-image/.test(model) ? openaiStill(env, model, prompt, referenceUrls) : geminiStill(env, model, prompt, referenceUrls);
 }
 
-// gpt-image: edit mode with the character's avatar as the reference face, landscape 1536x1024,
-// the same settings as quest-engine's editImage (high, moderation low).
+// gpt-image: edit mode with the character's avatar as the reference face, the same settings as
+// quest-engine's editImage (high, moderation low). Asked for 2048x1152, 16:9 like the desk screen
+// (1920x1080), so nothing is cropped or upscaled; a model that refuses that size gets 1536x1024.
+const STILL_SIZES = ['2048x1152', '1536x1024'];
 async function openaiStill(env, model, prompt, referenceUrls) {
   if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
-  const form = new FormData();
-  form.append('model', model);
-  form.append('prompt', prompt);
-  for (const url of referenceUrls) form.append('image[]', new Blob([await readUrl(url)], { type: 'image/jpeg' }), 'reference.jpg');
-  form.append('n', '1'); form.append('size', '1536x1024'); form.append('quality', 'high'); form.append('background', 'opaque'); form.append('moderation', 'low');
-  form.append('output_format', 'jpeg'); form.append('output_compression', '92');
-  const response = await fetch(referenceUrls.length ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations', referenceUrls.length
-    ? { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form }
-    : { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt, n: 1, size: '1536x1024', quality: 'high', background: 'opaque', moderation: 'low', output_format: 'jpeg', output_compression: 92 }) });
-  const data = await response.json().catch(() => ({}));
+  const refs = [];
+  for (const url of referenceUrls) refs.push(await readUrl(url));
+  let response, data;
+  for (const size of STILL_SIZES) {
+    const form = new FormData();
+    form.append('model', model);
+    form.append('prompt', prompt);
+    for (const ref of refs) form.append('image[]', new Blob([ref], { type: 'image/jpeg' }), 'reference.jpg');
+    form.append('n', '1'); form.append('size', size); form.append('quality', 'high'); form.append('background', 'opaque'); form.append('moderation', 'low');
+    form.append('output_format', 'jpeg'); form.append('output_compression', '92');
+    response = await fetch(refs.length ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations', refs.length
+      ? { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form }
+      : { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt, n: 1, size, quality: 'high', background: 'opaque', moderation: 'low', output_format: 'jpeg', output_compression: 92 }) });
+    data = await response.json().catch(() => ({}));
+    if (!(response.status === 400 && /size/i.test((data.error && (data.error.param || data.error.message)) || ''))) break;
+  }
   if (!response.ok) throw new Error(`OpenAI ${response.status}: ${(data.error && data.error.message) || 'image generation failed'}`);
   const b64 = data.data && data.data[0] && data.data[0].b64_json;
   if (!b64) throw new Error('OpenAI returned no image');
@@ -178,7 +186,7 @@ export async function cloudinaryUpload(env, bytes, { resourceType, mimeType, pub
 }
 
 export const stillUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${version ? 'v' + version + '/' : ''}${publicId}.jpg`;
-// The still is 3:2 (gpt-image has no 16:9); the clip and the screen are 16:9, so both get the same centre crop.
+// The still is 16:9 (or 3:2 when the model fell back); the clip and the screen are 16:9, so both get the same centre crop.
 export const stillUrl169 = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/ar_16:9,c_fill,g_center/${version ? 'v' + version + '/' : ''}${publicId}.jpg`;
 export const clipUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${version ? 'v' + version + '/' : ''}${publicId}.mp4`;
 

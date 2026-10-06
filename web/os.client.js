@@ -53,6 +53,8 @@ const icon = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[
 const APPS = [['focus', 'Focus', '#f6c045'], ['boss', 'Showdown', '#ff5f6d'], ['body', 'Body', '#ff7a7a'], ['mood', 'Mood', '#7ee0c3'],
   ['commute', 'Commute', '#6fd8ff'], ['steph', 'From Steph', '#ff7ac8'], ['dates', 'Coming up', '#ff9f5a'], ['quest', 'Quest', '#8fb8ff']];
 const APP = Object.fromEntries(APPS.map(([k, name, ac]) => [k, { name, ac }]));
+// The menu bar's apps (the quest opens from the line written on the world).
+const BAR_APPS = APPS.filter(([k]) => k !== 'quest');
 APP.day = { name: 'Your day', ac: '#5b93f0' }; APP.claude = { name: 'Claude', ac: '#b18cff' }; APP.os = { name: 'Roy OS', ac: '#6fd8ff' };
 
 // ---- The board's state: the server's data plus the day's edits ----
@@ -89,13 +91,10 @@ const R = () => F().recovery;
 const L = () => F().clal, LAST = () => L()[L().length - 1], PREV = () => L()[L().length - 2];
 const REC_LABEL = { good: ['Good', 'Good to go', 'Train as planned'], steady: ['Moderate', 'Go steady', 'Easy session only · skip anything hard'], easy: ['Low', 'Take it easy', 'Rest or a gentle walk today'] };
 const recColor = s => (s >= 67 ? 'var(--good)' : s >= 34 ? 'var(--warn)' : 'var(--bad)');
-const ratioOf = d => Math.round(d.al / d.cl * 100) / 100;
 const ZC = { Low: '#3f8fe8', Optimal: '#3ddc84', High: '#ff9a2e', Risk: '#ef4b4b' };
 // The ratio and its zone come from the engine (power.load_ratio); the bands are the engine's.
 const RATIO = () => F().ratio && F().ratio.value != null ? F().ratio : null;
-const zoneOf = r => { const b = (RATIO() && RATIO().bands) || { low: .8, optimal: 1.3, high: 1.5 }; const z = r < b.low ? 'Low' : r <= b.optimal ? 'Optimal' : r <= b.high ? 'High' : 'Risk'; return [0, z, ZC[z]]; };
 const RSAY = { Low: 'Low: you train less than your body is used to, so fitness slowly fades.', Optimal: 'Balanced: ideal for progress with a low injury risk.', High: 'High: keep the next sessions easy and watch your recovery.', Risk: 'Risk zone: back off for a few days to avoid an injury.' };
-const ratioPos = r => (r <= .8 ? Math.max(2, (r - .5) / .3 * 20) : r <= 1.3 ? 20 + (r - .8) / .5 * 40 : r <= 1.5 ? 60 + (r - 1.3) / .2 * 25 : Math.min(98, 85 + (r - 1.5) / .5 * 15));
 const trend = (v, u, upGood, thr) => { if (v == null || u == null) return ''; const d = v - u; if (Math.abs(d) < thr) return '<span class="tr good">=</span>'; const up = d > 0; return '<span class="tr ' + (up === upGood ? 'good' : 'bad') + '">' + (up ? '↑' : '↓') + '</span>'; };
 const kiState = k => (k.level >= k.peak ? 'Full power' : k.level ? 'Charging' : 'Empty');
 const NIGHTC = { good: '#3ddc84', steady: '#ffc24a', easy: '#ff5f6d' };
@@ -124,6 +123,8 @@ function laneNow(who, m) {
   const evs = ALLEV().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
   return { cur: evs.find(e => e.a <= m && m < e.z), next: evs.find(e => e.a > m) };
 }
+// The next 12 hours in one line for the weather tip.
+const rainSoon = w => { const h = (w.hours || []).find(x => x.pop != null && x.pop >= 40); return h ? 'Rain likely from ' + h.t + ' (' + h.pop + '%).' : 'Dry for the next 12 hours.'; };
 const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Cloudy', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunder' };
 
 // ---- Server calls ----
@@ -137,7 +138,7 @@ async function post(path, body) {
 let acting = Promise.resolve();
 function act(action, after) {
   // Edits are applied locally first, then sent; the server's copy wins when it answers.
-  acting = acting.then(() => post('/act', action)).then(out => { E = out.edits; $('liveTag').textContent = 'Live'; if (after) after(out); renderAll(); refreshWin(); }).catch(err => { if (err.message !== 'signed out') notify({ app: 'os', html: 'Could not save that: ' + esc(err.message) }); });
+  acting = acting.then(() => post('/act', action)).then(out => { E = out.edits; $('liveTag').hidden = true; if (after) after(out); renderAll(); refreshWin(); }).catch(err => { if (err.message !== 'signed out') notify({ app: 'os', html: 'Could not save that: ' + esc(err.message) }); });
   return acting;
 }
 async function refresh() {
@@ -147,31 +148,12 @@ async function refresh() {
     const out = await r.json();
     if (!out.ok) throw new Error(out.message || out.code);
     const art = D.moodArt; D = out; D.moodArt = art; E = D.edits;
-    $('liveTag').textContent = 'Live'; $('liveTag').classList.remove('stale');
+    $('liveTag').hidden = true;
     applyTheme(D.theme); renderAll(); refreshWin(); nudges();
-  } catch (err) { $('liveTag').textContent = 'Stale'; $('liveTag').classList.add('stale'); }
+  } catch (err) { $('liveTag').hidden = false; }
 }
 
 // ---- Charts ----
-// The load chart: the last `days` of the 28 kept, with the y axis fitted tightly to what is shown.
-function loadSvg(H, grid, days) {
-  const all28 = L(), off = Math.max(0, all28.length - (days || 28)), Ld = all28.slice(off), n = Ld.length; if (n < 2) return '<div class="say">No load data yet.</div>';
-  const W = 300, all = Ld.flatMap(d => [d.cl * 1.1, d.al, d.cl * .9]), lo = Math.min(...all) * .97, hi = Math.max(...all) * 1.02 || 1;
-  const x = i => 4 + i / (n - 1) * (W - 8), y = v => 4 + (1 - (v - lo) / (hi - lo || 1)) * (H - 8);
-  const line = k => Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d[k]).toFixed(1)).join(' ');
-  const band = Ld.map((d, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d.cl * 1.1).toFixed(1)).join(' ') + ' ' + Ld.slice().reverse().map((d, i) => 'L' + x(n - 1 - i).toFixed(1) + ' ' + y(d.cl * .9).toFixed(1)).join(' ') + 'Z';
-  const lines = grid ? [7, 14, 21].filter(k => k < n).map(k => '<line x1="' + x(n - 1 - k) + '" x2="' + x(n - 1 - k) + '" y1="0" y2="' + H + '" stroke="rgba(238,243,255,.08)" stroke-width="1" vector-effect="non-scaling-stroke"/>').join('') : '';
-  const px = i => (x(i) / W * 100) + '%', py = v => (y(v) / H * 100) + '%', last = Ld[n - 1];
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' + lines + '<path d="' + band + '" fill="rgba(63,216,232,.16)"/>' +
-    '<path d="' + line('al') + '" fill="none" stroke="#a28bff" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
-    '<path d="' + line('cl') + '" fill="none" stroke="#3fd8e8" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
-  s += '<span class="pt" style="--c:#a28bff;left:' + px(n - 1) + ';top:' + py(last.al) + '"></span><span class="pt" style="--c:#3fd8e8;left:' + px(n - 1) + ';top:' + py(last.cl) + '"></span>';
-  return s + '<i class="xh"></i>';
-}
-function loadTip(i) {
-  const d = L()[i], r = ratioOf(d), z = zoneOf(r), Pk = F().peak, peak = Pk && Pk.i === i;
-  return '<span class="tt">' + (i === L().length - 1 ? 'Today' : dayFmt(d.date)) + '</span><div class="kv"><span>Long term</span><b class="lt-c">' + one(d.cl) + '</b><span></span><span>Short term</span><b class="st-c">' + one(d.al) + '</b><span></span><span>Ratio</span><b style="color:' + z[2] + '">' + r.toFixed(2) + '</b><span class="mut">' + z[1] + '</span></div>' + (peak ? '<span class="hint">Peak of the week: ' + esc(Pk.what) + '</span>' : '');
-}
 function nightsSvg() {
   const N = F().nights, W = 300, H = 90, n = N.length; if (!n) return '<div class="say">No nights yet.</div>';
   const bw = W / n, ys = h => H - (h || 0) / 9 * (H - 6);
@@ -187,14 +169,6 @@ function nightTip(i) {
   const d = F().nights[i], U = F().usual;
   return '<span class="tt">' + (i === F().nights.length - 1 ? 'Last night' : dayFmt(d.day)) + '</span><b style="color:' + NIGHTC[d.verdict] + '">' + NIGHTW[d.verdict] + '</b><div class="kv"><span>Sleep</span><b>' + sleepTxt(d.sleep) + '</b><span class="mut">usual ' + sleepTxt(U.sleep) + '</span><span>HRV</span><b>' + (d.hrv == null ? '–' : d.hrv + ' ms') + '</b><span class="mut">usual ' + one(U.hrv) + '</span><span>Resting HR</span><b>' + (d.rhr == null ? '–' : d.rhr) + '</b><span class="mut">usual ' + one(U.rhr) + '</span></div>';
 }
-function ratioBar() {
-  const R2 = RATIO(); if (!R2) return '';
-  const r = R2.value, z = [0, R2.zone, ZC[R2.zone]];
-  const bands = [['Low', 0, 20], ['Optimal', 20, 60], ['High', 60, 85], ['Risk', 85, 100]];
-  return '<div class="ratiobar">' + [20, 60, 85].map(v => '<span class="tk" style="left:' + v + '%"></span>').join('') + '<span class="pill" style="left:' + ratioPos(r) + '%;background:' + z[2] + '">' + r.toFixed(2) + '</span></div>' +
-    '<div class="ratiolab">' + bands.map(([n, a, b]) => '<span' + (n === R2.zone ? ' class="on"' : '') + ' style="left:' + a + '%;width:' + (b - a) + '%' + (n === R2.zone ? ';color:' + z[2] : '') + '">' + n + '</span>').join('') + '</div>';
-}
-const R_LABELS = '<div class="rlabels">' + [['Low', 10, '#3f8fe8'], ['Optimal', 40, '#3ddc84'], ['High', 72.5, '#ff9a2e'], ['Risk', 92.5, '#ef4b4b']].map(([t, l, c]) => '<span style="left:' + l + '%;color:' + c + '">' + t + '</span>').join('') + '</div>';
 const pips = k => '<div class="pips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</div>';
 const todoBtn = (x, g, cls) => '<button type="button" class="todo' + (x.done ? ' done' : '') + (x.added ? ' new' : '') + (cls ? ' ' + cls : '') + '" data-act="todo" data-g="' + g + '" data-t="' + esc(x.t) + '" role="checkbox" aria-checked="' + !!x.done + '"><span class="chk"></span><span class="tx">' + esc(x.t) + '</span>' + (x.due && !x.done ? '<em>' + esc(x.due) + '</em>' : '<span></span>') + '</button>';
 
@@ -292,7 +266,6 @@ function loadChart(load, moves) {
 const TIPS = {
   recovery: () => { const r = R(); if (!r) return '<span class="tt">Recovery</span>No night synced yet.'; const U = F().usual, lab = REC_LABEL[r.verdict];
     return '<span class="tt">Recovery · ' + (r.fresh ? 'last night' : 'night to ' + dayFmt(r.date)) + ' · from the quest engine</span><b style="color:' + recColor(r.score) + '">' + lab[0] + ' · ' + lab[1] + '</b><div class="kv"><span>Sleep</span><b>' + sleepTxt(r.sleep) + '</b><span class="mut">usual ' + sleepTxt(U.sleep) + '</span><span>HRV</span><b>' + (r.hrv == null ? '–' : r.hrv + ' ms') + '</b><span class="mut">usual ' + one(U.hrv) + '</span><span>Resting HR</span><b>' + (r.rhr == null ? '–' : r.rhr) + '</b><span class="mut">usual ' + one(U.rhr) + '</span></div><span class="hint">' + lab[2] + '. Tap for the last 7 nights.</span>'; },
-  load: () => { const n = F().now; return L().length ? '<span class="tt">Training load' + (n && n.form_state ? ' · ' + esc(n.form_state) : '') + '</span><b class="lt-c">Long term ' + one(LAST().cl) + '</b> is your fitness (42-day), <b class="st-c">short term ' + one(LAST().al) + '</b> your fatigue (7-day).' + (F().week.tss ? '<br>This week: TSS ' + Math.round(F().week.tss) + ' in ' + F().week.sessions + ' session' + (F().week.sessions === 1 ? '' : 's') + '.' : '') + '<span class="hint">Hover the chart for each day of the last 4 weeks.</span>' : ''; },
   ratio: () => { const R2 = RATIO(); if (!R2) return ''; const z = [0, R2.zone, ZC[R2.zone]], rp = R2.yesterday, Pk = F().peak, why = Pk && L().length > 1 && Pk.date === PREV().date ? ' after the ' + esc(Pk.what) : '';
     return '<span class="tt">Load ratio · fatigue ÷ fitness · from the quest engine</span><b style="color:' + z[2] + '">' + R2.value.toFixed(2) + ' · ' + esc(R2.zone) + '</b>' + (R2.tsb != null ? ' <span class="mut">· TSB ' + (R2.tsb > 0 ? '+' : '') + R2.tsb + ' ' + esc(R2.state || '') + '</span>' : '') + '<br>' + esc(RSAY[R2.zone] || '') + '<span class="hint">' + (rp && rp.value != null ? 'Yesterday ' + rp.value.toFixed(2) + why + '. ' : '') + 'Low under ' + R2.bands.low + ', optimal to ' + R2.bands.optimal + ', high to ' + R2.bands.high + ', risk above.</span>'; },
   ki: () => { const k = F().ki; return k ? '<span class="tt">Ki charge</span><b>' + k.level + ' of ' + k.peak + ' · ' + kiState(k) + '</b><div class="kv"><span>Healing cap</span><b>' + (k.heal_cap || '–') + ' HP</b><span></span><span>Overnight bonus</span><b>+' + Math.round((k.recovery_bonus || 0) * 100) + '%</b><span></span></div>' : ''; },
@@ -300,14 +273,12 @@ const TIPS = {
   steph: () => { const open = stephList().filter(x => !x.done); return '<span class="tt">From Steph</span>' + (open.length ? '<ul>' + open.map(x => '<li>' + esc(x.t) + (x.due ? ' <span class="mut">· ' + esc(x.due) + '</span>' : '') + '</li>').join('') + '</ul>' : 'Nothing open. To-dos tagged Steph in the journal land here.'); },
   dates: () => { const l = COMING().slice(0, 6); return '<span class="tt">Coming up · family calendar</span>' + (l.length ? '<div class="kv">' + l.map(i => '<span>' + esc(daySpan(i)) + '</span><b>' + esc(i.t) + '</b><span class="mut">' + esc(WHO[i.who] === 'Everyone' ? '' : WHO[i.who] || '') + '</span>').join('') + '</div>' : 'Nothing in the next 30 days.') + '<span class="hint">' + (D.calendar ? 'Read from the shared iCloud calendar, refreshed every 10 minutes.' : 'No calendar connected.') + '</span>'; },
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
-  weather: () => { const w = D.weather; return w && w.temp != null ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b>' + (w.feels != null ? '<br>Feels like ' + Math.round(w.feels) + '°' : '') + '<div class="kv"><span>Today</span><b>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '–') + '</b><span></span><span>Rain chance</span><b>' + (w.rain != null ? w.rain + '%' : '–') + '</b><span></span><span>Wind</span><b>' + (w.wind != null ? Math.round(w.wind) + ' km/h' : '–') + '</b><span></span><span>Sun</span><b>' + esc(w.sunrise || '–') + ' – ' + esc(w.sunset || '–') + '</b><span></span></div><span class="hint">Open-Meteo for home, every 15 minutes. The strip is the next 12 hours: temperature, and the bar is the chance of rain.</span>' : ''; },
-  mode: () => '<span class="tt">Mode</span>' + { morning: 'Morning habits until 10:00.', day: 'Daytime habits until 18:00.', evening: 'Evening habits until 04:00.', night: 'Night. The screen dims until morning.' }[phaseOf(nowMin())],
+  weather: () => { const w = D.weather; return w && w.temp != null ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b>' + (w.feels != null ? '<br>Feels like ' + Math.round(w.feels) + '°' : '') + '<div class="kv"><span>Today</span><b>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '–') + '</b><span></span><span>Rain chance</span><b>' + (w.rain != null ? w.rain + '%' : '–') + '</b><span></span><span>Wind</span><b>' + (w.wind != null ? Math.round(w.wind) + ' km/h' : '–') + '</b><span></span><span>Sun</span><b>' + esc(w.sunrise || '–') + ' – ' + esc(w.sunset || '–') + '</b><span></span></div><span class="hint">' + esc(rainSoon(w)) + ' Open-Meteo for home, every 15 minutes.</span>' : ''; },
   habits: () => { const m = nowMin(); return '<span class="tt">Main habits · from the boss card</span>' + D.main.map(x => { const st = habitState(x, m); return '<div class="hb-line ' + st.st + '">' + esc(x.icon) + ' ' + esc(x.short) + ' <span class="mut">· ' + habitLine(x, st) + '</span></div>'; }).join('') + '<span class="hint">Tick them off on the boss card: tap the boss.</span>'; },
   boss: () => { const b = BOSS().boss; return b ? '<span class="tt">Boss' + (b.level ? ' · level ' + b.level : '') + '</span><b>' + esc(b.name) + '</b>' + (b.epithet ? '<br><span class="mut">' + esc(b.epithet) + '</span>' : '') + '<br>HP ' + fmtNum(b.hp) + ' of ' + fmtNum(b.max) + (b.status && b.status !== 'Active' ? ' · ' + esc(b.status) : '') + '<span class="hint">Tap to open the boss card</span>' : '<span class="tt">Boss</span>The boss card did not answer.'; },
   goku: () => { const g = BOSS().goku; return g ? '<span class="tt">Goku' + (g.form ? ' · ' + esc(g.form) : '') + '</span><div class="kv">' + (g.level ? '<span>Level</span><b>' + g.level + '</b><span></span>' : '') + (g.max_hp ? '<span>HP</span><b>' + fmtNum(g.hp) + ' / ' + fmtNum(g.max_hp) + '</b><span class="mut">' + (g.shield ? '+' + g.shield + ' ki shield' : '') + '</span>' : '') + (g.xp_max ? '<span>XP</span><b>' + fmtNum(g.xp) + ' / ' + fmtNum(g.xp_max) + '</b><span></span>' : '') + (g.power ? '<span>Power level</span><b>' + fmtNum(g.power) + '</b><span></span>' : '') + '</div><span class="hint">Tap to open the Goku card</span>' : ''; },
   lastmood: () => { const m = lastMood(); return m ? '<span class="tt">Last logged · ' + hhmm(m.at) + '</span><b>' + FEEL[m.m - 1] + '</b>' + (m.note ? '<br>' + esc(m.note) : '') : 'No mood logged yet today'; },
-  blk: el => { const e = ALLEV().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">' + (e.cal ? 'From the family calendar' : 'Tap to edit') + '</span>'; },
-  theme: () => { const t = D.theme; if (!t) return '<span class="tt">This week’s world</span>Not made yet.'; return '<span class="tt">This week’s world · ' + esc(t.week) + '</span><b>' + esc(t.franchise) + ' · ' + esc(t.scene) + '</b><br>' + esc(t.character) + (t.status !== 'ready' ? ' · ' + esc(t.status) : '') + '<span class="hint">New video every Monday morning, random franchise, random scene and character. The colours of the board follow it.</span>'; }
+  blk: el => { const e = ALLEV().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">' + (e.cal ? 'From the family calendar' : 'Tap to edit') + '</span>'; }
 };
 const tip = $('tip');
 let tipFor = null;
@@ -339,8 +310,7 @@ document.addEventListener('focusout', () => hideTip());
 document.addEventListener('pointerdown', () => hideTip(true));
 function chartHover(el, e) {
   const r = el.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), xh = el.querySelector('.xh');
-  if (el.dataset.chart === 'load') { const days = +el.dataset.days || 28, off = Math.max(0, L().length - days), n = L().length - off; if (n < 2) return; const W = 300, i = Math.max(0, Math.min(n - 1, Math.round((f * W - 4) / (W - 8) * (n - 1)))); if (xh) { xh.style.left = ((4 + i / (n - 1) * (W - 8)) / W * 100) + '%'; xh.style.opacity = 1; } showTipAt(loadTip(off + i), e.clientX, r.top, r.bottom); }
-  else { const n = F().nights.length; if (!n) return; const i = Math.max(0, Math.min(n - 1, Math.floor(f * n))); if (xh) { xh.style.left = ((i + .5) / n * 100) + '%'; xh.style.opacity = 1; } showTipAt(nightTip(i), e.clientX, r.top, r.bottom); }
+  const n = F().nights.length; if (!n) return; const i = Math.max(0, Math.min(n - 1, Math.floor(f * n))); if (xh) { xh.style.left = ((i + .5) / n * 100) + '%'; xh.style.opacity = 1; } showTipAt(nightTip(i), e.clientX, r.top, r.bottom); 
 }
 
 // ---- Notifications ----
@@ -379,14 +349,26 @@ function brief(ph, m) {
   notify({ key: 'brief:' + ph + ':' + D.today, app: 'os', html, ttl: 9000 });
 }
 
+// ---- The board: 1920 × 1080, scaled to the window and centred; the phone layout flows instead ----
+const BW = 1920, BH = 1080;
+const portrait = () => matchMedia('(max-width: 900px), (orientation: portrait)').matches;
+function fitBoard() {
+  const b = $('board');
+  if (portrait()) { b.style.transform = ''; return; }
+  const s = Math.min(innerWidth / BW, innerHeight / BH);
+  b.style.transform = 'translate(' + Math.round((innerWidth - BW * s) / 2) + 'px, ' + Math.round((innerHeight - BH * s) / 2) + 'px) scale(' + s + ')';
+}
+// Burn-in care: everything on the board but the world shifts by a pixel or two every four minutes.
+const DRIFT = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [2, 1], [0, 2], [-2, 1], [-1, -2], [2, -1]];
+let driftAt = 0;
+function drift() { const [x, y] = DRIFT[++driftAt % DRIFT.length]; $('os').style.translate = x + 'px ' + y + 'px'; }
+
 // ---- Theme and wallpaper ----
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(', ');
 let wallNow = null, wallAr = 16 / 9, wallChoice = null;
 function applyTheme(t) {
   const p = (t && t.palette) || { accent: '#6fd8ff', second: '#ff7ac8', tint: '9, 14, 27' }, st = document.documentElement.style;
   st.setProperty('--accent', p.accent); st.setProperty('--accent-rgb', hexRgb(p.accent)); st.setProperty('--second', p.second); st.setProperty('--tint', p.tint);
-  $('themeChip').innerHTML = t ? '<i></i>' + esc(t.franchise) + ' <em>· ' + esc(t.scene) + '</em>' : '<i></i>No world yet';
-  $('themeChip').setAttribute('aria-label', t ? 'This week: ' + t.franchise + ', ' + t.scene + ' with ' + t.character + '. Open the menu' : 'This week has no world yet. Open the menu');
   $('mTheme').innerHTML = t ? '<span>' + esc(t.week) + (t.status === 'ready' ? ' · since Monday 06:00' : ' · ' + esc(t.status) + (t.error ? ': ' + esc(t.error) : '')) + '</span><b>' + esc(t.franchise) + ' · ' + esc(t.scene) + '</b><span>' + esc(t.character) + ' · ' + esc(t.look || '') + '</span>' +
     '<span class="sw"><i style="background:' + p.accent + '"></i><i style="background:' + p.second + '"></i><i style="background:rgb(' + p.tint + ')"></i></span>' + (t.next ? '<span>Next Monday: ' + esc(t.next.franchise) + ' · ' + esc(t.next.scene) + ' · ' + esc(t.next.character) + '</span>' : '') : '<span>No world has been made yet. The Monday cron makes one.</span>';
   const walls = []; if (t && t.clip) walls.push({ id: 'clip', name: 'This week’s clip', video: t.clip, poster: t.still }); if (t && t.still) walls.push({ id: 'still', name: 'This week’s still', src: t.still });
@@ -397,7 +379,7 @@ function applyTheme(t) {
 }
 function placeWall() {
   if (!wallNow) return;
-  const w = innerWidth, h = innerHeight, dw = Math.max(w, h * wallAr), x = Math.max(w - dw, Math.min(0, w / 2 - .5 * dw));
+  const [w, h] = portrait() ? [innerWidth, innerHeight] : [BW, BH], dw = Math.max(w, h * wallAr), x = Math.max(w - dw, Math.min(0, w / 2 - .5 * dw));
   $('wall').style.backgroundPosition = Math.round(x) + 'px 30%';
   qa('#wall video').forEach(v => { v.style.left = Math.round(x) + 'px'; v.style.width = Math.round(dw) + 'px'; });
 }
@@ -431,7 +413,7 @@ function setWall(w) {
   } else { const img = new Image(); img.onload = () => { if (wallNow === w && img.naturalHeight) { wallAr = img.naturalWidth / img.naturalHeight; placeWall(); } }; img.src = w.src; }
   placeWall();
 }
-addEventListener('resize', placeWall);
+addEventListener('resize', () => { fitBoard(); placeWall(); });
 
 // ---- Rendering ----
 // ---- The light of day on the glass ----
@@ -458,15 +440,13 @@ function renderClock() {
   renderLight(m);
   if (ph !== clockPhase) { clockPhase = ph; document.body.classList.remove('awake'); }
   document.body.dataset.phase = ph;
-  $('clock').textContent = $('lockClock').textContent = hm(t);
+  $('clock').textContent = $('trTime').textContent = hm(t);
   $('dateline').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(t));
+  $('trDate').textContent = dayFmt(new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(t)));
   $('greet').textContent = { morning: 'Good morning, Roy', day: 'Keep going, Roy', evening: 'Good evening, Roy', night: 'Rest up, Roy' }[ph];
-  $('trTime').innerHTML = esc(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(t))) + '<b>' + hm(t) + '</b>';
-  $('mode').textContent = { morning: 'Morning', day: 'Day', evening: 'Evening', night: 'Night' }[ph];
 }
-// ---- The weather tile: an animated sky for the conditions now, and the next 12 hours ----
+// ---- The weather tile: a sky icon for the conditions now, the temperature, feels like, today's range ----
 const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
-const WX_NAME = { none: '', clear: 'Clear', cloud: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', snow: 'Snow', thunder: 'Thunder' };
 function skyHtml(kind, day, code) {
   const clouds = n => Array.from({ length: n }, (_, i) => '<i class="cl c' + (i + 1) + '"></i>').join('');
   let s = day ? '<i class="sun"></i>' : '<i class="moon"></i><i class="stars"></i>';
@@ -484,103 +464,130 @@ function renderWeather() {
   if (!w || w.temp == null) { el.hidden = true; return; }
   el.hidden = false;
   const kind = WX_KIND(w.code), sky = $('wxSky');
-  sky.className = 'wx-sky ' + kind + (w.day ? ' day' : ' night'); sky.innerHTML = skyHtml(kind, w.day, w.code);
+  sky.className = 'wx-sky ' + kind + (w.day ? ' is-day' : ' is-night'); sky.innerHTML = skyHtml(kind, w.day, w.code);
   $('wxTemp').textContent = Math.round(w.temp) + '°';
-  $('wxTxt').innerHTML = '<b>' + esc(WMO[w.code] || WX_NAME[kind] || '') + '</b><span>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '') + (w.wind != null ? ' · ' + Math.round(w.wind) + ' km/h' : '') + '</span>';
-  const hs = w.hours || [], wet = hs.some(h => h.pop != null && h.pop >= 30);
-  $('wxHours').innerHTML = hs.map((h, i) => '<span class="h ' + WX_KIND(h.code) + (h.day ? '' : ' n') + '" title="' + h.t + ' · ' + Math.round(h.temp) + '° · ' + (h.pop != null ? h.pop + '% rain · ' : '') + esc(WMO[h.code] || '') + '"><span class="ht">' + Math.round(h.temp) + '°</span><span class="hw"><i class="hb" style="--p:' + (h.pop || 0) + '"></i></span><span class="hh">' + (i % 3 ? '' : h.t.slice(0, 2)) + '</span></span>').join('') + (wet ? '' : '<span class="dry">Dry for the next 12 hours</span>');
+  $('wxTxt').textContent = (w.place || 'Home') + (w.feels != null ? ' · feels ' + Math.round(w.feels) + '°' : '');
+  $('wxHl').innerHTML = w.hi != null ? '↑ ' + Math.round(w.hi) + '°<br>↓ ' + Math.round(w.lo) + '°' : '';
 }
-function renderTray() {
-  const w = D.weather, r = R();
-  $('trWeather').innerHTML = w ? icon(w.code <= 1 ? 'sun' : 'cloud') + Math.round(w.temp) + '°' : '';
-  $('trRec').innerHTML = r ? '<span class="dot" style="--c:' + recColor(r.score) + '"></span>' + r.score + '%' : '';
-  $('trRec').setAttribute('aria-label', r ? 'Recovery ' + r.score + '%. Open Body' : 'Open Body');
-}
+// The now pill: Roy's current block and the time left, else the next one, else free.
+const leftTxt = min => (min < 60 ? Math.max(1, Math.round(min)) + ' min' : dur(min));
 function renderIsland() {
   const m = nowMin(), r = laneNow('roy', m);
-  $('islPill').innerHTML = r.cur ? '<span>' + esc(r.cur.ic || '') + '</span><span class="t">' + esc(r.cur.t) + '</span><span class="isl-bar"><i style="width:' + pct(m - r.cur.a, r.cur.z - r.cur.a) + '%"></i></span><span class="left">' + dur(r.cur.z - m) + ' left</span>'
-    : r.next ? '<span class="k">Next</span><span>' + esc(r.next.ic || '') + '</span><span class="t">' + esc(r.next.t) + '</span><span class="left">in ' + dur(r.next.a - m) + '</span>'
-    : '<span class="k">' + (ALLEV().length ? 'Free' : 'Plan') + '</span><span class="t">' + (ALLEV().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane below to add.') + '</span>';
+  $('islPill').innerHTML = r.cur ? '<em>NOW</em><span class="it">' + esc(r.cur.t) + ' · ' + leftTxt(r.cur.z - m) + ' left</span>'
+    : r.next ? '<em>NEXT</em><span class="it">' + esc(r.next.t) + ' · in ' + leftTxt(r.next.a - m) + '</span>'
+    : '<em>' + (ALLEV().length ? 'FREE' : 'PLAN') + '</em><span class="it">' + (ALLEV().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane to add.') + '</span>';
   $('islPanel').innerHTML = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']].map(([w, name]) => { const x = laneNow(w, m);
     const cur = x.cur ? '<span><em>now</em>' + esc((x.cur.ic || '') + ' ' + x.cur.t) + ' <em>until ' + x.cur.to + '</em></span>' : '', nxt = x.next ? '<span class="nxt"><em>' + x.next.from + '</em>' + esc((x.next.ic || '') + ' ' + x.next.t) + '</span>' : '';
     return '<div class="isl-row"><span class="who ' + w + '">' + name + '</span><div class="what">' + (cur || nxt ? cur + nxt : '<span class="nxt">Free for the rest of the day</span>') + '</div></div>'; }).join('');
 }
-function renderQuest() {
-  const q = D.quest;
-  $('questChip').hidden = !q;
-  if (!q) return;
-  $('questChip').innerHTML = icon('quest') + '<b>' + esc(q.title.length > 22 ? q.title.slice(0, 20) + '…' : q.title) + '</b>' + (q.longest_km && q.goal_km ? '<span class="qbar"><i style="width:' + pct(q.longest_km, q.goal_km) + '%"></i></span>' : '') + (q.days_left != null ? '<span class="d">' + q.days_left + ' days</span>' : '');
-  $('questChip').setAttribute('aria-label', q.title + (q.days_left != null ? ', ' + q.days_left + ' days to go' : '') + '. Open Quest');
+// The line written on the world: the focus quest's quote; a tap opens the quest.
+function renderQuote() {
+  const q = D.quest, el = $('quote');
+  el.hidden = !(q && q.quote);
+  if (el.hidden) return;
+  el.innerHTML = '<span class="q">“' + esc(q.quote) + '”</span><small>' + esc(q.author || 'The quest') + '</small>';
+  el.setAttribute('aria-label', '“' + q.quote + '”' + (q.author ? ', ' + q.author : '') + '. Open Quest');
 }
 function renderFocusW(max = focusMax) {
-  const all = focusList('must').concat(focusList('can')), open = all.filter(x => !x.done);
+  const all = focusList('must').concat(focusList('can'));
   $('focusCount').textContent = all.filter(x => x.done).length + '/' + all.length;
-  $('winIf').innerHTML = '<small>Today is a win if</small>' + (D.journal.win_if ? esc(D.journal.win_if) : '<span class="say">Not set in your journal yet.</span>');
+  $('winIf').innerHTML = '<small>Today is a win if</small>' + (D.journal.win_if ? '<span class="wtx">' + esc(D.journal.win_if) + '</span>' : '<span class="say">Not set in your journal yet.</span>');
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
-  $('focusTodos').innerHTML = list.length ? list.slice(0, max).map(o => todoBtn(o.x, o.g)).join('') + (list.length > max ? '<div class="say" style="font-size:.78rem">' + (max ? '+' + (list.length - max) + ' more' : list.length + ' open, tap Focus to see them') + '</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="say">No to-dos yet. Add one below.</div>';
+  $('focusTodos').innerHTML = list.length ? list.slice(0, max).map(o => todoBtn(o.x, o.g)).join('') + (list.length > max ? '<div class="tmore">' + (max ? '+' + (list.length - max) + ' more' : list.length + ' open, tap Focus to see them') + '</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="tsay">No to-dos yet. Add one in Focus.</div>';
 }
-// The left column fits the screen to the pixel: Focus shows as many open to-dos as fit (up to 3)
-// above the Showdown widget, so nothing runs into Your day.
+// Focus shows as many open to-dos as fit (up to 3) above Showdown, keeping the mockup's gap of at
+// least 16 px, so the left column never runs together. (In the phone layout everything flows.)
 let focusMax = 3;
+const GAP = 16;
+// The side columns share the screen's 1080 px: each stack runs from its top to 16 px above the
+// day row, its tiles spaced evenly, so the bottoms line up with Your day and Ask Claude.
+const COLS = [{ ids: ['wFocus', 'wBoss', 'wMe'], top: 262 }, { ids: ['wWx', 'wDates', 'wSteph', 'wMood', 'wCommute'], top: 54 }], COL_END = 892 - GAP;
+const colRoom = c => COL_END - c.top - c.ids.reduce((n, id) => n + $(id).offsetHeight, 0) - GAP * (c.ids.length - 1);
+function stackCol(c) {
+  const els = c.ids.map($), free = COL_END - c.top - els.reduce((n, e) => n + e.offsetHeight, 0), gap = Math.max(GAP, free / (els.length - 1));
+  let y = c.top;
+  for (const e of els) { e.style.top = Math.round(y) + 'px'; y += e.offsetHeight + gap; }
+}
 function fitLeft() {
-  const col = document.querySelector('.col.left'), last = col && col.lastElementChild; if (!last) return;
-  const over = () => last.getBoundingClientRect().bottom > col.getBoundingClientRect().bottom + .25;
-  for (focusMax = 3; focusMax > 0 && over(); ) renderFocusW(--focusMax);
+  if (portrait()) { COLS.forEach(c => c.ids.forEach(id => { $(id).style.top = ''; })); return; }
+  for (focusMax = 3; focusMax > 0 && colRoom(COLS[0]) < 0; ) renderFocusW(--focusMax);
+  COLS.forEach(stackCol);
 }
 function fitAfterRender() { if (focusMax !== 3) { focusMax = 3; renderFocusW(); } fitLeft(); }
-// The boss widget: the boss's HP and Goku's front-of-card metrics, read from the quest engine.
+// Showdown: the boss's HP and Goku's front-of-card metrics, read from the quest engine.
 const BOSS = () => D.boss || { boss: null, goku: null };
-const bar = (cls, v, max, extra) => '<span class="mbar ' + cls + '"><i style="width:' + pct(v, max) + '%"></i>' + (extra || '') + '</span>';
+const short = n => (Math.abs(n) >= 10000 ? (Math.round(n / 100) / 10).toLocaleString('en-GB') + 'k' : fmtNum(n));
+const sbar = (c, v, max, extra) => '<span class="sbar"><i style="width:' + pct(v, max) + '%;--c:' + c + '"></i>' + (extra || '') + '</span>';
+const tnum = (v, max) => '<span class="tn">' + short(v) + ' <small>/ ' + short(max) + '</small></span>';
 function renderBossW() {
   const m = nowMin(), done = D.main.filter(x => habitState(x, m).st === 'done').length, b = BOSS().boss, g = BOSS().goku;
-  const num = (v, max) => fmtNum(v) + '<small> / ' + fmtNum(max) + '</small>';
   $('bossTitle').textContent = 'Goku vs ' + (b ? b.name : 'the boss');
   $('bossHabits').textContent = D.main.length ? done + '/' + D.main.length + ' habits' : '';
   $('bossSide').setAttribute('aria-label', b ? 'Boss ' + b.name + ', HP ' + Math.round(b.hp) + ' of ' + b.max + '. Open the boss card' : 'Open the boss card');
-  $('bossSide').innerHTML = '<span class="bk">Boss' + (b && b.level ? ' · Lv ' + b.level : '') + '</span>' + (b
-    ? bar('hp-boss', b.hp, b.max) + '<span class="bnum">' + (b.status && b.status !== 'Active' ? esc(b.status) : num(b.hp, b.max) + ' HP') + '</span>'
+  $('bossSide').innerHTML = '<span class="k">Boss' + (b && b.level ? ' · Lv ' + b.level : '') + '</span>' + (b
+    ? sbar('var(--bad)', b.hp, b.max) + (b.status && b.status !== 'Active' ? '<span class="tn">' + esc(b.status) + '</span>' : tnum(b.hp, b.max))
     : '<span class="say">Not answering</span>');
   $('gokuSide').setAttribute('aria-label', g ? 'Goku, level ' + (g.level || '') + '. Open the Goku card' : 'Open the Goku card');
   $('gokuSide').innerHTML = g
-    ? '<span class="bk">Goku' + (g.level ? ' · Lv ' + g.level : '') + '</span>' + (g.max_hp ? bar('hp-goku', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + '<span class="bnum">' + num(g.hp, g.max_hp) + ' HP' + (g.shield ? ' <span class="shd">+' + g.shield + '</span>' : '') + '</span>' : '<span></span><span></span>') +
-      '<span class="bk pw">' + (g.power ? '⚡ ' + fmtNum(g.power) : '') + '</span>' + (g.xp_max ? bar('xp', g.xp, g.xp_max) + '<span class="bnum">' + num(g.xp, g.xp_max) + ' XP</span>' : '')
-    : '<span class="bk">Goku</span><span class="say">Not answering</span>';
+    ? '<span class="k">Goku' + (g.level ? ' · Lv ' + g.level : '') + '</span>' + (g.max_hp ? sbar('var(--good)', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + tnum(g.hp, g.max_hp) : '<span></span><span></span>') +
+      (g.power || g.xp_max ? '<span class="k pw">' + (g.power ? '⚡ ' + fmtNum(g.power) : '') + '</span>' + (g.xp_max ? sbar('var(--gold)', g.xp, g.xp_max) + tnum(g.xp, g.xp_max) : '<span></span><span></span>') : '')
+    : '<span class="k">Goku</span><span class="say">Not answering</span>';
 }
+// Me today: the recovery ring, the load ratio, ki charge and this week's training.
 function renderMe() {
-  const r = R(), lm = lastMood(), b = border(), k = F().ki;
-  $('cRec').innerHTML = '<div class="cl">Recovery</div>' + (r ? '<div class="rec"><div class="ring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"><b>' + r.score + '%</b></div><div class="recw" style="--c:' + recColor(r.score) + '"><b>' + REC_LABEL[r.verdict][0] + '</b><span>' + REC_LABEL[r.verdict][1] + '</span></div></div>' : '<div class="say">No night synced yet.</div>');
-  $('cLoad').innerHTML = '<div class="cl">' + (L().length ? '<span class="pair" data-tip="@load"><span><b class="lt-c">' + Math.round(LAST().cl) + '</b> long</span><span><b class="st-c">' + Math.round(LAST().al) + '</b> short</span></span>' : '<span>Load</span>') + '</div><div class="spark" data-chart="load" data-days="14">' + loadSvg(100, false, 14) + '</div>';
-  const R2 = RATIO();
-  $('cRatio').innerHTML = '<div class="cl">Load ratio</div>' + (R2 ? ratioBar() : '<div class="say">Waiting for the quest engine.</div>');
-  $('cKi').innerHTML = '<div class="cl">Ki charge' + (k ? '<b>' + k.level + ' of ' + k.peak + '</b>' : '') + '</div>' + (k ? pips(k) : '');
-  $('cMood').innerHTML = '<div class="cl">Mood' + (lm ? '<span class="lastm" data-tip="@lastmood">' + hhmm(lm.at) + faceImg(lm.m, '') + '</span>' : '') + '</div><div class="moods" role="group" aria-label="Log your mood">' + FEEL.map((f, i) => '<button type="button" class="face' + (lm && lm.m === i + 1 ? ' last' : '') + '" data-act="face" data-m="' + (i + 1) + '" data-tip="' + f + '" aria-label="Log mood: ' + f + '">' + faceImg(i + 1, '') + '</button>').join('') + '</div>';
-  $('cCommute').innerHTML = '<div class="cl">Commute</div><div class="commute"><span class="place">' + esc(workPlace()) + '</span><span class="ride">' + esc(workToday().commute) + '</span><span class="minring" style="--p:' + b.share + '"><b>' + b.share + '%</b></span></div>';
+  const r = R(), k = F().ki, R2 = RATIO(), wk = F().week;
+  $('meSay').textContent = r ? REC_LABEL[r.verdict][1] : '';
+  $('meBody').innerHTML = '<div class="ringw" data-open="body" data-arg="recovery" data-tip="@recovery" role="button" tabindex="0" aria-label="' + (r ? 'Recovery ' + r.score + '%' : 'Recovery') + ', open Body">' +
+      (r ? '<div class="mring" style="--p:' + r.score + ';--c:' + recColor(r.score) + '"></div><b>' + r.score + '%</b>' : '<div class="mring" style="--p:0;--c:var(--faint)"></div><span class="none">No night<br>yet</span>') + '</div>' +
+    '<div class="kv"><div class="r" data-tip="@ratio"><span class="mut">Load ratio</span>' + (R2 ? '<b style="color:' + ZC[R2.zone] + '">' + R2.value.toFixed(2) + ' · ' + esc(R2.zone) + '</b>' : '<b class="mut">–</b>') + '</div>' +
+      '<div class="kbar"><i style="width:' + (R2 ? Math.min(100, R2.value / 2 * 100) : 0) + '%;--c:' + (R2 ? ZC[R2.zone] : 'transparent') + '"></i></div>' +
+      '<div class="r" data-tip="@ki"><span class="mut">Ki charge</span>' + (k ? '<span class="kpips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</span>' : '<b class="mut">–</b>') + '</div>' +
+      '<div class="r"><span class="mut">Training</span><b>' + one(wk.hours) + ' of ' + wk.target + ' h</b></div></div>';
 }
-function renderMinis() {
+// Mood: five faces (the last one logged lit; a tap logs one). Today's timeline opens with a tap on the tile.
+function renderMood() {
+  const lm = lastMood();
+  $('moodLast').textContent = lm ? FEEL[lm.m - 1] + ' · ' + hhmm(lm.at) : 'Not logged yet';
+  $('moodFaces').innerHTML = FEEL.map((f, i) => '<button type="button" class="face' + (lm && lm.m === i + 1 ? ' on' : '') + '" data-act="face" data-m="' + (i + 1) + '" data-tip="' + f + '" aria-label="Log mood: ' + f + '">' + faceImg(i + 1, '') + '</button>').join('');
+}
+// Commute: morning and afternoon places, the ride, and the year's share of work days in Belgium.
+function renderCommute() {
+  const T = workToday(), b = border(), C = 2 * Math.PI * 15;
+  $('commRide').textContent = T.commute && T.commute !== 'N/A' ? T.commute : 'No ride';
+  $('commBody').innerHTML = '<div class="pl"><small>Morning</small>' + esc(T.am) + '</div><div class="pl"><small>Afternoon</small>' + esc(T.pm) + '</div>' +
+    '<div class="be"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="#ffcf3a" stroke-width="4" stroke-dasharray="' + (b.share / 100 * C).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 18 18)"/></svg><b>' + b.share + '%</b></div>';
+  $('commNote').textContent = b.share + '% of work days in Belgium · ' + (b.spare >= 0 ? b.spare + ' day' + (b.spare === 1 ? '' : 's') + ' to spare' : -b.spare + ' days short');
+}
+function renderSteph() {
   const open = stephList().filter(x => !x.done);
-  $('stephBody').innerHTML = '<div class="big">' + open.length + '<small>open</small></div><div class="mtx">' + (open.length ? esc(open[0].t) : 'Nothing from Steph right now.') + '</div>';
-  const c = COMING().slice(0, 3);
-  $('datesBody').innerHTML = D.calendar ? (c.length ? '<div class="dates">' + c.map(i => '<div class="date ' + esc(i.who) + '"><span class="dd">' + esc(i.day === D.today ? 'Today' : wdShort(i.day) + ' ' + +i.day.slice(8, 10)) + '</span><span class="dt">' + esc(i.t) + '</span><span class="dh">' + esc(i.all_day ? (i.end_day ? 'to ' + wdShort(i.end_day) + ' ' + +i.end_day.slice(8, 10) : 'all day') : i.from) + '</span></div>').join('') + '</div>' : '<div class="mtx">Nothing in the next 30 days.</div>') : '<div class="mtx">No calendar connected.</div>';
+  $('stephCount').textContent = open.length + ' open';
+  $('stephBody').textContent = open.length ? open[0].t : 'Nothing from Steph right now.';
+  $('stephBody').className = open.length ? '' : 'none';
 }
+function renderDates() {
+  const c = COMING().slice(0, 3);
+  $('datesBody').innerHTML = D.calendar ? (c.length ? c.map(i => '<div class="ev"><span class="ed">' + esc(i.day <= D.today ? 'Today' : wdShort(i.day) + ' ' + +i.day.slice(8, 10)) + '</span><span class="et">' + esc(i.t) + '</span></div>').join('') : '<div class="tsay">Nothing in the next 30 days.</div>') : '<div class="tsay">No calendar connected.</div>';
+}
+// Your day: three thin lanes from 06 to 23, one now line across them.
 const LANES = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']];
 function renderDay() {
   const m = nowMin(), nowIn = m >= DAY0 * 60 && m <= DAY1 * 60;
   let html = '';
-  LANES.forEach(([who, name], li) => {
+  LANES.forEach(([who, name]) => {
     const evs = ALLEV().filter(e => e.who === who || e.who === 'all').map(e => ({ ...e, a: minOf(e.from), z: minOf(e.to) })).sort((p, q) => p.a - q.a);
     const rows = []; evs.forEach(e => { let r = rows.findIndex(end => end <= e.a); if (r < 0) { r = rows.length; rows.push(0); } rows[r] = e.z; e.row = r; });
     const rh = 100 / Math.max(1, rows.length);
-    let t = ''; for (let h = DAY0 + 2; h < DAY1; h += 2) t += '<i class="tick" style="left:' + xOf(h * 60) + '%"></i>';
-    t += evs.map(e => { const st = e.z <= m ? ' past' : e.a <= m ? ' now' : ''; return '<div class="blk ' + who + st + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit')) + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 1px);height:calc(' + rh + '% - 2px)"><span>' + esc((e.ic || ICON[e.k] || '') + ' ' + e.t) + '</span></div>'; }).join('');
-    if (nowIn) t += '<div class="pastshade" style="width:' + xOf(m) + '%"></div><div class="nowl" style="left:' + xOf(m) + '%">' + (li === 0 ? '<span>' + hm() + '</span>' : '') + '</div>';
+    const t = evs.map(e => { const st = e.z <= m ? ' past' : ''; return '<div class="blk ' + who + st + (e.cal ? ' cal' : '') + '" data-act="ev" data-id="' + esc(e.id) + '" data-tip="@blk" role="button" tabindex="0" aria-label="' + esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit')) + '" style="left:calc(' + xOf(e.a) + '% + 1px);width:calc(' + (xOf(e.z) - xOf(e.a)) + '% - 2px);top:calc(' + (e.row * rh) + '% + 2px);height:calc(' + rh + '% - 4px)"><span>' + esc(e.t) + '</span></div>'; }).join('');
     html += '<span class="lname ' + who + '">' + name + '</span><div class="track" data-act="track" data-who="' + who + '">' + t + '</div>';
   });
-  let axis = ''; for (let h = DAY0; h < DAY1; h += 2) axis += '<span style="left:' + xOf(h * 60) + '%">' + String(h).padStart(2, '0') + '</span>';
-  $('lanes').innerHTML = html + '<span></span><div class="axis">' + axis + '</div>';
+  $('lanes').innerHTML = html + (nowIn ? '<span class="nowl" style="left:calc(82px + (100% - 82px) * ' + (xOf(m) / 100).toFixed(4) + ')"></span>' : '');
+  $('dayHours').textContent = [6, 9, 12, 15, 18, 21, 23].map(h => String(h).padStart(2, '0')).join(' · ');
 }
-function renderApps() { $('apps').innerHTML = APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
+function renderApps() { $('apps').innerHTML = BAR_APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
 function renderDockState() { qa('.app').forEach(a => a.classList.toggle('open', !!WIN && WIN.key === a.dataset.open)); }
-function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderBossW(); renderMe(); renderMinis(); renderDay(); renderDockState(); fitAfterRender(); }
+// Ask: one suggestion at a time under the title, changing every ten minutes; a tap puts it in the box.
+function renderAskTry() { const q = SUGG[Math.floor(now() / 6e5) % SUGG.length]; $('askTry').textContent = 'Try: “' + q + '”'; $('askTry').dataset.q = q; }
+function renderAll() { renderClock(); renderWeather(); renderIsland(); renderQuote(); renderFocusW(); renderBossW(); renderMe(); renderMood(); renderCommute(); renderSteph(); renderDates(); renderDay(); renderDockState(); renderAskTry(); fitAfterRender(); }
 
 // ---- Windows ----
 const sec = (id, hl, html) => '<div class="sec' + (hl === id ? ' hl' : '') + '">' + html + '</div>';
@@ -711,7 +718,7 @@ function closePop() { $('moodPop').hidden = true; popPick = 0; }
 function logMood(m, note) {
   if (!m) return;
   const t = String(note || '').trim().slice(0, 80);
-  E.moods.push({ at: nowMin(), m, note: t }); closePop(); moodPick = 0; renderMe(); refreshWin();
+  E.moods.push({ at: nowMin(), m, note: t }); closePop(); moodPick = 0; renderMood(); refreshWin();
   act({ type: 'mood', mood: m, note: t }, () => notify({ app: 'mood', html: '<b>' + FEEL[m - 1] + '</b> logged at ' + hm() + (t ? ': ' + esc(t) : '.') }));
 }
 function addTodo(f) {
@@ -745,7 +752,7 @@ function fullscreen() {
 }
 function doAct(el, e) {
   const a = el.dataset.act;
-  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderMinis(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
+  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
   else if (a === 'cardclose') closeCard();
   else if (a === 'face') pickFace(+el.dataset.m, el);
@@ -773,7 +780,7 @@ document.addEventListener('click', e => {
   if (!inPop && !t.closest('[data-act="face"]')) closePop();
   if (!t.closest('.sysmenu')) closeMenu();
   if (!t.closest('.island')) setIsland(false);
-  if (!t.closest('.dock') && !$('askPop').hidden && $('askPop').querySelector('[data-act="sugg"]')) hideAsk();
+  if (!t.closest('.askt') && !$('askPop').hidden && $('askPop').querySelector('[data-act="sugg"]')) hideAsk();
   if (inPop) return;
   const actEl = t.closest('[data-act]');
   if (actEl) { doAct(actEl, e); return; }
@@ -793,7 +800,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('change', e => {
   const id = e.target.id, key = { wAm: 'am', wPm: 'pm', wRide: 'commute' }[id];
   if (!key) return;
-  const w = { ...workToday(), [key]: e.target.value }; E.work = w; renderMe(); refreshWin();
+  const w = { ...workToday(), [key]: e.target.value }; E.work = w; renderCommute(); refreshWin();
   act({ type: 'work', am: w.am, pm: w.pm, commute: w.commute }, () => notify({ app: 'commute', html: 'Saved: ' + { am: 'morning', pm: 'afternoon', commute: 'ride' }[key] + ' <b>' + esc(e.target.value) + '</b>.' }));
 });
 document.addEventListener('keydown', e => {
@@ -832,15 +839,18 @@ async function ask() {
 
 // ---- Boot ----
 qa('[data-ic]').forEach(el => { el.outerHTML = icon(el.dataset.ic); });
+fitBoard();
 renderApps();
 applyTheme(D.theme);
 renderAll();
 if (document.fonts) document.fonts.ready.then(fitAfterRender);
 addEventListener('resize', fitAfterRender);
+matchMedia('(max-width: 900px), (orientation: portrait)').addEventListener('change', () => { fitBoard(); placeWall(); fitAfterRender(); });
 setTimeout(nudges, 900);
 setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
-setInterval(() => { renderBossW(); renderMe(); nudges(); }, 60e3);
+setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
+setInterval(drift, 4 * 60e3);
 // A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });
 })();

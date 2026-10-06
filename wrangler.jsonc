@@ -23,7 +23,8 @@
     "VIDEO_MODEL": "gemini-omni-flash-preview",
     "CHAT_MODEL": "gpt-6-astra",
     "WEATHER_LAT": "51.286",
-    "WEATHER_LON": "3.828"
+    "WEATHER_LON": "3.828",
+    "WEATHER_PLACE": "Terneuzen"
   }
   // Secrets (npx wrangler secret put <NAME>):
   //   DESK_PASSWORD           the screen's login (one cookie, 30 days)
