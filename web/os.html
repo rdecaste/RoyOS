@@ -45,9 +45,12 @@
   <button type="button" class="wquote" id="quote" data-open="quest" hidden></button>
 
   <section class="t wx" id="wWx" data-tip="@weather" aria-label="Weather at home">
-    <div class="wx-sky" id="wxSky" aria-hidden="true"></div>
-    <div><div class="tmp" id="wxTemp"></div><div class="s" id="wxTxt"></div></div>
-    <div class="hl" id="wxHl"></div>
+    <div class="wx-top">
+      <div class="wx-sky" id="wxSky" aria-hidden="true"></div>
+      <div><div class="tmp" id="wxTemp"></div><div class="s" id="wxTxt"></div></div>
+      <div class="wx-side" id="wxSide"></div>
+    </div>
+    <div class="wx-hrs" id="wxHrs" aria-hidden="true"></div>
   </section>
 
   <section class="t dates" id="wDates" data-open="dates" data-tip="@dates" aria-labelledby="hDates">

@@ -684,7 +684,7 @@ function renderClock() {
   $('trDate').textContent = dayFmt(new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(t)));
   $('greet').textContent = { morning: 'Good morning, Roy', day: 'Keep going, Roy', evening: 'Good evening, Roy', night: 'Rest up, Roy' }[ph];
 }
-// ---- The weather tile: a sky icon for the conditions now, the temperature, feels like, today's range ----
+// ---- The weather tile: a sky for the conditions now, the temperature, today's range, the wind, the next 12 hours ----
 const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
 function skyHtml(kind, day, code) {
   const clouds = n => Array.from({ length: n }, (_, i) => '<i class="cl c' + (i + 1) + '"></i>').join('');
@@ -698,15 +698,28 @@ function skyHtml(kind, day, code) {
   else if (kind === 'thunder') s += clouds(3) + '<i class="rain"></i><i class="flash"></i>';
   return s;
 }
+const WIND_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg>';
 function renderWeather() {
   const w = D.weather, el = $('wWx'); if (!el) return;
   if (!w || w.temp == null) { el.hidden = true; return; }
   el.hidden = false;
-  const kind = WX_KIND(w.code), sky = $('wxSky');
-  sky.className = 'wx-sky ' + kind + (w.day ? ' is-day' : ' is-night'); sky.innerHTML = skyHtml(kind, w.day, w.code);
+  const kind = WX_KIND(w.code), sky = $('wxSky'), dn = w.day ? ' is-day' : ' is-night';
+  el.className = 't wx ' + kind + dn;
+  sky.className = 'wx-sky ' + kind + dn; sky.innerHTML = skyHtml(kind, w.day, w.code);
   $('wxTemp').textContent = Math.round(w.temp) + '°';
-  $('wxTxt').textContent = (w.place || 'Home') + (w.feels != null ? ' · feels ' + Math.round(w.feels) + '°' : '');
-  $('wxHl').innerHTML = w.hi != null ? '↑ ' + Math.round(w.hi) + '°<br>↓ ' + Math.round(w.lo) + '°' : '';
+  // Under the temperature: the conditions, then rain on its way, else how it feels.
+  const wet = (w.hours || []).find(x => x.pop != null && x.pop >= 40);
+  $('wxTxt').innerHTML = esc(WMO[w.code] || w.place || 'Home') + (wet && kind !== 'rain' && kind !== 'drizzle' && kind !== 'thunder' ? ' · <b>rain ' + esc(wet.t) + '</b>' : w.feels != null ? ' · feels ' + Math.round(w.feels) + '°' : '');
+  const lo = Math.round(w.lo), hi = Math.round(w.hi), at = hi > lo ? Math.min(100, Math.max(0, (w.temp - lo) / (hi - lo) * 100)) : 50;
+  $('wxSide').innerHTML = (w.hi != null ? '<div class="wx-rng"><span>' + lo + '°</span><span class="wx-rbar"><i style="left:' + at.toFixed(0) + '%"></i></span><b>' + hi + '°</b></div>' : '') +
+    (w.wind != null ? '<div class="wx-wind">' + WIND_SVG + Math.round(w.wind) + ' km/h</div>' : '');
+  // The next 12 hours: rain chance as bars, the day and night as a line, a label every third hour
+  // (the wettest hour shows its chance instead when it reaches 30%).
+  const hrs = (w.hours || []).slice(0, 12), peak = hrs.reduce((p, x, i) => (x.pop || 0) > (hrs[p] ? hrs[p].pop || 0 : 0) ? i : p, 0);
+  const showPeak = hrs[peak] && hrs[peak].pop >= 30;
+  $('wxHrs').innerHTML = hrs.map((x, i) => { const p = x.pop || 0;
+    const lab = showPeak && i === peak ? '<span class="lb peak">' + p + '%</span>' : i % 3 === 0 ? '<span class="lb">' + (i ? x.t.slice(0, 2) : 'Now') + '</span>' : '<span class="lb">&nbsp;</span>';
+    return '<div><div class="b' + (p >= 40 ? ' wet' : '') + '"><i style="height:' + Math.max(3, Math.round(p / 100 * 18)) + 'px;--o:' + (0.25 + p / 100 * 0.7).toFixed(2) + '"></i></div><div class="ln' + (x.day ? '' : ' night') + '"></div>' + lab + '</div>'; }).join('');
 }
 // The now pill: Roy's current block and the time left, else the next one, else free.
 const leftTxt = min => (min < 60 ? Math.max(1, Math.round(min)) + ' min' : dur(min));
