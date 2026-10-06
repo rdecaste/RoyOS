@@ -684,29 +684,61 @@ function renderClock() {
   $('trDate').textContent = dayFmt(new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(t)));
   $('greet').textContent = { morning: 'Good morning, Roy', day: 'Keep going, Roy', evening: 'Good evening, Roy', night: 'Rest up, Roy' }[ph];
 }
-// ---- The weather tile: a sky icon for the conditions now, the temperature, feels like, today's range ----
+// ---- The weather tile: a small sky for the hour and the weather, the temperature, today's range, the wind, the next 12 hours ----
 const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
-function skyHtml(kind, day, code) {
-  const clouds = n => Array.from({ length: n }, (_, i) => '<i class="cl c' + (i + 1) + '"></i>').join('');
-  let s = day ? '<i class="sun"></i>' : '<i class="moon"></i><i class="stars"></i>';
-  if (kind === 'clear') s += code === 1 ? clouds(1) : '';
-  else if (kind === 'cloud') s += clouds(code === 2 ? 2 : 3);
-  else if (kind === 'fog') s += clouds(2) + '<i class="fog"></i><i class="fog f2"></i>';
-  else if (kind === 'drizzle') s += clouds(3) + '<i class="rain light"></i>';
-  else if (kind === 'rain') s += clouds(3) + '<i class="rain' + (code === 65 || code === 82 ? ' heavy' : '') + '"></i>';
-  else if (kind === 'snow') s += clouds(3) + '<i class="snow"></i>';
-  else if (kind === 'thunder') s += clouds(3) + '<i class="rain"></i><i class="flash"></i>';
-  return s;
+// The sun (or moon) rides an arc across the tile from sunrise to sunset (sunset to sunrise at night).
+function skyScene(w, kind) {
+  const m = nowMin(), sr = minOf(w.sunrise || '07:30'), ss = minOf(w.sunset || '19:00');
+  const ph = Math.abs(m - sr) <= 45 ? 'dawn' : Math.abs(m - ss) <= 45 ? 'dusk' : w.day ? 'day' : 'night';
+  const day = ph !== 'night', span = day ? ss - sr : 1440 - (ss - sr), p = Math.min(1, Math.max(0, (day ? m - sr : (m - ss + 1440) % 1440) / span));
+  const x = 10 + p * 80, y = 52 - Math.sin(Math.PI * p) * 36, wet = kind === 'rain' || kind === 'drizzle' || kind === 'thunder';
+  const n = { clear: w.code === 1 ? 1 : 0, cloud: w.code === 2 ? 2 : 4, fog: 2, drizzle: 3, rain: 4, snow: 3, thunder: 4 }[kind] || 0;
+  let h = !day && (kind === 'clear' || w.code === 2) ? '<i class="stars"></i><i class="stars s2"></i>' : '';
+  if (kind !== 'rain' && kind !== 'thunder' && w.code !== 3) h += '<i class="orb' + (day ? '' : ' moon') + '"></i>';
+  h += Array.from({ length: n }, (_, i) => '<i class="cloud k' + (i + 1) + '"></i>').join('');
+  if (wet) h += '<i class="rain' + (kind === 'drizzle' ? ' light' : '') + '"></i><i class="rain r2"></i>';
+  if (kind === 'snow') h += '<i class="snow"></i>';
+  if (kind === 'fog') h += '<i class="mist m1"></i><i class="mist m2"></i>';
+  if (kind === 'thunder') h += '<i class="bolt"></i>';
+  return { cls: 'wx-scene k-' + kind + ' ph-' + ph + (ph === 'dawn' || ph === 'dusk' ? ' ph-day' : ''), html: h, orb: 'left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%' };
 }
+// The next 12 hours as a chart: rain chance as soft bars, the temperature as a curve that glows warm
+// where it is warmest, and a label every third hour (the wettest hour shows its chance from 30%).
+function wxChart(hrs) {
+  if (!hrs.length) return { svg: '', labs: '' };
+  const W = 380, H = 30, cw = W / hrs.length, ts = hrs.map(x => x.temp), lo = Math.min(...ts), hi = Math.max(...ts), r = Math.max(3, hi - lo);
+  const pts = hrs.map((x, i) => [cw * i + cw / 2, 4 + (1 - (x.temp - lo) / r) * 16]);
+  const d = pts.map((p, i) => { if (!i) return 'M' + p[0].toFixed(1) + ' ' + p[1].toFixed(1); const q = pts[i - 1], mx = (q[0] + p[0]) / 2; return 'C' + mx.toFixed(1) + ' ' + q[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + p[1].toFixed(1) + ' ' + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
+  const bars = hrs.map((x, i) => { const p = x.pop || 0, bh = Math.max(1.5, p / 100 * H); return '<rect x="' + (cw * i + 3).toFixed(1) + '" y="' + (H - bh).toFixed(1) + '" width="' + (cw - 6).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2" fill="#78beff" opacity="' + (0.18 + p / 100 * 0.6).toFixed(2) + '"/>'; }).join('');
+  const peak = hrs.reduce((b, x, i) => ((x.pop || 0) > (hrs[b].pop || 0) ? i : b), 0), showPeak = (hrs[peak].pop || 0) >= 30;
+  const svg = '<defs><linearGradient id="wxT" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#ffcf5a"/></linearGradient>' +
+    '<linearGradient id="wxA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a" stop-opacity=".28"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></linearGradient>' +
+    '<filter id="wxG" x="-10%" y="-80%" width="120%" height="260%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>' + bars +
+    '<path d="' + d + 'L' + pts[pts.length - 1][0].toFixed(1) + ' ' + H + 'L' + pts[0][0].toFixed(1) + ' ' + H + 'Z" fill="url(#wxA)"/>' +
+    '<path d="' + d + '" fill="none" stroke="url(#wxT)" stroke-width="4" opacity=".6" filter="url(#wxG)" vector-effect="non-scaling-stroke"/>' +
+    '<path d="' + d + '" fill="none" stroke="url(#wxT)" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+    '<circle cx="' + pts[0][0].toFixed(1) + '" cy="' + pts[0][1].toFixed(1) + '" r="3" fill="#fff"/>';
+  const labs = hrs.map((x, i) => showPeak && i === peak ? '<span class="peak">' + x.pop + '%</span>' : '<span>' + (i % 3 ? '' : i ? x.t.slice(0, 2) : 'Now') + '</span>').join('');
+  return { svg, labs };
+}
+const WIND_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg>';
 function renderWeather() {
   const w = D.weather, el = $('wWx'); if (!el) return;
   if (!w || w.temp == null) { el.hidden = true; return; }
   el.hidden = false;
-  const kind = WX_KIND(w.code), sky = $('wxSky');
-  sky.className = 'wx-sky ' + kind + (w.day ? ' is-day' : ' is-night'); sky.innerHTML = skyHtml(kind, w.day, w.code);
-  $('wxTemp').textContent = Math.round(w.temp) + '°';
-  $('wxTxt').textContent = (w.place || 'Home') + (w.feels != null ? ' · feels ' + Math.round(w.feels) + '°' : '');
-  $('wxHl').innerHTML = w.hi != null ? '↑ ' + Math.round(w.hi) + '°<br>↓ ' + Math.round(w.lo) + '°' : '';
+  const kind = WX_KIND(w.code), sc = skyScene(w, kind), scene = $('wxScene');
+  // The scene is redrawn only when the weather or the hour's light changes, so the clouds keep drifting.
+  if (scene.className !== sc.cls || scene.dataset.h !== sc.html) { scene.className = sc.cls; scene.innerHTML = sc.html; scene.dataset.h = sc.html; }
+  const orb = scene.querySelector('.orb'); if (orb) orb.style.cssText = sc.orb;
+  $('wxTemp').innerHTML = Math.round(w.temp) + '<sup>°</sup>';
+  // Under the temperature: the conditions, then rain on its way, else how it feels.
+  const wet = (w.hours || []).find(x => x.pop != null && x.pop >= 40);
+  $('wxTxt').innerHTML = esc(WMO[w.code] || w.place || 'Home') + (wet && kind !== 'rain' && kind !== 'drizzle' && kind !== 'thunder' ? ' · <b>rain ' + esc(wet.t) + '</b>' : w.feels != null ? ' · feels ' + Math.round(w.feels) + '°' : '');
+  const lo = Math.round(w.lo), hi = Math.round(w.hi), at = hi > lo ? Math.min(100, Math.max(0, (w.temp - lo) / (hi - lo) * 100)) : 50;
+  $('wxSide').innerHTML = (w.hi != null ? '<div class="wx-rng"><span>' + lo + '°</span><span class="wx-rbar"><i style="left:' + at.toFixed(0) + '%"></i></span><b>' + hi + '°</b></div>' : '') +
+    (w.wind != null ? '<div class="wx-wind">' + WIND_SVG + Math.round(w.wind) + ' km/h</div>' : '');
+  const ch = wxChart((w.hours || []).slice(0, 12));
+  $('wxChart').innerHTML = ch.svg; $('wxLabs').innerHTML = ch.labs;
 }
 // The now pill: Roy's current block and the time left, else the next one, else free.
 const leftTxt = min => (min < 60 ? Math.max(1, Math.round(min)) + ' min' : dur(min));
