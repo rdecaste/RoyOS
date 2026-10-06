@@ -17,7 +17,7 @@
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
 import { board, themeView, gameDay } from './data.js';
-import { loadCatalogue, pickTheme, isoWeek, weekAfter, ymd } from './themes.js';
+import { loadCatalogue, pickTheme, remakeDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
 import { MOOD_ART } from './moodart.js';
@@ -194,8 +194,9 @@ export default {
     ctx.waitUntil((async () => {
       const s = state(env);
       try {
-        const now = event.scheduledTime || Date.now();
-        await ensureTheme(env, s, { week: themeWeek(now) });
+        const now = event.scheduledTime || Date.now(), week = themeWeek(now);
+        const character = remakeDue(env.REMAKE, await s.theme(week), week);
+        await ensureTheme(env, s, character ? { week, force: true, character } : { week });
       } catch (err) {
         console.error('theme cron: ' + (err && err.message || err));
       }

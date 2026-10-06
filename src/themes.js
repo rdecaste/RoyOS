@@ -96,6 +96,17 @@ export function pickTheme(catalogue, week, { character: want = null } = {}) {
   };
 }
 
+// A remake asked for in the config, for when no one can call /theme/run: REMAKE is
+// "<week>|<character>|<ISO time>". The hourly cron remakes that week with that character once,
+// only while the week's row was started before that time; a later deploy can ask again.
+export function remakeDue(spec, row, week) {
+  const [w, character, at] = String(spec || '').split('|').map(x => x.trim());
+  const t = Date.parse(at || '');
+  if (!w || !character || isNaN(t) || w !== week) return null;
+  if (row && row.started_at && Date.parse(row.started_at) >= t) return null;
+  return character;
+}
+
 // ---- Prompts ----
 // The still follows the scene and character rows word for word where it matters,
 // plus the desk's layout: subject in the middle third, both sides dark for the panels, room for the quote.

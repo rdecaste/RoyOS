@@ -60,3 +60,14 @@ test('rng: deterministic and in [0, 1)', () => {
   assert.deepEqual(xs, Array.from({ length: 5 }, () => b()));
   assert.ok(xs.every(v => v >= 0 && v < 1));
 });
+
+test('remake from the config: once, for its week, while the row is older than the ask', async () => {
+  const { remakeDue } = await import('../src/themes.js');
+  const spec = '2026-W41|Jinx|2026-10-06T07:00:00Z';
+  assert.equal(remakeDue(spec, { started_at: '2026-10-05T04:05:00.000Z' }, '2026-W41'), 'Jinx');
+  assert.equal(remakeDue(spec, null, '2026-W41'), 'Jinx');
+  assert.equal(remakeDue(spec, { started_at: '2026-10-06T07:05:01.000Z' }, '2026-W41'), null);
+  assert.equal(remakeDue(spec, { started_at: '2026-10-05T04:05:00.000Z' }, '2026-W42'), null);
+  assert.equal(remakeDue('', null, '2026-W41'), null);
+  assert.equal(remakeDue('2026-W41|Jinx|soon', null, '2026-W41'), null);
+});
