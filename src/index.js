@@ -4,7 +4,8 @@
 //   GET  /                 the board
 //   GET  /login            sign-in page (no cookie)   POST /login (password, next)   POST /logout
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
-//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|win|plan|undo, ...}; work with a past `day` fills in that day,
+//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}; work with a past `day` fills in that day,
+//                          and places and ride go on to the admin board's work_location (src/work.js);
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
 //   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
@@ -23,6 +24,7 @@ import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
 import { MOOD_ART } from './moodart.js';
 import { applyActions, askPrompt } from './ask.js';
+import { syncWork } from './work.js';
 
 export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
@@ -103,6 +105,16 @@ async function ensureCritter(env, s) {
 }
 
 // ---- Edits on the board ----
+// Today's places set on the screen go to the admin board (src/work.js); once it has them the answer
+// carries them as `work` (what the board now reads from the journal row) and the edits no longer do.
+async function withWork(env, s, day, n) {
+  if (!n.edits || !n.edits.work) return n;
+  const sync = await syncWork(env, s, day, { days: [day], overwrite: true }).catch(err => ({ saved: [], failed: [{ date: day, message: err.message }] }));
+  if (!sync.saved.includes(day)) return { ...n, synced: false };
+  const { work, ...edits } = n.edits;
+  return { ...n, edits, work, synced: true };
+}
+
 async function edit(env, s, day, fn) {
   const { data } = await s.day(day);
   const before = JSON.stringify(data);
@@ -165,6 +177,7 @@ export default {
       }
       if (path === '/data') {
         ctx.waitUntil(ensureCritter(env, s).catch(err => console.error('critter: ' + (err && err.message || err))));
+        if (env.ADMIN_BOARD && env.ADMIN_PASSWORD) ctx.waitUntil(syncWork(env, s, ymd(Date.now())).catch(err => console.error('work sync: ' + (err && err.message || err))));
         const [data, theme] = await Promise.all([board(env, s), currentTheme(env, s)]);
         return json({ ok: 1, ...data, theme });
       }
@@ -177,7 +190,8 @@ export default {
         if (a.type === 'work' && a.day && a.day !== day) {
           if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.day)) || a.day > day || a.day.slice(0, 4) !== day.slice(0, 4)) return json({ ok: 0, code: 'bad_day', message: 'Only a past day this year can be filled in' }, 400);
           const n = await edit(env, s, a.day, data => ({ applied: applyActions(data, [{ ...a, type: 'work' }], Date.now()) }));
-          return json({ ok: 1, day: a.day, applied: n.applied });
+          const sync = await syncWork(env, s, day, { days: [a.day], overwrite: true }).catch(err => ({ saved: [], failed: [{ date: a.day, message: err.message }] }));
+          return json({ ok: 1, day: a.day, applied: n.applied, synced: sync.saved.includes(a.day) });
         }
         if (a.type === 'focus') {
           const f = focusSession(a, day);
@@ -191,7 +205,7 @@ export default {
           return json({ ok: 1, edits: undo, undo: false });
         }
         const n = await edit(env, s, day, data => ({ applied: applyActions(data, [a], Date.now()) }));
-        return json(n);
+        return json(await withWork(env, s, day, n));
       }
 
       if (path === '/ask' && request.method === 'POST') {
@@ -202,7 +216,7 @@ export default {
         const actions = Array.isArray(out.actions) ? out.actions : [];
         const reply = typeof out.reply === 'string' ? out.reply.slice(0, 320) : '';
         if (!actions.length) return json({ ok: 1, reply: reply || 'Nothing to change.', applied: 0 });
-        const n = await edit(env, s, data.today, d => ({ applied: applyActions(d, actions, Date.now()) }));
+        const n = await withWork(env, s, data.today, await edit(env, s, data.today, d => ({ applied: applyActions(d, actions, Date.now()) })));
         return json({ ...n, reply: reply || (n.applied ? 'Done.' : 'Nothing to change.') });
       }
 

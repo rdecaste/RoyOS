@@ -58,6 +58,8 @@ export class DeskState extends DurableObject {
     return this.sql.exec("SELECT day, json_extract(data, '$.work') AS work FROM days WHERE day >= ? AND day < ? AND json_extract(data, '$.work') IS NOT NULL ORDER BY day", from, to).toArray()
       .map(r => ({ date: r.day, ...JSON.parse(r.work) }));
   }
+  // Drops a day's places once the admin board has them (src/work.js); the day's undo is left alone.
+  clearWork(day) { this.sql.exec("UPDATE days SET data = json_remove(data, '$.work') WHERE day = ?", day); }
   saveDay(day, data, undo) {
     this.sql.exec('INSERT INTO days (day, data, undo, updated_at) VALUES (?,?,?,?) ON CONFLICT(day) DO UPDATE SET data = excluded.data, undo = excluded.undo, updated_at = excluded.updated_at',
       day, JSON.stringify(data), undo === undefined ? null : JSON.stringify(undo), new Date().toISOString());

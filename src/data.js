@@ -125,8 +125,8 @@ export async function journalDay(env, day, desk = []) {
   };
 }
 
-// The places set on Roy OS for past days (DeskState, read only D1 can't take them) fill in the journal's
-// work_location: a day set on the screen wins over the journal's row for that day.
+// The places set on Roy OS that the admin board has not taken yet (src/work.js) fill in the journal's
+// work_location: a day still held on the screen wins over the journal's row for that day.
 export function mergeWork(ytd, desk) {
   const by = new Map((ytd || []).map(w => [w.date, w]));
   for (const w of desk || []) if (w && w.date && (w.am || w.pm)) by.set(w.date, { ...(by.get(w.date) || {}), date: w.date, am: w.am || null, pm: w.pm || w.am || null, weekend: 0 });
