@@ -91,12 +91,13 @@ export async function ensureTheme(env, s, { week = themeWeek(), force = false, r
   return { ok: 1, status: 'started', week, workflow: run.id, pick: { franchise: pick.franchise, scene: pick.scene, character: pick.character } };
 }
 
-// Starts the week's critter CRITTER_ART asks for, once: the ask is remembered before the run starts.
+// Starts the week's critter CRITTER_ART asks for, once: the ask is claimed in one step before the run
+// starts (the board's /data calls from two screens can arrive together), and the run's id comes from
+// the ask, so a second start for the same ask is refused too.
 async function ensureCritter(env, s) {
   const ask = critterDue(env.CRITTER_ART, false); if (!ask) return null;
-  if (await s.cached(ask.key)) return null;
-  await s.remember(ask.key, { at: new Date().toISOString() }, 3650 * 864e5);
-  const run = await env.DESK_THEME.create({ params: { critterWeek: ask.week, critterSheet: ask.sheet } });
+  if (!(await s.claim(ask.key, 3650 * 864e5))) return null;
+  const run = await env.DESK_THEME.create({ id: ask.key.replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 64), params: { critterWeek: ask.week, critterSheet: ask.sheet } });
   return { ok: 1, week: ask.week, sheet: ask.sheet, workflow: run.id };
 }
 
