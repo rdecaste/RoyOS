@@ -112,9 +112,17 @@ export async function generateSprite(env, prompt, referenceUrl) {
 export const spriteUrl = (publicId, version) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${version ? 'v' + version + '/' : ''}${publicId}.png`;
 
 // ---- The clip: Gemini omni (the quest engine's video model, Interactions API) or Veo, by VIDEO_MODEL ----
+// Veo makes sound with every clip and refuses the clip when its audio check fails (W42, 6 Oct 2026:
+// "an issue with the audio for your prompt"), so a Veo failure falls back to omni: a week never ends
+// up without a clip because of Veo.
+export const OMNI = 'gemini-omni-flash-preview';
 export async function generateClip(env, stillUrl, prompt) {
-  const model = env.VIDEO_MODEL || 'gemini-omni-flash-preview';
-  return /^veo/.test(model) ? veoClip(env, model, stillUrl, prompt) : omniClip(env, model, stillUrl, prompt);
+  const model = env.VIDEO_MODEL || OMNI;
+  if (!/^veo/.test(model)) return omniClip(env, model, stillUrl, prompt);
+  try { return await veoClip(env, model, stillUrl, prompt); } catch (err) {
+    console.error('veo failed, falling back to omni: ' + (err && err.message || err));
+    return omniClip(env, OMNI, stillUrl, prompt);
+  }
 }
 
 function findVideo(node) {
