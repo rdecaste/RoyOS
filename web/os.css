@@ -285,6 +285,8 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .blk.roy { background: var(--roy); color: #fff; } .blk.steph { background: var(--steph); color: #2a0a1e; } .blk.kids { background: var(--kids); color: #2a1800; }
 .blk.cal { background: rgba(255, 255, 255, .14); color: var(--fg); border: 1px dashed rgba(255, 255, 255, .45); }
 .blk.past { opacity: .4; }
+.os .lanes > .blk.span { top: 2px; bottom: 2px; z-index: 1; }
+.blk.all:not(.cal) { background: rgba(255, 255, 255, .22); color: var(--fg); }
 .blk.flash { animation: flash 1.2s ease-in-out 3; }
 @keyframes flash { 50% { box-shadow: 0 0 0 3px var(--claude), 0 0 18px rgba(177, 140, 255, .8); } }
 

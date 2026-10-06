@@ -49,6 +49,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-06: Your day: an event for everyone (a family event with no family name in its title) shows once, as one block across the three lanes, instead of a copy in each; when something else is on at the same time it falls back to a copy per lane.
 - 2026-10-06: the critters went live on the desk (Roy approved the mockup): the week's painted critter, cut apart in the browser, plus the drawn rat and gecko.
 - 2026-10-06: the W41 rest and leap sheets were painted twice (08:21 and 08:24 UTC). `ensureCritter` now takes the ask with one Durable Object call (`claim`) instead of a read and a write, so two `/data` calls arriving together can't both start a run, and the run's id is made from the ask, so Workflows refuses a second start.
 - 2026-10-06: the first W41 critter's rest sheet came out as a different creature, so the rest and leap prompts now say to copy the reference exactly (spines, markings, glow) and follow it where the words differ; `CRITTER_ART` can repaint one sheet (`2026-W41|rest|2026-10-06T08:30:00Z`).
