@@ -162,7 +162,7 @@ async function post(path, body) {
 let acting = Promise.resolve();
 function act(action, after) {
   // Edits are applied locally first, then sent; the server's copy wins when it answers.
-  acting = acting.then(() => post('/act', action)).then(out => { E = out.edits; $('liveTag').hidden = true; if (after) after(out); renderAll(); refreshWin(); }).catch(err => { if (err.message !== 'signed out') notify({ app: 'os', html: 'Could not save that: ' + esc(err.message) }); });
+  acting = acting.then(() => post('/act', action)).then(out => { E = out.edits; if (out.work) D.journal.work = out.work; $('liveTag').hidden = true; if (after) after(out); renderAll(); refreshWin(); }).catch(err => { if (err.message !== 'signed out') notify({ app: 'os', html: 'Could not save that: ' + esc(err.message) }); });
   return acting;
 }
 async function refresh() {

@@ -12,8 +12,9 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DeskState"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "quest", "database_id": "94e5f5c7-b24f-4a3c-808c-a85345a27f7f" }],
   // Workers on one account cannot fetch each other's workers.dev URL, so the quest engine is reached over a service binding.
+  // Commute days set on Roy OS are saved through the admin dashboard's POST /border/save (it owns work_location's writes).
   // The boss widget's popup serves the boss card and the Goku card (their own Workers, behind Access) through bindings too.
-  "services": [{ "binding": "QUEST_ENGINE", "service": "quest-engine" }, { "binding": "BOSS_CARD", "service": "boss" }, { "binding": "GOKU_CARD", "service": "mainquest" }],
+  "services": [{ "binding": "QUEST_ENGINE", "service": "quest-engine" }, { "binding": "BOSS_CARD", "service": "boss" }, { "binding": "GOKU_CARD", "service": "mainquest" }, { "binding": "ADMIN_BOARD", "service": "admindashboard" }],
   "workflows": [{ "name": "royos-theme", "binding": "DESK_THEME", "class_name": "DeskTheme" }],
   // Every hour: makes the week's world on Monday from 06:00 Amsterdam, and catches up if that failed.
   "triggers": { "crons": ["5 * * * *"] },
@@ -38,5 +39,6 @@
   //   GEMINI_API_KEY          Nano Banana 2 stills and Veo clips
   //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   cloud a3xk0plk, folder Desk-Themes
   //   OPENAI_API_KEY          Ask Claude box (chat model above)
+  //   ADMIN_PASSWORD          the admin dashboard's DASHBOARD_PASSWORD, to save commute days there (src/work.js)
   // FAMILY_ICS_URL (the published iCloud link of the family calendar, webcal:// or https://), STEPH_ICS_URL (Steph's work calendar, her lane only), ROY_ICS_URL (Roy's personal calendar, his lane and Coming up), KIDS_ICS_URL (the kids' calendar, their lane and Coming up; optional), LANE_WORDS ("roy:roy;steph:steph,stephanie;kids:<names>,kindjes": title words that put a calendar event on a lane)
 }
