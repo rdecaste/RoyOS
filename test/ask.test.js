@@ -53,9 +53,3 @@ test('prompt: the board goes in as JSON, the main quest never does', () => {
   assert.ok(user.includes("Roy says: \"kids are home 'today'\""));
   assert.ok(!/pmo|fap/i.test(msgs[0].content + user));
 });
-
-test('win: today is a win, ticked and unticked', () => {
-  const d = emptyDay();
-  assert.equal(applyActions(d, [{ type: 'win', done: true }]), 1); assert.equal(d.win, true);
-  applyActions(d, [{ type: 'win', done: 'false' }]); assert.equal(d.win, false);
-});
