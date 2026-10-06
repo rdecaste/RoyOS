@@ -363,6 +363,75 @@ const DRIFT = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -
 let driftAt = 0;
 function drift() { const [x, y] = DRIFT[++driftAt % DRIFT.length]; $('os').style.translate = x + 'px ' + y + 'px'; }
 
+// ---- The critter ----
+// A small creature that lives on the board: it walks the top edges of the tiles, sits a while,
+// and jumps from tile to tile. It never takes a tap (pointer-events: none), hides at night,
+// in the phone layout and with reduced motion, and only runs while the page is visible.
+const CR = { w: 48, h: 36, speed: 46, el: null, plats: [], p: -1, x: 0, y: 0, dir: 1, mode: 'sit', until: 0, jump: null, last: 0, seen: 0 };
+const rnd = (a, b) => a + Math.random() * (b - a);
+function crPlats() {
+  return qa('.os > .t').filter(e => e.offsetParent && !e.hidden).map(e => ({ el: e, x1: e.offsetLeft + 12, x2: e.offsetLeft + e.offsetWidth - 12, y: e.offsetTop }));
+}
+function crOff() { return portrait() || matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle($('lock')).display !== 'none'; }
+function crPlace() {
+  const c = CR.el;
+  c.style.transform = 'translate(' + Math.round(CR.x - CR.w / 2) + 'px, ' + Math.round(CR.y - CR.h + 2) + 'px)';
+  c.classList.toggle('left', CR.dir < 0);
+  c.className = c.className.replace(/\b(walk|sit|air)\b/g, '').trim() + ' ' + (CR.mode === 'jump' ? 'air' : CR.mode);
+}
+// A jump: somewhere on another tile within reach, preferring the way it faces.
+function crLeap(t) {
+  const here = CR.plats[CR.p], opts = [];
+  CR.plats.forEach((q, i) => {
+    if (i === CR.p) return;
+    [CR.dir, -CR.dir].forEach(dir => {
+      const tx = Math.min(q.x2, Math.max(q.x1, CR.x + dir * rnd(60, 280))), dx = tx - CR.x, dy = q.y - here.y;
+      if (Math.abs(dx) < 40 || Math.abs(dx) > 440 || dy < -280 || dy > 420) return; // never straight up or down
+      opts.push({ i, tx, w: (Math.sign(dx) === CR.dir ? 3 : 1) / (1 + Math.abs(dx) / 200) });
+    });
+  });
+  if (!opts.length) return false;
+  let r = rnd(0, opts.reduce((n, o) => n + o.w, 0)), o = opts[0];
+  for (const x of opts) { r -= x.w; if (r <= 0) { o = x; break; } }
+  const to = CR.plats[o.i], d = .5 + Math.abs(o.tx - CR.x) / 900 + Math.max(0, here.y - to.y) / 1200;
+  CR.dir = o.tx >= CR.x ? 1 : -1;
+  CR.jump = { x0: CR.x, y0: CR.y, x1: o.tx, p: o.i, t0: t, d, H: 46 + Math.max(0, here.y - to.y) };
+  CR.mode = 'jump';
+  return true;
+}
+function crStep(t) {
+  requestAnimationFrame(crStep);
+  const dt = Math.min(.1, (t - (CR.last || t)) / 1000); CR.last = t;
+  if (t - CR.seen > 1000) {
+    CR.seen = t;
+    const off = crOff(); CR.el.hidden = off; if (off) return;
+    CR.plats = crPlats();
+    if (CR.p < 0 || !CR.plats[CR.p]) { CR.p = Math.max(0, CR.plats.findIndex(q => q.el.id === 'wAsk')); CR.x = rnd(CR.plats[CR.p].x1, CR.plats[CR.p].x2); CR.mode = 'sit'; CR.until = t + 3000; }
+  }
+  if (CR.el.hidden || !CR.plats.length) return;
+  const pl = CR.plats[CR.p];
+  if (CR.mode === 'jump') {
+    const j = CR.jump, k = Math.min(1, (t - j.t0) / (j.d * 1000)), to = CR.plats[j.p] || pl;
+    CR.x = j.x0 + (j.x1 - j.x0) * k;
+    CR.y = j.y0 + (to.y - j.y0) * k - j.H * 4 * k * (1 - k);
+    if (k >= 1) { CR.p = j.p; CR.y = to.y; CR.mode = Math.random() < .35 ? 'sit' : 'walk'; CR.until = t + (CR.mode === 'sit' ? rnd(2500, 7000) : rnd(1500, 6000)); }
+  } else {
+    CR.y = pl.y;
+    if (CR.mode === 'walk') {
+      CR.x += CR.dir * CR.speed * dt;
+      const atEdge = CR.x <= pl.x1 || CR.x >= pl.x2;
+      CR.x = Math.min(pl.x2, Math.max(pl.x1, CR.x));
+      if (atEdge && !(Math.random() < .7 && crLeap(t))) CR.dir = -CR.dir;
+      else if (t > CR.until) { const r = Math.random(); if (r < .4) crLeap(t); else if (r < .7) { CR.mode = 'sit'; CR.until = t + rnd(3000, 9000); } else { CR.dir = -CR.dir; CR.until = t + rnd(1500, 5000); } }
+    } else if (t > CR.until) {
+      if (Math.random() < .3 && crLeap(t)) return crPlace();
+      CR.mode = 'walk'; if (Math.random() < .5) CR.dir = -CR.dir; CR.until = t + rnd(2000, 7000);
+    }
+  }
+  crPlace();
+}
+function critter() { CR.el = $('critter'); if (CR.el) requestAnimationFrame(crStep); }
+
 // ---- Theme and wallpaper ----
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(', ');
 let wallNow = null, wallAr = 16 / 9, wallChoice = null;
@@ -851,6 +920,7 @@ setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
 setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
 setInterval(drift, 4 * 60e3);
+critter();
 // A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });
 })();

@@ -470,6 +470,30 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .nx:hover { background: rgba(255, 255, 255, .1); color: var(--fg); }
 @keyframes notein { from { opacity: 0; transform: translateY(-1rem) scale(.98); } }
 @keyframes noteout { to { opacity: 0; transform: translateY(-1rem); } }
+/* The critter: a small creature that lives on the board, walking the tops of the tiles and jumping between them */
+.os .critter { position: absolute; left: 0; top: 0; z-index: 6; width: 48px; height: 36px; pointer-events: none; will-change: transform; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .55)); }
+.os .critter .cb { width: 100%; height: 100%; transition: transform .12s; }
+.os .critter.left .cb { transform: scaleX(-1); }
+.os .critter svg { display: block; overflow: visible; }
+.os .critter .body, .os .critter .skull, .os .critter .ear, .os .critter .legs rect { fill: #161a26; stroke: rgba(var(--accent-rgb, 255, 95, 183), .55); stroke-width: .8; }
+.os .critter .tail { stroke: #161a26; transform-origin: 8px 19px; animation: crTail 2.4s ease-in-out infinite; }
+.os .critter .tail .rim { stroke: rgba(var(--accent-rgb, 255, 95, 183), .55); }
+.os .critter .eyes { fill: var(--accent); filter: drop-shadow(0 0 2px var(--accent)); transform-origin: 31px 12.5px; animation: crBlink 5s infinite; }
+.os .critter .legs rect { transform-box: fill-box; transform-origin: 50% 0; }
+.os .critter.walk .l1, .os .critter.walk .l4 { animation: crLeg .32s ease-in-out infinite alternate; }
+.os .critter.walk .l2, .os .critter.walk .l3 { animation: crLeg .32s ease-in-out infinite alternate-reverse; }
+.os .critter.walk .cb svg { animation: crBob .32s ease-in-out infinite alternate; }
+.os .critter.air .legs rect { transform: rotate(35deg) scaleY(.75); }
+.os .critter.air .l1, .os .critter.air .l2 { transform: rotate(-35deg) scaleY(.75); }
+.os .critter.sit .legs { transform: translateY(-3px) scaleY(.6); transform-origin: 20px 21px; }
+.os .critter.sit .body { transform: translateY(2.5px); }
+.os .critter.sit .head { transform: translateY(2px); }
+.os .critter.sit .tail { animation-duration: 4.5s; }
+@keyframes crLeg { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+@keyframes crBob { from { transform: translateY(0); } to { transform: translateY(-1.2px); } }
+@keyframes crTail { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-16deg); } }
+@keyframes crBlink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+
 /* Night: the lock goes fully black (OLED pixels off) from 23:00 to 04:00; a tap wakes the board until the next phase. */
 .lock { position: fixed; z-index: 40; inset: 0; display: none; background: #000; cursor: pointer; }
 body[data-phase="night"]:not(.awake) .lock { display: block; }
