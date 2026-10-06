@@ -64,6 +64,13 @@ export class DeskState extends DurableObject {
   remember(key, value, ttlMs) {
     this.sql.exec('INSERT INTO cache (key, value, expires) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires = excluded.expires', key, JSON.stringify(value), Date.now() + ttlMs);
   }
+  // Takes a key once: true the first time, false while it is held. One call, so two requests that
+  // arrive together can't both win (a cached + remember pair from outside could).
+  claim(key, ttlMs) {
+    if (this.cached(key)) return false;
+    this.remember(key, { at: new Date().toISOString() }, ttlMs);
+    return true;
+  }
 }
 
 function inflate(row) {
