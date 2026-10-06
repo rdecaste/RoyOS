@@ -49,9 +49,12 @@
           <div class="todos" id="focusTodos"></div>
           <form class="addrow" id="addForm" autocomplete="off"><i data-ic="plus"></i><label class="sr" for="addTodo">New to-do</label><input id="addTodo" type="text" maxlength="120" placeholder="Add a to-do"></form>
         </section>
-        <section class="w habits" id="wHabits" data-open="habits" aria-labelledby="hHabits">
-          <header class="wh"><span class="wl" id="hHabits"><i data-ic="habits"></i>Main habits</span><span class="wr" id="habitCount"></span><button type="button" class="wopen" data-open="habits" aria-label="Open Main habits"><i data-ic="chev"></i></button></header>
-          <div class="hrow" id="habitRow"></div>
+        <section class="w bossw" id="wBoss" aria-labelledby="hBoss">
+          <header class="wh"><span class="wl" id="hBoss"><i data-ic="boss"></i>Boss battle</span><span class="wr" id="bossHabits" data-tip="@habits"></span><button type="button" class="wopen" data-act="card" data-card="boss" aria-label="Open the boss card"><i data-ic="chev"></i></button></header>
+          <div class="bossrow">
+            <button type="button" class="bside boss" id="bossSide" data-act="card" data-card="boss" data-tip="@boss"></button>
+            <button type="button" class="bside goku" id="gokuSide" data-act="card" data-card="goku" data-tip="@goku"></button>
+          </div>
         </section>
       </div>
     </div>
@@ -99,5 +102,11 @@
 <div class="lock" id="lock" role="button" tabindex="-1" aria-label="Wake the screen"><div><div class="lclock" id="lockClock">--:--</div><p>Lights out. Tomorrow you come back and earn it.</p><small>Tap to wake</small></div></div>
 <div class="pop" id="moodPop" hidden><form id="moodForm" autocomplete="off"><img id="moodPopImg" alt=""><label class="sr" for="moodNote">A few words about your mood</label><input class="inp" id="moodNote" type="text" maxlength="80" placeholder="A few words (optional)"><button type="submit" class="btn primary">Log</button></form></div>
 <div id="winLayer"></div>
+<div class="cardpop" id="cardPop" role="dialog" aria-modal="true" aria-label="Card" hidden>
+  <div class="cardbox">
+    <div class="cardtabs" role="tablist"><button type="button" role="tab" data-act="card" data-card="boss" id="ctBoss">Boss</button><button type="button" role="tab" data-act="card" data-card="goku" id="ctGoku">Goku</button><button type="button" class="cx" data-act="cardclose" aria-label="Close the card"><i data-ic="x"></i></button></div>
+    <div class="phone" id="cardPhone"></div>
+  </div>
+</div>
 <div id="notes" aria-live="polite"></div>
 <div id="tip" role="tooltip"></div>

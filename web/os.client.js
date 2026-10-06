@@ -35,7 +35,7 @@ const xOf = min => Math.max(0, Math.min(100, (min / 60 - DAY0) / (DAY1 - DAY0) *
 const P = {
   logo: '<path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="M12 8.3 15.7 12 12 15.7 8.3 12Z"/>',
   focus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r=".8"/>',
-  habits: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="m8 12.4 2.8 2.8 5.6-5.8"/>',
+  boss: '<path d="M14.5 3.5h6v6L9.8 20.2l-6-6Z"/><path d="m6.3 11.7 6 6M3.5 20.5l2.8-2.8"/>',
   body: '<path d="M2.8 12.5h4l2-4.6 3.4 9.6 2.3-5h6.7"/>',
   mood: '<circle cx="12" cy="12" r="8.5"/><path d="M8.6 14.2c1.9 2.1 4.9 2.1 6.8 0"/><path d="M9.2 9.7h.01M14.8 9.7h.01" stroke-width="2.6"/>',
   commute: '<circle cx="6" cy="16" r="3.6"/><circle cx="18" cy="16" r="3.6"/><path d="m6 16 3.6-6.6h5.2L18 16M9.6 9.4 12.8 16M13.4 6.2h2.8"/>',
@@ -50,7 +50,7 @@ const P = {
 };
 P.os = P.logo;
 const icon = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[n] || '') + '</svg>';
-const APPS = [['focus', 'Focus', '#f6c045'], ['habits', 'Main habits', '#3ddc84'], ['body', 'Body', '#ff7a7a'], ['mood', 'Mood', '#7ee0c3'],
+const APPS = [['focus', 'Focus', '#f6c045'], ['boss', 'Boss battle', '#ff5f6d'], ['body', 'Body', '#ff7a7a'], ['mood', 'Mood', '#7ee0c3'],
   ['commute', 'Commute', '#6fd8ff'], ['steph', 'From Steph', '#ff7ac8'], ['dates', 'Coming up', '#ff9f5a'], ['quest', 'Quest', '#8fb8ff']];
 const APP = Object.fromEntries(APPS.map(([k, name, ac]) => [k, { name, ac }]));
 APP.day = { name: 'Your day', ac: '#5b93f0' }; APP.claude = { name: 'Claude', ac: '#b18cff' }; APP.os = { name: 'Roy OS', ac: '#6fd8ff' };
@@ -73,14 +73,11 @@ const stephList = () => D.journal.steph.map(x => ({ t: x.t, due: x.due, done: !!
 const workToday = () => E.work || D.journal.work || { am: '🇳🇱 Home', pm: '🇳🇱 Home', commute: 'N/A' };
 let WIN = null, popPick = 0, moodPick = 0, lastPhase = null, clockPhase = null;
 
-// Main habits: done when logged today (or ticked here), otherwise due, late or later by the usual time.
+// Main habits, read only: done when ticked on the boss card today, otherwise due, late or
+// later by the usual time. They are only ever ticked on the boss card, never here.
 function habitState(x, m) {
   if (m == null) m = nowMin();
-  const manual = E.habits[x.name];
-  let at = null;
-  if (typeof manual === 'string') at = manual;
-  else if (manual !== false && x.done && x.at && gm(minOf(x.at)) <= gm(m)) at = x.at;
-  if (at) return { st: 'done', at };
+  if (x.done && x.at && gm(minOf(x.at)) <= gm(m)) return { st: 'done', at: x.at };
   const u = gm(minOf(x.usual)), n = gm(m);
   return { st: n > u + 60 ? 'late' : n >= u - 30 ? 'due' : 'later' };
 }
@@ -305,7 +302,9 @@ const TIPS = {
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
   weather: () => { const w = D.weather; return w && w.temp != null ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b>' + (w.feels != null ? '<br>Feels like ' + Math.round(w.feels) + '°' : '') + '<div class="kv"><span>Today</span><b>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '–') + '</b><span></span><span>Rain chance</span><b>' + (w.rain != null ? w.rain + '%' : '–') + '</b><span></span><span>Wind</span><b>' + (w.wind != null ? Math.round(w.wind) + ' km/h' : '–') + '</b><span></span><span>Sun</span><b>' + esc(w.sunrise || '–') + ' – ' + esc(w.sunset || '–') + '</b><span></span></div><span class="hint">Open-Meteo for home, every 15 minutes. The strip is the next 12 hours: temperature, and the bar is the chance of rain.</span>' : ''; },
   mode: () => '<span class="tt">Mode</span>' + { morning: 'Morning habits until 10:00.', day: 'Daytime habits until 18:00.', evening: 'Evening habits until 04:00.', night: 'Night. The screen dims until morning.' }[phaseOf(nowMin())],
-  habit: el => { const x = D.main[+el.dataset.i], s = habitState(x); return '<span class="tt">Main habit</span><b>' + esc(x.icon + ' ' + x.name) + '</b><br>' + habitLine(x, s) + (x.streak >= 2 ? '<br><span class="mut">🔥 ' + x.streak + '-day streak</span>' : '') + '<span class="hint">Tap to ' + (s.st === 'done' ? 'untick' : 'tick it off') + '</span>'; },
+  habits: () => { const m = nowMin(); return '<span class="tt">Main habits · from the boss card</span>' + D.main.map(x => { const st = habitState(x, m); return '<div class="hb-line ' + st.st + '">' + esc(x.icon) + ' ' + esc(x.short) + ' <span class="mut">· ' + habitLine(x, st) + '</span></div>'; }).join('') + '<span class="hint">Tick them off on the boss card: tap the boss.</span>'; },
+  boss: () => { const b = BOSS().boss; return b ? '<span class="tt">Boss' + (b.level ? ' · level ' + b.level : '') + '</span><b>' + esc(b.name) + '</b>' + (b.epithet ? '<br><span class="mut">' + esc(b.epithet) + '</span>' : '') + '<br>HP ' + fmtNum(b.hp) + ' of ' + fmtNum(b.max) + (b.status && b.status !== 'Active' ? ' · ' + esc(b.status) : '') + '<span class="hint">Tap to open the boss card</span>' : '<span class="tt">Boss</span>The boss card did not answer.'; },
+  goku: () => { const g = BOSS().goku; return g ? '<span class="tt">Goku' + (g.form ? ' · ' + esc(g.form) : '') + '</span><div class="kv">' + (g.level ? '<span>Level</span><b>' + g.level + '</b><span></span>' : '') + (g.max_hp ? '<span>HP</span><b>' + fmtNum(g.hp) + ' / ' + fmtNum(g.max_hp) + '</b><span class="mut">' + (g.shield ? '+' + g.shield + ' ki shield' : '') + '</span>' : '') + (g.xp_max ? '<span>XP</span><b>' + fmtNum(g.xp) + ' / ' + fmtNum(g.xp_max) + '</b><span></span>' : '') + (g.power ? '<span>Power level</span><b>' + fmtNum(g.power) + '</b><span></span>' : '') + '</div><span class="hint">Tap to open the Goku card</span>' : ''; },
   lastmood: () => { const m = lastMood(); return m ? '<span class="tt">Last logged · ' + hhmm(m.at) + '</span><b>' + FEEL[m.m - 1] + '</b>' + (m.note ? '<br>' + esc(m.note) : '') : 'No mood logged yet today'; },
   blk: el => { const e = ALLEV().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">' + (e.cal ? 'From the family calendar' : 'Tap to edit') + '</span>'; },
   theme: () => { const t = D.theme; if (!t) return '<span class="tt">This week’s world</span>Not made yet.'; return '<span class="tt">This week’s world · ' + esc(t.week) + '</span><b>' + esc(t.franchise) + ' · ' + esc(t.scene) + '</b><br>' + esc(t.character) + (t.status !== 'ready' ? ' · ' + esc(t.status) : '') + '<span class="hint">New video every Monday morning, random franchise, random scene and character. The colours of the board follow it.</span>'; }
@@ -366,8 +365,8 @@ function nudges() {
   const st = D.main.map(x => ({ x, s: habitState(x, m) }));
   const due = st.filter(o => o.s.st === 'due').map(o => o.x), late = st.filter(o => o.s.st === 'late').map(o => o.x);
   const list = xs => xs.map(x => x.icon + ' <b>' + esc(x.name) + '</b>').join(', ');
-  if (due.length) notify({ key: 'due:' + due.map(x => x.name).join(), app: 'habits', open: 'habits', html: 'Due now: ' + list(due) + '.' });
-  if (late.length) notify({ key: 'late:' + late.map(x => x.name).join(), app: 'habits', open: 'habits', html: 'Still open: ' + list(late) + '. Tap one on the Main habits widget to tick it off.' });
+  if (due.length) notify({ key: 'due:' + due.map(x => x.name).join(), app: 'boss', open: 'boss', html: 'Due now: ' + list(due) + '. Tick it off on the boss card.' });
+  if (late.length) notify({ key: 'late:' + late.map(x => x.name).join(), app: 'boss', open: 'boss', html: 'Still open: ' + list(late) + '. Tap to open the boss card and tick it off.' });
   EVENTS().forEach(e => { const a = minOf(e.from); if (a > m && a - m <= 20) notify({ key: 'ev:' + e.id + '@' + e.from, app: 'day', html: esc(e.ic || '') + ' <b>' + esc(e.t) + '</b> starts at ' + e.from + (e.who === 'roy' ? '' : ' · ' + esc(WHO[e.who])) + '.' }); });
 }
 function brief(ph, m) {
@@ -520,10 +519,20 @@ function renderFocusW() {
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
   $('focusTodos').innerHTML = list.length ? list.slice(0, 3).map(o => todoBtn(o.x, o.g)).join('') + (list.length > 3 ? '<div class="say" style="font-size:.78rem">+' + (list.length - 3) + ' more</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="say">No to-dos yet. Add one below.</div>';
 }
-function renderHabitsW() {
-  const m = nowMin(), st = D.main.map(x => habitState(x, m));
-  $('habitCount').textContent = st.filter(s => s.st === 'done').length + '/' + D.main.length;
-  $('habitRow').innerHTML = D.main.map((x, i) => { const s = st[i]; return '<button type="button" class="hab ' + s.st + '" data-act="habit" data-i="' + i + '" data-tip="@habit" aria-label="' + esc(x.name + ': ' + habitLine(x, s)) + '"><span class="disc">' + esc(x.icon) + (s.st === 'done' ? '<span class="badge">✓</span>' : s.st === 'late' ? '<span class="badge">!</span>' : '') + '</span><span class="lab">' + esc(x.short) + '</span></button>'; }).join('');
+// The boss widget: the boss's HP and Goku's front-of-card metrics, read from the quest engine.
+const BOSS = () => D.boss || { boss: null, goku: null };
+const bar = (cls, v, max, extra) => '<span class="mbar ' + cls + '"><i style="width:' + pct(v, max) + '%"></i>' + (extra || '') + '</span>';
+function renderBossW() {
+  const m = nowMin(), done = D.main.filter(x => habitState(x, m).st === 'done').length, b = BOSS().boss, g = BOSS().goku;
+  $('bossHabits').textContent = D.main.length ? done + '/' + D.main.length + ' habits' : '';
+  $('bossSide').setAttribute('aria-label', b ? 'Boss ' + b.name + ', HP ' + Math.round(b.hp) + ' of ' + b.max + '. Open the boss card' : 'Open the boss card');
+  $('bossSide').innerHTML = b ? '<span class="bk">Boss' + (b.level ? ' · Lv ' + b.level : '') + '</span><span class="bn">' + esc(b.name) + '</span>' + bar('hp-boss', b.hp, b.max) + '<span class="bnum">' + (b.status && b.status !== 'Active' ? esc(b.status) : fmtNum(b.hp) + ' / ' + fmtNum(b.max) + ' HP') + '</span>'
+    : '<span class="bk">Boss</span><span class="say">Not answering</span>';
+  $('gokuSide').setAttribute('aria-label', g ? 'Goku, level ' + (g.level || '') + '. Open the Goku card' : 'Open the Goku card');
+  $('gokuSide').innerHTML = g ? '<span class="bk">Goku' + (g.level ? ' · Lv ' + g.level : '') + (g.power ? '<em>⚡ ' + fmtNum(g.power) + '</em>' : '') + '</span>' +
+    (g.max_hp ? bar('hp-goku', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + '<span class="bnum">' + fmtNum(g.hp) + ' / ' + fmtNum(g.max_hp) + ' HP' + (g.shield ? ' <span class="shd">+' + g.shield + '</span>' : '') + '</span>' : '') +
+    (g.xp_max ? bar('xp', g.xp, g.xp_max) + '<span class="bnum">' + fmtNum(g.xp) + ' / ' + fmtNum(g.xp_max) + ' XP</span>' : '')
+    : '<span class="bk">Goku</span><span class="say">Not answering</span>';
 }
 function renderMe() {
   const r = R(), lm = lastMood(), b = border(), k = F().ki;
@@ -559,7 +568,7 @@ function renderDay() {
 }
 function renderApps() { $('apps').innerHTML = APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
 function renderDockState() { qa('.app').forEach(a => a.classList.toggle('open', !!WIN && WIN.key === a.dataset.open)); }
-function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderHabitsW(); renderMe(); renderMinis(); renderDay(); renderDockState(); }
+function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderBossW(); renderMe(); renderMinis(); renderDay(); renderDockState(); }
 
 // ---- Windows ----
 const sec = (id, hl, html) => '<div class="sec' + (hl === id ? ' hl' : '') + '">' + html + '</div>';
@@ -585,13 +594,6 @@ const WINS = {
       const group = (title, g) => { const l = focusList(g); return sec(g, '', '<div class="sh"><span>' + title + '</span><span>' + l.filter(x => x.done).length + '/' + l.length + '</span></div><div class="todos">' + (l.length ? l.map(x => todoBtn(x, g, 'wide')).join('') : '<p class="say">Nothing here yet.</p>') + '</div>'); };
       b.innerHTML = '<div class="winif" style="margin:0"><small>Today is a win if</small>' + (D.journal.win_if ? esc(D.journal.win_if) : '<span class="say">Not set in your journal yet.</span>') + '</div>' + group('Must do', 'must') + group('Can do', 'can') +
         '<form class="addfull" id="wAddForm" autocomplete="off"><label class="sr" for="wAddIn">New to-do</label><input class="inp" id="wAddIn" type="text" maxlength="120" placeholder="Add a to-do"><label class="sr" for="wAddG">List</label><select class="sel" id="wAddG"><option value="must"' + (g0 === 'must' ? ' selected' : '') + '>Must do</option><option value="can"' + (g0 === 'can' ? ' selected' : '') + '>Can do</option></select><button type="submit" class="btn primary">Add</button></form><p class="say">Ticks and new to-dos live on this screen for the day; the journal stays the record.</p>';
-    } },
-  habits: { w: 36, title: 'Main habits', tags: () => '',
-    render(b) {
-      const m = nowMin(), days = Array.from({ length: 14 }, (_, k) => ymdAdd(D.today, k - 13));
-      b.innerHTML = '<div class="hlist">' + D.main.map((x, i) => { const s = habitState(x, m), set = new Set(x.days);
-        return '<button type="button" class="hline ' + s.st + '" data-act="habit" data-i="' + i + '" aria-label="' + esc(x.name + ': ' + habitLine(x, s) + '. Tap to ' + (s.st === 'done' ? 'untick' : 'tick it off')) + '"><span class="disc">' + esc(x.icon) + (s.st === 'done' ? '<span class="badge">✓</span>' : s.st === 'late' ? '<span class="badge">!</span>' : '') + '</span><span><span class="nm">' + esc(x.name) + '</span><br><span class="st">' + habitLine(x, s) + '</span></span><span class="hright"><span class="streak">' + (x.streak >= 2 ? '🔥 ' + x.streak + ' days' : '') + '</span><span class="hist" aria-hidden="true">' + days.map(d => '<i class="' + ((d === D.today ? s.st === 'done' : set.has(d)) ? 'on' : '') + (d === D.today ? ' today' : '') + '"></i>').join('') + '</span></span></button>'; }).join('') +
-        '</div><p class="say">Tap a habit to tick it off here. The squares are the last 14 days from the boss log, today on the right.</p>';
     } },
   mood: { w: 30, title: 'Mood', tags: () => '',
     render(b) {
@@ -634,6 +636,7 @@ const WINS = {
     } }
 };
 function openWin(key, from, arg) {
+  if (CARD_SRC[key]) { openCard(key); return; }
   const def = WINS[key]; if (!def) return;
   if (WIN) closeWin(true);
   hideTip(); closePop();
@@ -661,11 +664,29 @@ function closeWin(instant) {
 function refreshWin() { if (WIN && WIN.def.live !== false) WIN.def.render(WIN.el.querySelector('.wbody'), null); }
 
 // ---- Actions ----
-function toggleHabit(i) {
-  const x = D.main[i]; if (!x) return;
-  const was = habitState(x).st === 'done';
-  E.habits[x.name] = was ? false : hm(); renderHabitsW(); refreshWin();
-  act({ type: 'habit', name: x.name, done: !was }, () => { const n = D.main.filter(h => habitState(h).st === 'done').length; notify({ app: 'habits', html: x.icon + ' <b>' + esc(x.name) + '</b> ' + (was ? 'unticked.' : 'done. ' + n + ' of ' + D.main.length + ' main habits today.') }); });
+// ---- The cards: the boss card and the Goku card as on Roy's iPhone, served by Roy OS (/card/…) ----
+// Habits are ticked there, so the board refreshes when the card closes.
+const CARD_SRC = { boss: '/card/boss', goku: '/card/goku' };
+let cardOpen = null;
+function openCard(key) {
+  if (WIN) closeWin(true);
+  hideTip(); closePop();
+  const pop = $('cardPop'), phone = $('cardPhone');
+  Object.keys(CARD_SRC).forEach(k => {
+    let f = phone.querySelector('iframe[data-card="' + k + '"]');
+    if (k === key && !f) { f = document.createElement('iframe'); f.dataset.card = k; f.title = k === 'boss' ? 'Boss card' : 'Goku card'; f.src = CARD_SRC[k]; f.allow = 'autoplay; fullscreen'; phone.appendChild(f); }
+    if (f) f.hidden = k !== key;
+  });
+  $('ctBoss').setAttribute('aria-selected', String(key === 'boss')); $('ctGoku').setAttribute('aria-selected', String(key === 'goku'));
+  pop.setAttribute('aria-label', key === 'boss' ? 'Boss card' : 'Goku card');
+  if (!cardOpen) { pop.hidden = false; if (!reduced()) pop.querySelector('.cardbox').animate([{ transform: 'scale(.92)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(.2, .85, .25, 1)' }); }
+  cardOpen = key;
+  setTimeout(() => { const f = phone.querySelector('iframe:not([hidden])'); if (f) f.focus(); }, 60);
+}
+function closeCard() {
+  if (!cardOpen) return;
+  cardOpen = null; $('cardPop').hidden = true; $('cardPhone').innerHTML = '';
+  refresh();
 }
 function pickFace(m, el) {
   popPick = m;
@@ -713,7 +734,8 @@ function fullscreen() {
 function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); renderMinis(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
-  else if (a === 'habit') toggleHabit(+el.dataset.i);
+  else if (a === 'card') openCard(el.dataset.card);
+  else if (a === 'cardclose') closeCard();
   else if (a === 'face') pickFace(+el.dataset.m, el);
   else if (a === 'wface') { moodPick = moodPick === +el.dataset.m ? 0 : +el.dataset.m; refreshWin(); if (moodPick && $('wMoodNote')) $('wMoodNote').focus(); }
   else if (a === 'ev') { if (EVENTS().some(x => x.id === el.dataset.id)) openWin('event', el, { id: el.dataset.id }); }
@@ -733,6 +755,7 @@ document.addEventListener('click', e => {
   const t = e.target;
   if (t.closest('.note')) return;
   if (t.closest('#lock')) { document.body.classList.add('awake'); return; }
+  if (cardOpen && !t.closest('.cardbox')) { closeCard(); return; }
   if (t.closest('[data-close]')) { closeWin(); return; }
   const inWin = !!t.closest('.win'), inPop = !!t.closest('#moodPop');
   if (!inPop && !t.closest('[data-act="face"]')) closePop();
@@ -762,14 +785,14 @@ document.addEventListener('change', e => {
   act({ type: 'work', am: w.am, pm: w.pm, commute: w.commute }, () => notify({ app: 'commute', html: 'Saved: ' + { am: 'morning', pm: 'afternoon', commute: 'ride' }[key] + ' <b>' + esc(e.target.value) + '</b>.' }));
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (!$('moodPop').hidden) closePop(); else if (WIN) closeWin(); else if (!$('sysMenu').hidden) closeMenu(); else if (!$('askPop').hidden) hideAsk(); else setIsland(false); return; }
+  if (e.key === 'Escape') { if (cardOpen) closeCard(); else if (!$('moodPop').hidden) closePop(); else if (WIN) closeWin(); else if (!$('sysMenu').hidden) closeMenu(); else if (!$('askPop').hidden) hideAsk(); else setIsland(false); return; }
   if (e.key === '/' && !e.target.closest('input, textarea, select')) { e.preventDefault(); $('askIn').focus(); return; }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]:not(button)')) { e.preventDefault(); e.target.click(); }
 });
 
 // ---- Ask: one box for anything on the screen; the server talks to the model and applies the edits ----
 let asking = false, askTimer = null;
-const SUGG = ['The kids are home today', 'I took my supplements', 'Log my mood: good and focused', 'Add a to-do: call the garage', 'How is my training load?'];
+const SUGG = ['The kids are home today', 'What is still open today?', 'Log my mood: good and focused', 'Add a to-do: call the garage', 'How is my training load?'];
 const askHead = label => '<div class="ah">' + icon('claude') + '<span>' + label + '</span><button type="button" class="nx" data-act="askclose" aria-label="Close">' + icon('x') + '</button></div>';
 function showAsk(html, cls) { const p = $('askPop'); p.className = 'askpop' + (cls ? ' ' + cls : ''); p.innerHTML = html; p.hidden = false; clearTimeout(askTimer); }
 function hideAsk() { $('askPop').hidden = true; clearTimeout(askTimer); }
@@ -803,7 +826,7 @@ renderAll();
 setTimeout(nudges, 900);
 setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
-setInterval(() => { renderHabitsW(); renderMe(); nudges(); }, 60e3);
+setInterval(() => { renderBossW(); renderMe(); nudges(); }, 60e3);
 // A browser pauses video in a hidden tab; when the board is shown again the clip resumes and the data refreshes.
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; refresh(); qa('#wall video').forEach(v => { if (v.style.opacity === '1' && v.paused) v.play().catch(() => {}); }); });
 })();

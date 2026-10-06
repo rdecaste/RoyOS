@@ -46,6 +46,24 @@ export function mainHabits(boss, hero, now) {
   });
 }
 
+// The boss widget: the boss's HP from the boss card (GET /boss) and Goku's front-of-card
+// metrics (GET /mainquest, live hero HP from /boss, the form from /hero). Read only: habits
+// are ticked on the boss card itself, never here.
+export function bossView(env, boss, mq, hero) {
+  const num = v => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  const b = boss && boss.max_hp ? { name: safeText(env, boss.boss_name) || 'The boss', epithet: safeText(env, boss.epithet), level: num(boss.boss_level), hp: Math.max(0, num(boss.current_hp) || 0), max: num(boss.max_hp), status: boss.status || '' } : null;
+  const P = mq && mq.power || {};
+  const lv = mq ? Math.trunc(Number(mq.level ?? mq.display_level)) : NaN;
+  const hp = boss && num(boss.hero_max_hp) > 0 ? { hp: num(boss.hero_hp), max: num(boss.hero_max_hp) } : mq && num(mq.max_hp) > 0 ? { hp: num(mq.current_hp), max: num(mq.max_hp) } : null;
+  const goku = mq || hp ? {
+    form: hero && hero.now && hero.now.form || null, level: Number.isFinite(lv) && lv > 0 ? lv : null,
+    hp: hp ? Math.max(0, hp.hp || 0) : null, max_hp: hp ? hp.max : null, shield: Math.max(0, Math.round(num(P.shield && P.shield.amount) || 0)),
+    xp: mq ? num(mq.level_xp) : null, xp_max: mq ? num(mq.level_xp_max) : null, power: num(P.power_level),
+    ki: P.ki ? { level: P.ki.level || 0, peak: P.ki.peak || 5 } : null
+  } : null;
+  return b || goku ? { boss: b, goku } : null;
+}
+
 // Long-term and short-term load, last 28 days (power.load ÷ 100), the week's peak and the ki charge.
 // The series is fitness and fatigue times a factor (100 today); the factor is read off
 // today's values rather than assumed, so a change in the engine cannot skew the chart.
@@ -204,7 +222,7 @@ export async function board(env, s, now = Date.now()) {
   const edits = dayState && dayState.data || emptyDay();
   return {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
-    main: mainHabits(boss, hero, now),
+    main: mainHabits(boss, hero, now), boss: bossView(env, boss, mq, hero),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: focusQuest.quote, author: focusQuest.quoteAuthor, longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
     weather: wx, calendar: cal, edits, undo: !!(dayState && dayState.undo)

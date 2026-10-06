@@ -225,24 +225,36 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .addrow input::placeholder { color: var(--faint); }
 .addrow:focus-within { color: #f6c045; border-top-color: rgba(246, 192, 69, .5); }
 
-/* Main habits */
-.habits { --ac: var(--good); }
-.hrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; margin-top: .65rem; }
-.hab { min-width: 0; display: grid; justify-items: center; gap: .35rem; padding: .25rem 0; border: 0; border-radius: .6rem; background: transparent; }
-.hab:hover { background: var(--well); }
-.disc { position: relative; width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border-radius: 50%; background: var(--well); box-shadow: inset 0 0 0 2px var(--hc, rgba(255, 255, 255, .14)); font-size: 1.3rem; line-height: 1; transition: transform .15s; }
-.hab:hover .disc { transform: scale(1.06); }
-.hab .lab { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; color: var(--dim); }
-.hab.done .disc, .hline.done .disc { --hc: var(--good); background: rgba(61, 220, 132, .15); }
-.hab.done .lab { color: var(--good); }
-.hab.due .disc, .hline.due .disc { --hc: var(--warn); animation: due 2.4s ease-in-out infinite; }
-.hab.due .lab { color: var(--warn); }
-.hab.late .disc, .hline.late .disc { --hc: var(--bad); background: rgba(255, 95, 109, .13); }
-.hab.late .lab { color: #ff8f98; }
-.hab.later .disc { opacity: .72; }
-.badge { position: absolute; top: -.15rem; right: -.15rem; width: 1.05rem; height: 1.05rem; display: grid; place-items: center; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px rgba(9, 14, 27, .9); font: 800 .62rem/1 var(--f-body); color: var(--on-light); }
-.late .badge { background: var(--bad); color: #fff; }
-@keyframes due { 50% { box-shadow: inset 0 0 0 2px var(--warn), 0 0 0 .35rem rgba(255, 194, 74, .16); } }
+/* Boss battle: the boss's HP and Goku's front-of-card metrics; a tap opens the real card */
+.bossw { --ac: var(--bad); }
+.bossrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .5rem; margin-top: .6rem; }
+.bside { min-width: 0; display: grid; align-content: start; gap: .3rem; padding: .5rem .6rem .55rem; border: 1px solid transparent; border-radius: .75rem; background: var(--well); text-align: left; color: var(--fg); }
+.bside:hover { background: var(--well-hover); border-color: var(--edge); }
+.bk { display: flex; align-items: baseline; gap: .4rem; font: 600 .66rem/1 var(--f-sys); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.bk em { margin-left: auto; font-style: normal; letter-spacing: 0; text-transform: none; color: #ffd65c; font-variant-numeric: tabular-nums; }
+.bn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 .95rem/1.15 var(--f-body); }
+.mbar { position: relative; display: block; height: .45rem; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
+.mbar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--c); box-shadow: 0 0 .5rem var(--c); transition: width .6s ease; }
+.mbar b { position: absolute; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(90, 184, 255, .6), rgba(170, 225, 255, .95)); box-shadow: 0 0 .5rem rgba(90, 184, 255, .85); }
+.mbar.hp-boss { --c: var(--bad); }
+.mbar.hp-goku { --c: var(--good); }
+.mbar.xp { --c: #ffd65c; height: .3rem; }
+.bnum { font: 600 .68rem/1 var(--f-sys); color: var(--dim); font-variant-numeric: tabular-nums; }
+.bnum .shd { color: #8fd0ff; }
+.hb-line { white-space: nowrap; } .hb-line.done { color: var(--good); } .hb-line.due { color: var(--warn); } .hb-line.late { color: #ff8f98; }
+
+/* The card popup: the boss card or the Goku card at the size of Roy's iPhone (402 × 874 points) */
+.cardpop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(2, 4, 10, .62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.cardpop[hidden] { display: none; }
+.cardbox { display: grid; gap: .5rem; justify-items: center; }
+.cardtabs { display: flex; align-items: center; gap: .3rem; padding: .25rem; border-radius: 999px; border: 1px solid var(--edge-hi); background: var(--glass-strong); }
+.cardtabs [role="tab"] { padding: .35rem .9rem; border: 0; border-radius: 999px; background: transparent; font: 600 .8rem/1 var(--f-sys); color: var(--dim); }
+.cardtabs [role="tab"][aria-selected="true"] { background: var(--well-hover); color: var(--fg); }
+.cardtabs .cx { width: 1.7rem; height: 1.7rem; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--dim); }
+.cardtabs .cx:hover { background: var(--well-hover); color: var(--fg); }
+.cardtabs .cx .i { width: 1rem; height: 1rem; }
+.phone { width: 402px; height: min(874px, calc(100vh - 4.5rem)); overflow: hidden; border-radius: 2.6rem; background: #000; box-shadow: 0 0 0 .55rem #0b0d12, 0 0 0 .62rem rgba(255, 255, 255, .14), 0 2rem 4rem rgba(0, 0, 0, .7); }
+.phone iframe { display: block; width: 100%; height: 100%; border: 0; }
 
 /* Me today */
 .me { display: grid; gap: .5rem; cursor: default; }
@@ -439,20 +451,6 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .zchip { display: inline-block; padding: .1rem .5rem; border-radius: 99px; font: 800 .62rem/1.4 var(--f-sys); letter-spacing: .08em; text-transform: uppercase; vertical-align: middle; }
 .kv2 b { color: var(--fg); font-weight: 600; }
 
-/* Habits window */
-.hlist { display: grid; gap: .45rem; }
-.hline { width: 100%; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) auto; gap: .8rem; align-items: center; padding: .5rem .6rem; border-radius: .75rem; border: 1px solid transparent; background: var(--well); text-align: left; }
-.hline:hover { background: var(--well-hover); border-color: var(--edge); }
-.hline .disc { width: 2.4rem; height: 2.4rem; font-size: 1.1rem; }
-.hline .nm { font-weight: 600; }
-.hline .st { font-size: .78rem; color: var(--dim); }
-.hline.done .st { color: var(--good); } .hline.due .st { color: var(--warn); } .hline.late .st { color: #ff8f98; }
-.hright { display: grid; justify-items: end; gap: .35rem; }
-.hist { display: grid; grid-template-columns: repeat(14, .55rem); gap: .2rem; }
-.hist i { height: .9rem; border-radius: .15rem; background: rgba(255, 255, 255, .08); }
-.hist i.on { background: var(--good); }
-.hist i.today { outline: 1px solid rgba(255, 255, 255, .6); outline-offset: 1px; }
-.streak { font: 700 .74rem/1 var(--f-body); color: var(--warn); white-space: nowrap; }
 
 /* Lists */
 .rows { display: grid; }

@@ -5,7 +5,7 @@ import { emptyDay } from '../src/day.js';
 
 const NOON = Date.parse('2026-10-05T10:00:00Z'); // 12:00 Amsterdam
 
-test('actions: ticks, adds, habits, moods and work land in the day', () => {
+test('actions: ticks, adds, moods and work land in the day; habits are never ticked here', () => {
   const d = emptyDay();
   const n = applyActions(d, [
     { type: 'todo_tick', text: 'Finish deck', done: true },
@@ -17,11 +17,10 @@ test('actions: ticks, adds, habits, moods and work land in the day', () => {
     { type: 'work_set', am: 'home', ride: 'car' },
     { type: 'nonsense' }
   ], NOON);
-  assert.equal(n, 6);
+  assert.equal(n, 4, 'habit actions change nothing: habits are ticked on the boss card only');
   assert.equal(d.ticks['Finish deck'], true);
   assert.deepEqual(d.added, [{ t: 'Call the garage', g: 'can' }]);
-  assert.equal(d.habits.Supplements, '12:00');
-  assert.equal(d.habits['Weigh-in'], false);
+  assert.equal(d.habits, undefined);
   assert.deepEqual(d.moods, [{ at: 720, m: 4, note: 'Focused' }]);
   assert.deepEqual(d.work, { am: '🇳🇱 Home', commute: '🚗 Car' });
 });
