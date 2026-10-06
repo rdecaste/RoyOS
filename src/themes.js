@@ -114,8 +114,15 @@ export const CRITTER_PROMPTS = {
     'Top row, left to right: walking with the near front paw forward and the near hind leg back; walking in the passing pose with the legs under the body; leaping with the body stretched long, front paws reaching forward and hind legs pushing back. ' +
     'Bottom row, left to right: sitting upright with the tail wrapped around the front paws; curled up asleep; sitting and licking a raised front paw. ' +
     'A sleek short-haired black cat with green-gold eyes, realistic proportions, painterly semi-realistic anime key art, soft rim light in magenta and teal from a neon city at night, crisp silhouette, fine fur detail. ' +
-    'Transparent background. No ground, no floor, no cast shadows, no text, no labels, no grid lines, no frames, nothing else in the image.'
+    'Transparent background. No ground, no floor, no cast shadows, no text, no labels, no grid lines, no frames, nothing else in the image.',
+  catwalk: 'The reference image is a sprite sheet of a black cat. Make a new sprite sheet of exactly the SAME cat (same fur, same green-gold eyes, same build, same magenta and teal rim light, same painterly style): an 8-frame walk cycle for an animated desk dashboard. ' +
+    'Eight frames in a 4 by 2 grid, read left to right, top row first, with generous empty space around each frame so they can be cut apart. Side view, every frame facing right, all at the same size and scale as each other, the head and back at the same height in every frame, so the frames line up when played in a loop. ' +
+    'One full stride, evenly spaced in time: 1 near front paw reaching forward and touching down, far hind leg pushed back; 2 weight moving onto the near front paw; 3 passing pose, the near hind leg swinging forward under the body; 4 near hind paw reaching forward, far front leg pushed back; 5 far front paw reaching forward and touching down, near hind leg pushed back; 6 weight moving onto the far front paw; 7 passing pose, the far hind leg swinging forward under the body; 8 far hind paw reaching forward, near front leg pushed back, leading back into frame 1. ' +
+    'Calm unhurried walk, tail held low in a soft curve, swaying only a little from frame to frame. ' +
+    'Transparent background. No ground, no floor, no cast shadows, no text, no numbers, no labels, no grid lines, no frames, nothing else in the image.'
 };
+// A sheet that must match an earlier one gets that sheet as its reference.
+export const CRITTER_REFS = { catwalk: 'cat' };
 export function critterDue(spec, done) {
   const [critter, at] = String(spec || '').split('|').map(x => x.trim());
   if (!CRITTER_PROMPTS[critter] || isNaN(Date.parse(at || '')) || done) return null;

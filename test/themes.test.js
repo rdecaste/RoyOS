@@ -80,3 +80,11 @@ test('critter art: asked for by name and time, only for known critters', async (
   assert.equal(critterDue('', false), null);
   assert.ok(/Transparent background/.test(CRITTER_PROMPTS.cat));
 });
+
+test('the walk cycle sheet is the same cat: the cat sheet goes in as its reference', async () => {
+  const { critterDue, CRITTER_PROMPTS, CRITTER_REFS } = await import('../src/themes.js');
+  assert.equal(critterDue('catwalk|2026-10-06T07:55:00Z', false).critter, 'catwalk');
+  assert.equal(CRITTER_REFS.catwalk, 'cat');
+  assert.ok(CRITTER_PROMPTS[CRITTER_REFS.catwalk]);
+  assert.ok(/8-frame walk cycle/.test(CRITTER_PROMPTS.catwalk) && /4 by 2 grid/.test(CRITTER_PROMPTS.catwalk));
+});

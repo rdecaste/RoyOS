@@ -1,8 +1,8 @@
 // The weekly world, as a Workflow: pick, still, clip, each paid step run once and its
 // result kept small (Cloudinary ids only), so a retry never pays twice.
 import { WorkflowEntrypoint } from 'cloudflare:workers';
-import { generateStill, generateClip, generateSprite, cloudinaryUpload, stillUrl169, THEME_FOLDER } from './media.js';
-import { CRITTER_PROMPTS } from './themes.js';
+import { generateStill, generateClip, generateSprite, spriteUrl, cloudinaryUpload, stillUrl169, THEME_FOLDER } from './media.js';
+import { CRITTER_PROMPTS, CRITTER_REFS } from './themes.js';
 import { state } from './state.js';
 
 const CHEAP = { retries: { limit: 3, delay: '10 seconds', backoff: 'exponential' }, timeout: '2 minutes' };
@@ -16,7 +16,8 @@ export class DeskTheme extends WorkflowEntrypoint {
     if (event.payload.critter) {
       const { critter } = event.payload;
       const art = await step.do('critter art', ONCE_PAID, async () => {
-        const image = await generateSprite(this.env, CRITTER_PROMPTS[critter]);
+        const ref = CRITTER_REFS[critter] ? spriteUrl(`${THEME_FOLDER}/critter-${CRITTER_REFS[critter]}`) : null;
+        const image = await generateSprite(this.env, CRITTER_PROMPTS[critter], ref);
         return cloudinaryUpload(this.env, image.bytes, { resourceType: 'image', mimeType: image.mimeType, publicId: `${THEME_FOLDER}/critter-${critter}`, assetFolder: THEME_FOLDER, tags: 'desk-critter' });
       });
       await step.do('save critter', CHEAP, async () => s.remember('critter:' + critter, { public_id: art.public_id, version: art.version }, 3650 * 864e5));

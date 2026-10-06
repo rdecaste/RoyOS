@@ -90,11 +90,19 @@ async function geminiStill(env, model, prompt, referenceUrls) {
 }
 
 // A critter's art: one sheet of poses on a transparent background, from the same image model.
-export async function generateSprite(env, prompt) {
+// With a reference (an earlier sheet), edit mode keeps the same animal.
+export async function generateSprite(env, prompt, referenceUrl) {
   if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
   const model = /^gpt-image/.test(env.IMAGE_MODEL || '') ? env.IMAGE_MODEL : 'gpt-image-2.5-flare';
-  const response = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, n: 1, size: '1536x1024', quality: 'high', background: 'transparent', moderation: 'low', output_format: 'png' }) });
+  const opts = { model, prompt, n: 1, size: '1536x1024', quality: 'high', background: 'transparent', moderation: 'low', output_format: 'png' };
+  let init;
+  if (referenceUrl) {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(opts)) form.append(k, String(v));
+    form.append('image[]', new Blob([await readUrl(referenceUrl)], { type: 'image/png' }), 'reference.png');
+    init = { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form };
+  } else init = { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(opts) };
+  const response = await fetch(referenceUrl ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/generations', init);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`OpenAI ${response.status}: ${(data.error && data.error.message) || 'image generation failed'}`);
   const b64 = data.data && data.data[0] && data.data[0].b64_json;
