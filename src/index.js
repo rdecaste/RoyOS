@@ -4,9 +4,10 @@
 //   GET  /                 the board
 //   GET  /login            sign-in page (no cookie)   POST /login (password, next)   POST /logout
 //   GET  /data             everything the board shows, as JSON (the page polls it every minute)
-//   POST /act              one edit on the board: {type: todo_tick|todo_add|habit|mood|work|plan|undo, ...}
+//   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
 //   GET  /theme            this week's world (and next week's pick)
+//   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
 //   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1)   POST /theme/retry (week)
@@ -26,6 +27,18 @@ export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
 
 const PAGE_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
+// The boss widget's popup shows the real cards. They are their own Workers (boss, mainquest)
+// behind Cloudflare Access; a service binding reaches them without it, so they open here
+// behind the desk cookie, same origin, and may be framed by this page only.
+const CARDS = { boss: 'BOSS_CARD', goku: 'GOKU_CARD' };
+const CARD_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': "frame-ancestors 'self'", 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' };
+async function card(env, name) {
+  const bind = env[CARDS[name]];
+  if (!bind) return new Response('This card is not connected (' + CARDS[name] + ').', { status: 503, headers: CARD_HEADERS });
+  const r = await bind.fetch(new Request('https://' + name + '.card/', { headers: { Accept: 'text/html' } }));
+  if (!r.ok) return new Response('The ' + name + ' card answered ' + r.status + '.', { status: 502, headers: CARD_HEADERS });
+  return new Response(await r.text(), { headers: CARD_HEADERS });
+}
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 const page = (html, status = 200, extra = {}) => new Response(html, { status, headers: { ...PAGE_HEADERS, ...extra } });
 const NEXT = new Set(['/']);
@@ -142,6 +155,7 @@ export default {
         return json({ ok: 1, ...data, theme });
       }
       if (path === '/theme') return json({ ok: 1, theme: await currentTheme(env, s) });
+      if (path.startsWith('/card/') && CARDS[path.slice(6)]) return card(env, path.slice(6));
 
       if (path === '/act' && request.method === 'POST') {
         const a = await readFields(request), day = ymd(Date.now());

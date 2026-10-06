@@ -12,7 +12,8 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DeskState"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "quest", "database_id": "94e5f5c7-b24f-4a3c-808c-a85345a27f7f" }],
   // Workers on one account cannot fetch each other's workers.dev URL, so the quest engine is reached over a service binding.
-  "services": [{ "binding": "QUEST_ENGINE", "service": "quest-engine" }],
+  // The boss widget's popup serves the boss card and the Goku card (their own Workers, behind Access) through bindings too.
+  "services": [{ "binding": "QUEST_ENGINE", "service": "quest-engine" }, { "binding": "BOSS_CARD", "service": "boss" }, { "binding": "GOKU_CARD", "service": "mainquest" }],
   "workflows": [{ "name": "royos-theme", "binding": "DESK_THEME", "class_name": "DeskTheme" }],
   // Every hour: makes the week's world on Monday from 06:00 Amsterdam, and catches up if that failed.
   "triggers": { "crons": ["5 * * * *"] },

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, power, safeText, gameDay, recoveryView, weatherView, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -16,6 +16,16 @@ test('main habits: done on today\'s game day, with the last 14 days from the bos
   assert.equal(m[0].done, true); assert.equal(m[0].at, '06:00'); assert.deepEqual(m[0].days, ['2026-10-03']);
   assert.equal(m[2].done, false, 'yesterday evening is not today');
   assert.equal(MAIN_HABITS.length, 5);
+});
+
+test('boss widget: the boss\'s HP and Goku\'s front-of-card metrics, read from the engine', () => {
+  const boss = { boss_name: 'Android 18', epithet: 'The Infinite', boss_level: 6, current_hp: 412.4, max_hp: 900, status: 'Active', hero_hp: 210, hero_max_hp: 300 };
+  const mq = { level: 5.75, level_xp: 1200, level_xp_max: 2000, current_hp: 99, max_hp: 300, power: { power_level: 4100, shield: { amount: 24.6 }, ki: { level: 3, peak: 5 } } };
+  const v = bossView({}, boss, mq, { now: { form: 'Super Saiyan 3' } });
+  assert.deepEqual(v.boss, { name: 'Android 18', epithet: 'The Infinite', level: 6, hp: 412.4, max: 900, status: 'Active' });
+  assert.deepEqual(v.goku, { form: 'Super Saiyan 3', level: 5, hp: 210, max_hp: 300, shield: 25, xp: 1200, xp_max: 2000, power: 4100, ki: { level: 3, peak: 5 } }, 'live hero HP from the boss card wins');
+  assert.equal(bossView({}, null, mq, null).goku.hp, 99, 'without the boss card, the Goku card\'s own HP');
+  assert.equal(bossView({}, null, null, null), null);
 });
 
 test('power: load per day, the week\'s peak with its workout, the ki charge', () => {

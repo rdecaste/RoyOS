@@ -1,6 +1,6 @@
 # Roy OS
 
-The desk screen next to Roy all day: clock, the day's plan, focus and main habits, body (recovery, training load, ki), mood and commute, an Ask box, and a world that changes every Monday morning: a random franchise, scene and character from the quest database, made as a looping clip.
+The desk screen next to Roy all day: clock, the day's plan, focus, the boss battle (boss HP and Goku, opening the real cards), body (recovery, training load, ki), mood and commute, an Ask box, and a world that changes every Monday morning: a random franchise, scene and character from the quest database, made as a looping clip.
 
 - Cloudflare Worker, one page, signed in once (30-day cookie).
 - Data: the quest engine's public cards (habits, hero, power) and its `/recovery`, the journal's day and workouts from the quest D1 (read only), three published iCloud calendars (family, Steph's work, Roy's personal; read only), the weather from Open-Meteo.

@@ -34,9 +34,6 @@ export function applyActions(d, list, now = Date.now()) {
     } else if (type === 'todo_tick' || type === 'todo_done') {
       const t = String(a.text || a.t || '').trim();
       if (t) { d.ticks[t] = type === 'todo_done' ? true : !!(a.done === true || a.done === '1' || a.done === 'true'); n++; }
-    } else if (type === 'habit' || type === 'habit_done') {
-      const name = String(a.name || '').trim();
-      if (name) { const done = type === 'habit_done' ? true : (a.done === true || a.done === '1' || a.done === 'true'); d.habits[name] = done ? hhmm(now) : false; n++; }
     } else if (type === 'mood' || type === 'mood_log') {
       const v = Math.round(Number(a.mood || a.m)); if (v >= 1 && v <= 5) { d.moods.push({ at: m, m: v, note: String(a.note || '').slice(0, 80) }); n++; }
     } else if (type === 'work' || type === 'work_set') {
@@ -59,7 +56,7 @@ export function askPrompt(data, text) {
     plan: (e.events || []).map(({ id, who, from, to, t, k }) => ({ id, who, from, to, t, k })),
     family_calendar: data.calendar ? { today: data.calendar.today_timed.map(({ who, from, to, t }) => ({ who, from, to, t })), coming: data.calendar.upcoming.slice(0, 15).map(({ day, end_day, all_day, from, to, who, t }) => ({ day, end_day, all_day, from, to, who, t })) } : null,
     focus: { win_if: j.win_if, must: j.must.map(x => ({ t: x.t, done: e.ticks[x.t] != null ? e.ticks[x.t] : x.done })), can: j.can.map(x => ({ t: x.t, done: e.ticks[x.t] != null ? e.ticks[x.t] : x.done })), added: e.added },
-    from_steph: j.steph, main_habits: data.main.map(h => ({ name: h.name, done: e.habits[h.name] ? true : e.habits[h.name] === false ? false : h.done, usual: h.usual, streak: h.streak })),
+    from_steph: j.steph, main_habits: data.main.map(h => ({ name: h.name, done: h.done, usual: h.usual, streak: h.streak })),
     mood_today: e.moods.map(x => ({ at: x.at, mood: FEEL[x.m - 1], note: x.note })),
     work_today: e.work || j.work, work_options: { places: PLACES, rides: RIDES },
     body: f.recovery ? { recovery: f.recovery.score + '% ' + f.recovery.verdict, sleep_h: f.recovery.sleep, hrv: f.recovery.hrv, rest_hr: f.recovery.rhr } : null,
@@ -69,6 +66,7 @@ export function askPrompt(data, text) {
   const system = 'You are the assistant built into Roy OS, the desk screen next to Roy all day. You answer questions about what the screen shows, and you can change it.\n' +
     'Lanes ("who") in the plan: roy (Roy, who is typing), steph (Steph, his partner), kids (their children), all (everyone). Event types ("k"): work, move (commute, driving, school run), train (sport), fam (family, school, kids), mind (personal, journal, yoga).\n' +
     'family_calendar is the shared iCloud calendar, read only: you cannot change it, but its blocks are on the lanes already, so do not add them again.\n' +
+    'main_habits come from the boss card and are read only here: habits are only ever ticked on the boss card (tap the boss widget to open it). If he says he did one, tell him to tick it there; there is no action for it.\n' +
     'Do what he asks. Include obvious knock-on effects in the plan (no school means no school run or pickup, and the kids are home). Do not invent details you cannot infer. If he only asks a question, answer it from the data and change nothing.\n' +
     'Reply with only a JSON object {"reply":"...","actions":[...]}. "reply" is one or two short sentences: the answer, or what you changed. Actions, any number, in order:\n' +
     '{"type":"event_add","who":"kids","from":"08:30","to":"15:15","t":"Home","k":"fam"}\n' +
@@ -76,7 +74,6 @@ export function askPrompt(data, text) {
     '{"type":"event_delete","id":"e9"}\n' +
     '{"type":"todo_add","text":"Call the plumber","list":"must"} (list: must or can)\n' +
     '{"type":"todo_done","text":"<the exact to-do text>"}\n' +
-    '{"type":"habit_done","name":"Supplements"} (one of the main habits)\n' +
     '{"type":"mood_log","mood":4,"note":"Focused"} (mood: 1 Sucky, 2 Tired, 3 Normal, 4 Good, 5 On fire)\n' +
     '{"type":"work_set","am":"🇳🇱 Home","pm":"🇧🇪 Beerse","ride":"🚲 E-bike"} (values from work_options; only what changes)\n' +
     'Times are 24-hour HH:MM between 06:00 and 23:00. Titles under 30 characters.';
