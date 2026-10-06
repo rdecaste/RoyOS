@@ -101,4 +101,12 @@ test('lanes: one name picks the lane, none or two means everyone; accents and ca
   assert.equal(laneOf('Stephanie vrij - koningsdag', WORDS), 'steph');
   assert.equal(laneOf('Roy en Steph uit eten', WORDS), 'all');
   assert.equal(laneOf('CV ketel onderhoud', WORDS), 'all');
+  assert.equal(laneOf('test', WORDS, 'kids'), 'kids', 'the family calendar keeps an event naming nobody in its own lane');
+  assert.equal(laneOf('Roy en Steph uit eten', WORDS, 'kids'), 'all');
+});
+
+test('agenda: a family event naming nobody stays in the family lane', () => {
+  const a = agenda(parseIcs(ICS), NOW, { days: 30, words: WORDS, unnamed: 'kids' });
+  assert.equal(a.upcoming.find(i => i.t === 'Verhuizen!!!').who, 'kids');
+  assert.equal(a.upcoming.find(i => i.t === 'Fysio, Steph').who, 'steph');
 });

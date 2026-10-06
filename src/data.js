@@ -168,11 +168,12 @@ export async function weather(env, s, now = Date.now()) {
 }
 
 // ---- The calendars (published iCloud feeds), cached 10 minutes ----
-// The family calendar fills the lanes by the words in each title and Coming up; Steph's
+// The family calendar fills the lanes by the words in each title (an event naming nobody
+// stays in the family lane, Kids) and Coming up; Steph's
 // work calendar fills her lane only (daily shifts would drown Coming up); Roy's personal
 // calendar fills his lane and Coming up, the kids' calendar theirs. All are published feeds, read only.
 const feeds = env => [
-  { key: 'family', url: env.FAMILY_ICS_URL, coming: true, opts: { words: laneWords(env.LANE_WORDS) } },
+  { key: 'family', url: env.FAMILY_ICS_URL, coming: true, opts: { words: laneWords(env.LANE_WORDS), unnamed: 'kids' } },
   { key: 'steph', url: env.STEPH_ICS_URL, coming: false, opts: { lane: 'steph', kind: 'work', icon: '💼' } },
   { key: 'roy', url: env.ROY_ICS_URL, coming: true, opts: { lane: 'roy', kind: 'mind', icon: '📅' } },
   { key: 'kids', url: env.KIDS_ICS_URL, coming: true, opts: { lane: 'kids', kind: 'fam', icon: '🧒' } }
