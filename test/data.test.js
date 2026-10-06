@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, mergeWork, winToday, focusSession, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -112,4 +112,24 @@ test('today\'s win: the boss card\'s win (/boss `win`), Done on today\'s game da
   assert.deepEqual(winToday({ win: { ...boss.win, done: 0, hit: null } }, NOW), { done: false, dmg: null }, 'not ticked yet');
   assert.deepEqual(winToday(boss, Date.parse('2026-10-07T10:00:00Z')), { done: false, dmg: null }, 'yesterday\'s win is not today\'s');
   assert.deepEqual(winToday(null, NOW), { done: false, dmg: null });
+});
+
+test('preview time: Amsterdam wall time, ISO as is, within 60 days', () => {
+  const now = Date.parse('2026-10-06T15:40:00Z');
+  assert.equal(new Date(previewAt('2026-10-12T07:00', now)).toISOString(), '2026-10-12T05:00:00.000Z', 'CEST is UTC+2');
+  assert.equal(new Date(previewAt('2026-11-02T07:00', now)).toISOString(), '2026-11-02T06:00:00.000Z', 'CET is UTC+1 after 25 Oct');
+  assert.equal(new Date(previewAt('2026-10-12', now)).toISOString(), '2026-10-12T05:00:00.000Z', 'a bare day is 07:00');
+  assert.equal(new Date(previewAt('2026-10-12T05:00:00Z', now)).toISOString(), '2026-10-12T05:00:00.000Z');
+  assert.equal(previewAt('2027-10-12T07:00', now), null, 'too far');
+  assert.equal(previewAt('next monday', now), null);
+  assert.equal(previewAt('', now), null);
+});
+
+test('preview weather: "now" is the forecast at the previewed hour', () => {
+  const at = Date.parse('2026-10-12T05:00:00Z');
+  const w = { current: { temperature_2m: 20, weather_code: 0, is_day: 1 }, daily: { temperature_2m_max: [14], temperature_2m_min: [6], sunrise: ['2026-10-12T07:55'], sunset: ['2026-10-12T18:50'] },
+    hourly: { time: ['2026-10-12T06:00', '2026-10-12T07:00', '2026-10-12T08:00'], temperature_2m: [7, 8, 9], apparent_temperature: [5, 6, 7], precipitation_probability: [10, 60, 20], weather_code: [3, 61, 3], is_day: [0, 0, 1], wind_speed_10m: [9, 12, 10] } };
+  const v = previewWeather(w, at);
+  assert.equal(v.temp, 8); assert.equal(v.feels, 6); assert.equal(v.code, 61); assert.equal(v.day, false); assert.equal(v.wind, 12);
+  assert.equal(v.hours[0].t, '07:00'); assert.equal(v.hi, 14);
 });

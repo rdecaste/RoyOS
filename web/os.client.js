@@ -12,7 +12,10 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---- Time ----
 const HM = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const now = () => Date.now();
+// A preview (/?at=…) runs the board's clock from that time on; nothing is saved (see post).
+const PREVIEW = D.preview || null;
+const SHIFT = PREVIEW ? Date.parse(PREVIEW.at) - Date.now() : 0;
+const now = () => Date.now() + SHIFT;
 const hm = (ms = now()) => HM.format(new Date(ms));
 const minAt = ms => { const [h, m] = hm(ms).split(':').map(Number); return h * 60 + m; };
 const nowMin = () => minAt(now());
@@ -153,6 +156,7 @@ const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Cloudy', 45
 
 // ---- Server calls ----
 async function post(path, body) {
+  if (PREVIEW) throw new Error('this is a preview, so nothing is saved');
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (r.status === 401) { location.href = '/login?next=/'; throw new Error('signed out'); }
   const out = await r.json().catch(() => ({}));
@@ -167,11 +171,11 @@ function act(action, after) {
 }
 async function refresh() {
   try {
-    const r = await fetch('/data', { headers: { Accept: 'application/json' } });
+    const r = await fetch(PREVIEW ? '/data?at=' + encodeURIComponent(new Date(now()).toISOString()) : '/data', { headers: { Accept: 'application/json' } });
     if (r.status === 401) { location.href = '/login?next=/'; return; }
     const out = await r.json();
     if (!out.ok) throw new Error(out.message || out.code);
-    const art = D.moodArt; D = out; D.moodArt = art; E = D.edits;
+    const art = D.moodArt; D = out; if (PREVIEW) D.preview = out.preview || D.preview; D.moodArt = art; E = D.edits;
     $('liveTag').hidden = true;
     applyTheme(D.theme); renderAll(); refreshWin(); nudges();
   } catch (err) { $('liveTag').hidden = false; }
@@ -710,7 +714,7 @@ function wake() {
 // The running session is kept in this browser (localStorage), so a refresh keeps it going. Each finished
 // or stopped session is saved on the server (POST /act {type: focus}) in DeskState's focus table;
 // /data sends today's back as `focus`. A session stopped before a minute is not kept.
-const FT_KEY = 'royos.focus', FT_MIN = 25;
+const FT_KEY = PREVIEW ? 'royos.focus.preview' : 'royos.focus', FT_MIN = 25;
 let FT = null, ftTick = 0;
 try { FT = JSON.parse(localStorage.getItem(FT_KEY) || 'null'); } catch { FT = null; }
 const ftSave = () => { try { FT ? localStorage.setItem(FT_KEY, JSON.stringify(FT)) : localStorage.removeItem(FT_KEY); } catch {} };
@@ -1275,17 +1279,29 @@ async function ask() {
   } finally { asking = false; $('askBtn').textContent = 'Ask'; $('askForm').classList.remove('busy'); $('askIn').disabled = false; }
 }
 
+// ---- Preview banner: the time shown, the week's world to come, and the way back ----
+function renderPreview() {
+  const P = D.preview; if (!P) return;
+  let el = $('previewBar');
+  if (!el) { el = document.createElement('div'); el.id = 'previewBar'; el.className = 'previewbar'; $('os').appendChild(el); }
+  const w = P.world;
+  el.innerHTML = '<b>Preview</b><span>' + esc(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(now()))) + ' · nothing is saved</span>' +
+    (w && !w.ready ? '<span>' + esc(P.week) + ' world (made Monday 06:00): <b>' + esc(w.franchise) + ' · ' + esc(w.scene) + ' · ' + esc(w.character) + '</b>. This week’s world shows until then.</span>' : '') +
+    '<a href="/">Back to live</a>';
+}
+
 // ---- Boot ----
 qa('[data-ic]').forEach(el => { el.outerHTML = icon(el.dataset.ic); });
 fitBoard();
 renderApps();
 applyTheme(D.theme);
 renderAll();
+renderPreview();
 if (document.fonts) document.fonts.ready.then(fitAfterRender);
 addEventListener('resize', fitAfterRender);
 matchMedia('(max-width: 900px), (orientation: portrait)').addEventListener('change', () => { fitBoard(); placeWall(); fitAfterRender(); });
 setTimeout(nudges, 900);
-setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
+setInterval(() => { renderClock(); renderIsland(); renderDay(); renderPreview(); }, 15e3);
 setInterval(refresh, 60e3);
 setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
 setInterval(drift, 4 * 60e3);

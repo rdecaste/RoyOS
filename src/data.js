@@ -17,6 +17,25 @@ const WORKOUT = /^(Run|Bike|Swim|Gym|Ruck|E-bike)$/;
 export const gameDay = ms => ymd(ms - 4 * 3600e3);
 const hhmm = ms => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
 
+// ---- Preview: the board at another time (?at=2026-10-12T07:00, Amsterdam time) ----
+// A time with no zone is Amsterdam's; one with Z or an offset is taken as is. Only within 60 days
+// of now, so a typo can't ask for a far year. Null when there is no (good) `at`.
+export function previewAt(at, now = Date.now()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$/.exec(String(at || '').trim());
+  let ms;
+  if (m) {
+    const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 7), +(m[5] || 0));
+    ms = wall - tzOffset(wall);
+    ms = wall - tzOffset(ms);
+  } else ms = /^\d{4}-\d{2}-\d{2}T.*(Z|[+-]\d{2}:?\d{2})$/.test(String(at || '')) ? Date.parse(at) : NaN;
+  return Number.isFinite(ms) && Math.abs(ms - now) <= 60 * DAY ? ms : null;
+}
+// Amsterdam's offset from UTC at that moment, in ms.
+function tzOffset(ms) {
+  const p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value; });
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60e3) * 60e3;
+}
+
 // Words that keep the main quest off a screen visitors can see.
 const hidden = env => String(env.DESK_HIDE || 'fap,pmo').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 export function safeText(env, text) {
@@ -187,7 +206,14 @@ export function weatherView(w, now = Date.now()) {
     sunrise: String(at('sunrise') || '').slice(11, 16), sunset: String(at('sunset') || '').slice(11, 16), hours
   };
 }
-export async function weather(env, s, now = Date.now()) {
+// A preview asks for that day's forecast (Open-Meteo goes 16 days ahead) and keeps nothing; "now" is the forecast's hour.
+export async function weather(env, s, now = Date.now(), { preview = false } = {}) {
+  if (preview) {
+    try {
+      const d = ymd(now), u = `https://api.open-meteo.com/v1/forecast?latitude=${env.WEATHER_LAT || '51.286'}&longitude=${env.WEATHER_LON || '3.828'}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day,wind_speed_10m&daily=sunrise,sunset,precipitation_probability_max,temperature_2m_max,temperature_2m_min&timezone=Europe%2FAmsterdam&start_date=${d}&end_date=${ymd(now + DAY)}`;
+      return previewWeather(await (await fetch(u)).json(), now);
+    } catch (_) { return null; }
+  }
   const key = 'weather:v2';
   const hit = await s.cached(key);
   if (hit) return hit;
@@ -197,6 +223,14 @@ export async function weather(env, s, now = Date.now()) {
     await s.remember(key, out, 15 * 60e3);
     return out;
   } catch (_) { return null; }
+}
+
+export function previewWeather(w, now) {
+  const v = weatherView(w, now), h = w.hourly || {}, times = Array.isArray(h.time) ? h.time : [];
+  const i = times.indexOf(ymd(now) + 'T' + hhmm(now).slice(0, 2) + ':00');
+  if (i < 0) return v;
+  const at = k => (Array.isArray(h[k]) ? h[k][i] ?? null : null);
+  return { ...v, temp: at('temperature_2m'), feels: at('apparent_temperature'), code: at('weather_code'), day: at('is_day') !== 0, wind: at('wind_speed_10m') };
 }
 
 // ---- The calendars (published iCloud feeds), cached 10 minutes ----
@@ -215,10 +249,11 @@ async function feed(f, now) {
   if (!res.ok) throw new Error(f.key + ' feed ' + res.status);
   return agenda(parseIcs(await res.text()), now, { days: 30, ...f.opts });
 }
-export async function calendar(env, s, now = Date.now()) {
+// A preview reads the feeds fresh and keeps nothing, so the live board's cache is left alone.
+export async function calendar(env, s, now = Date.now(), { preview = false } = {}) {
   const list = feeds(env); if (!list.length) return null;
   // The version in the key drops the cache when the lanes change (v2: the family calendar is Kids).
-  const key = 'calendar:v2:' + list.map(f => f.key).join('+'), hit = await s.cached(key);
+  const key = 'calendar:v2:' + list.map(f => f.key).join('+'), hit = preview ? null : await s.cached(key);
   if (hit && hit.today === ymd(now)) return hit;
   const got = await Promise.allSettled(list.map(f => feed(f, now)));
   const errors = got.map((g, i) => g.status === 'rejected' ? list[i].key + ': ' + g.reason.message : null).filter(Boolean);
@@ -226,7 +261,7 @@ export async function calendar(env, s, now = Date.now()) {
   const out = { today: ymd(now), today_timed: [], upcoming: [], feeds: list.map(f => f.key), errors };
   got.forEach((g, i) => { if (g.status !== 'fulfilled') return; out.today_timed.push(...g.value.today_timed); if (list[i].coming) out.upcoming.push(...g.value.upcoming); });
   out.today_timed.sort((a, b) => a.from.localeCompare(b.from));
-  await s.remember(key, out, 10 * 60e3);
+  if (!preview) await s.remember(key, out, 10 * 60e3);
   return out;
 }
 
@@ -259,8 +294,8 @@ export function themeView(row, next, critter = null, lore = null) {
 }
 
 // Everything the page needs, in one object. Each source fails on its own, so one
-// outage never blanks the screen.
-export async function board(env, s, now = Date.now()) {
+// outage never blanks the screen. A preview (another `now`) only reads: no cache is written.
+export async function board(env, s, now = Date.now(), { preview = false } = {}) {
   const day = ymd(now), errors = [];
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
   const focusP = safe('focus', Promise.resolve().then(() => s.focusDay(day)), []);
@@ -269,7 +304,7 @@ export async function board(env, s, now = Date.now()) {
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
     safe('journal', deskWork.then(desk => journalDay(env, day, desk)), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
-    safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
+    safe('weather', weather(env, s, now, { preview }), null), s.day(day), safe('calendar', calendar(env, s, now, { preview }), null)
   ]);
   const focus = await focusP;
   const focusQuest = (questboard || []).find(q => q.questAttention === 'Focus') || (questboard || [])[0] || null;
