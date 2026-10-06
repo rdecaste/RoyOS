@@ -50,7 +50,7 @@ const P = {
 };
 P.os = P.logo;
 const icon = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[n] || '') + '</svg>';
-const APPS = [['focus', 'Focus', '#f6c045'], ['boss', 'Boss battle', '#ff5f6d'], ['body', 'Body', '#ff7a7a'], ['mood', 'Mood', '#7ee0c3'],
+const APPS = [['focus', 'Focus', '#f6c045'], ['boss', 'Showdown', '#ff5f6d'], ['body', 'Body', '#ff7a7a'], ['mood', 'Mood', '#7ee0c3'],
   ['commute', 'Commute', '#6fd8ff'], ['steph', 'From Steph', '#ff7ac8'], ['dates', 'Coming up', '#ff9f5a'], ['quest', 'Quest', '#8fb8ff']];
 const APP = Object.fromEntries(APPS.map(([k, name, ac]) => [k, { name, ac }]));
 APP.day = { name: 'Your day', ac: '#5b93f0' }; APP.claude = { name: 'Claude', ac: '#b18cff' }; APP.os = { name: 'Roy OS', ac: '#6fd8ff' };
@@ -512,26 +512,38 @@ function renderQuest() {
   $('questChip').innerHTML = icon('quest') + '<b>' + esc(q.title.length > 22 ? q.title.slice(0, 20) + '…' : q.title) + '</b>' + (q.longest_km && q.goal_km ? '<span class="qbar"><i style="width:' + pct(q.longest_km, q.goal_km) + '%"></i></span>' : '') + (q.days_left != null ? '<span class="d">' + q.days_left + ' days</span>' : '');
   $('questChip').setAttribute('aria-label', q.title + (q.days_left != null ? ', ' + q.days_left + ' days to go' : '') + '. Open Quest');
 }
-function renderFocusW() {
+function renderFocusW(max = focusMax) {
   const all = focusList('must').concat(focusList('can')), open = all.filter(x => !x.done);
   $('focusCount').textContent = all.filter(x => x.done).length + '/' + all.length;
   $('winIf').innerHTML = '<small>Today is a win if</small>' + (D.journal.win_if ? esc(D.journal.win_if) : '<span class="say">Not set in your journal yet.</span>');
   const must = focusList('must').filter(x => !x.done).map(x => ({ x, g: 'must' })), can = focusList('can').filter(x => !x.done).map(x => ({ x, g: 'can' })), list = must.concat(can);
-  $('focusTodos').innerHTML = list.length ? list.slice(0, 3).map(o => todoBtn(o.x, o.g)).join('') + (list.length > 3 ? '<div class="say" style="font-size:.78rem">+' + (list.length - 3) + ' more</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="say">No to-dos yet. Add one below.</div>';
+  $('focusTodos').innerHTML = list.length ? list.slice(0, max).map(o => todoBtn(o.x, o.g)).join('') + (list.length > max ? '<div class="say" style="font-size:.78rem">' + (max ? '+' + (list.length - max) + ' more' : list.length + ' open, tap Focus to see them') + '</div>' : '') : all.length ? '<div class="alldone">All done. That’s a win.</div>' : '<div class="say">No to-dos yet. Add one below.</div>';
 }
+// The left column fits the screen to the pixel: Focus shows as many open to-dos as fit (up to 3)
+// above the Showdown widget, so nothing runs into Your day.
+let focusMax = 3;
+function fitLeft() {
+  const col = document.querySelector('.col.left'), last = col && col.lastElementChild; if (!last) return;
+  const over = () => last.getBoundingClientRect().bottom > col.getBoundingClientRect().bottom + .25;
+  for (focusMax = 3; focusMax > 0 && over(); ) renderFocusW(--focusMax);
+}
+function fitAfterRender() { if (focusMax !== 3) { focusMax = 3; renderFocusW(); } fitLeft(); }
 // The boss widget: the boss's HP and Goku's front-of-card metrics, read from the quest engine.
 const BOSS = () => D.boss || { boss: null, goku: null };
 const bar = (cls, v, max, extra) => '<span class="mbar ' + cls + '"><i style="width:' + pct(v, max) + '%"></i>' + (extra || '') + '</span>';
 function renderBossW() {
   const m = nowMin(), done = D.main.filter(x => habitState(x, m).st === 'done').length, b = BOSS().boss, g = BOSS().goku;
+  const num = (v, max) => fmtNum(v) + '<small> / ' + fmtNum(max) + '</small>';
+  $('bossTitle').textContent = 'Goku vs ' + (b ? b.name : 'the boss');
   $('bossHabits').textContent = D.main.length ? done + '/' + D.main.length + ' habits' : '';
   $('bossSide').setAttribute('aria-label', b ? 'Boss ' + b.name + ', HP ' + Math.round(b.hp) + ' of ' + b.max + '. Open the boss card' : 'Open the boss card');
-  $('bossSide').innerHTML = b ? '<span class="bk">Boss' + (b.level ? ' · Lv ' + b.level : '') + '</span><span class="bn">' + esc(b.name) + '</span>' + bar('hp-boss', b.hp, b.max) + '<span class="bnum">' + (b.status && b.status !== 'Active' ? esc(b.status) : fmtNum(b.hp) + ' / ' + fmtNum(b.max) + ' HP') + '</span>'
-    : '<span class="bk">Boss</span><span class="say">Not answering</span>';
+  $('bossSide').innerHTML = '<span class="bk">Boss' + (b && b.level ? ' · Lv ' + b.level : '') + '</span>' + (b
+    ? bar('hp-boss', b.hp, b.max) + '<span class="bnum">' + (b.status && b.status !== 'Active' ? esc(b.status) : num(b.hp, b.max) + ' HP') + '</span>'
+    : '<span class="say">Not answering</span>');
   $('gokuSide').setAttribute('aria-label', g ? 'Goku, level ' + (g.level || '') + '. Open the Goku card' : 'Open the Goku card');
-  $('gokuSide').innerHTML = g ? '<span class="bk">Goku' + (g.level ? ' · Lv ' + g.level : '') + (g.power ? '<em>⚡ ' + fmtNum(g.power) + '</em>' : '') + '</span>' +
-    (g.max_hp ? bar('hp-goku', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + '<span class="bnum">' + fmtNum(g.hp) + ' / ' + fmtNum(g.max_hp) + ' HP' + (g.shield ? ' <span class="shd">+' + g.shield + '</span>' : '') + '</span>' : '') +
-    (g.xp_max ? bar('xp', g.xp, g.xp_max) + '<span class="bnum">' + fmtNum(g.xp) + ' / ' + fmtNum(g.xp_max) + ' XP</span>' : '')
+  $('gokuSide').innerHTML = g
+    ? '<span class="bk">Goku' + (g.level ? ' · Lv ' + g.level : '') + '</span>' + (g.max_hp ? bar('hp-goku', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + '<span class="bnum">' + num(g.hp, g.max_hp) + ' HP' + (g.shield ? ' <span class="shd">+' + g.shield + '</span>' : '') + '</span>' : '<span></span><span></span>') +
+      '<span class="bk pw">' + (g.power ? '⚡ ' + fmtNum(g.power) : '') + '</span>' + (g.xp_max ? bar('xp', g.xp, g.xp_max) + '<span class="bnum">' + num(g.xp, g.xp_max) + ' XP</span>' : '')
     : '<span class="bk">Goku</span><span class="say">Not answering</span>';
 }
 function renderMe() {
@@ -568,7 +580,7 @@ function renderDay() {
 }
 function renderApps() { $('apps').innerHTML = APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
 function renderDockState() { qa('.app').forEach(a => a.classList.toggle('open', !!WIN && WIN.key === a.dataset.open)); }
-function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderBossW(); renderMe(); renderMinis(); renderDay(); renderDockState(); }
+function renderAll() { renderClock(); renderTray(); renderWeather(); renderIsland(); renderQuest(); renderFocusW(); renderBossW(); renderMe(); renderMinis(); renderDay(); renderDockState(); fitAfterRender(); }
 
 // ---- Windows ----
 const sec = (id, hl, html) => '<div class="sec' + (hl === id ? ' hl' : '') + '">' + html + '</div>';
@@ -705,7 +717,7 @@ function logMood(m, note) {
 function addTodo(f) {
   const inp = f.querySelector('input'), t = inp.value.trim(), g = f.id === 'wAddForm' ? $('wAddG').value : 'must';
   if (!t) { inp.focus(); return; }
-  E.added.unshift({ t, g }); inp.value = ''; renderFocusW(); refreshWin(); if (f.id === 'wAddForm' && $('wAddIn')) $('wAddIn').focus();
+  E.added.unshift({ t, g }); inp.value = ''; renderFocusW(); fitAfterRender(); refreshWin(); if (f.id === 'wAddForm' && $('wAddIn')) $('wAddIn').focus();
   act({ type: 'todo_add', text: t, list: g }, () => notify({ app: 'focus', html: 'Added to ' + (g === 'must' ? 'Must do' : 'Can do') + ': <b>' + esc(t) + '</b>' }));
 }
 function savePlan(evs, after) { act({ type: 'plan', events: evs }, after); }
@@ -733,7 +745,7 @@ function fullscreen() {
 }
 function doAct(el, e) {
   const a = el.dataset.act;
-  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); renderMinis(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
+  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderMinis(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
   else if (a === 'cardclose') closeCard();
   else if (a === 'face') pickFace(+el.dataset.m, el);
@@ -823,6 +835,8 @@ qa('[data-ic]').forEach(el => { el.outerHTML = icon(el.dataset.ic); });
 renderApps();
 applyTheme(D.theme);
 renderAll();
+if (document.fonts) document.fonts.ready.then(fitAfterRender);
+addEventListener('resize', fitAfterRender);
 setTimeout(nudges, 900);
 setInterval(() => { renderClock(); renderIsland(); renderDay(); }, 15e3);
 setInterval(refresh, 60e3);
