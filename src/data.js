@@ -185,7 +185,8 @@ async function feed(f, now) {
 }
 export async function calendar(env, s, now = Date.now()) {
   const list = feeds(env); if (!list.length) return null;
-  const key = 'calendar:' + list.map(f => f.key).join('+'), hit = await s.cached(key);
+  // The version in the key drops the cache when the lanes change (v2: the family calendar is Kids).
+  const key = 'calendar:v2:' + list.map(f => f.key).join('+'), hit = await s.cached(key);
   if (hit && hit.today === ymd(now)) return hit;
   const got = await Promise.allSettled(list.map(f => feed(f, now)));
   const errors = got.map((g, i) => g.status === 'rejected' ? list[i].key + ': ' + g.reason.message : null).filter(Boolean);
