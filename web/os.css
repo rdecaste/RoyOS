@@ -225,21 +225,22 @@ button.tray:hover { background: rgba(255, 255, 255, .1); }
 .addrow input::placeholder { color: var(--faint); }
 .addrow:focus-within { color: #f6c045; border-top-color: rgba(246, 192, 69, .5); }
 
-/* Boss battle: the boss's HP and Goku's front-of-card metrics; a tap opens the real card */
+/* Showdown: Goku vs the boss, one row each (label, bar, numbers); a tap opens the real card */
 .bossw { --ac: var(--bad); }
-.bossrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .5rem; margin-top: .6rem; }
-.bside { min-width: 0; display: grid; align-content: start; gap: .3rem; padding: .5rem .6rem .55rem; border: 1px solid transparent; border-radius: .75rem; background: var(--well); text-align: left; color: var(--fg); }
+.bossrows { display: grid; gap: .3rem; margin-top: .35rem; }
+.bside { min-width: 0; display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) 7.6rem; align-items: center; gap: .3rem .6rem; padding: .35rem .6rem; border: 1px solid transparent; border-radius: .65rem; background: var(--well); text-align: left; color: var(--fg); }
 .bside:hover { background: var(--well-hover); border-color: var(--edge); }
 .bk { display: flex; align-items: baseline; gap: .4rem; font: 600 .66rem/1 var(--f-sys); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.bk em { margin-left: auto; font-style: normal; letter-spacing: 0; text-transform: none; color: #ffd65c; font-variant-numeric: tabular-nums; }
-.bn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 .95rem/1.15 var(--f-body); }
+.bk.pw { letter-spacing: 0; color: #ffd65c; font-variant-numeric: tabular-nums; }
 .mbar { position: relative; display: block; height: .45rem; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
 .mbar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--c); box-shadow: 0 0 .5rem var(--c); transition: width .6s ease; }
 .mbar b { position: absolute; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(90, 184, 255, .6), rgba(170, 225, 255, .95)); box-shadow: 0 0 .5rem rgba(90, 184, 255, .85); }
 .mbar.hp-boss { --c: var(--bad); }
 .mbar.hp-goku { --c: var(--good); }
-.mbar.xp { --c: #ffd65c; height: .3rem; }
-.bnum { font: 600 .68rem/1 var(--f-sys); color: var(--dim); font-variant-numeric: tabular-nums; }
+.mbar.xp { --c: #ffd65c; }
+.bnum { justify-self: end; white-space: nowrap; font: 600 .78rem/1 var(--f-sys); color: var(--fg); font-variant-numeric: tabular-nums; }
+.bnum small { font-size: inherit; color: var(--dim); }
+.bside .say { grid-column: 2 / 4; font-size: .8rem; }
 .bnum .shd { color: #8fd0ff; }
 .hb-line { white-space: nowrap; } .hb-line.done { color: var(--good); } .hb-line.due { color: var(--warn); } .hb-line.late { color: #ff8f98; }
 
