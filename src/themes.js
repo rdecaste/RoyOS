@@ -78,11 +78,17 @@ export function buildCatalogue(chars, scenes) {
 }
 
 // The pick for a week: random franchise, random scene and character inside it, seeded by the week.
-export function pickTheme(catalogue, week) {
+// `character` (a name, any case) pins the week to that character, its franchise and one of its
+// scenes, for a remake Roy asks for by name; the scene still follows the week's seed.
+export function pickTheme(catalogue, week, { character: want = null } = {}) {
   const r = rng('roy-os:' + week);
-  const f = catalogue[Math.floor(r() * catalogue.length)];
+  let f = catalogue[Math.floor(r() * catalogue.length)];
+  if (want) {
+    f = catalogue.find(x => x.characters.some(c => c.character_name.toLowerCase() === String(want).trim().toLowerCase()));
+    if (!f) throw new Error('No character named ' + want + ' in the catalogue');
+  }
   const scene = f.scenes[Math.floor(r() * f.scenes.length)];
-  const character = f.characters[Math.floor(r() * f.characters.length)];
+  const character = want ? f.characters.find(c => c.character_name.toLowerCase() === String(want).trim().toLowerCase()) : f.characters[Math.floor(r() * f.characters.length)];
   return {
     week, franchise: f.name, scene: scene.scene_name, character: character.character_name, character_id: character.id,
     look: scene.canonical_elements, palette: PALETTES[f.name] || DEFAULT_PALETTE,
