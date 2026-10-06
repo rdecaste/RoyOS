@@ -409,6 +409,8 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .sh b { font: 700 .8rem/1 var(--f-body); letter-spacing: 0; text-transform: none; }
 .say { margin: 0; font-size: .88rem; line-height: 1.45; color: var(--dim); }
 .say b { color: var(--fg); font-weight: 600; }
+.missd { display: flex; flex-wrap: wrap; gap: .4rem; }
+.missd span { padding: .3rem .7rem; border-radius: 99px; border: 1px solid rgba(255, 159, 90, .5); background: rgba(255, 159, 90, .1); color: #ffc79a; font: 600 .8rem/1 var(--f-body); white-space: nowrap; }
 .fld { display: grid; gap: .32rem; }
 .fld label, .lbl { font: 600 .6rem/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
 .inp, .sel { width: 100%; padding: .5rem .6rem; border-radius: .55rem; border: 1px solid var(--edge); background: rgba(255, 255, 255, .05); font-size: .92rem; color: var(--fg); color-scheme: dark; }

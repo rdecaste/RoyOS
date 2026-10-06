@@ -104,16 +104,31 @@ export async function journalDay(env, day) {
   const todos = await rows(db, "SELECT task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
   const work = (await rows(db, 'SELECT am, pm, commute FROM work_location WHERE date = ? LIMIT 1', day))[0] || null;
   const year = day.slice(0, 4);
-  const ytd = await rows(db, "SELECT am, pm FROM work_location WHERE date >= ? AND date < ? AND (weekend IS NULL OR weekend = 0)", `${year}-01-01`, day);
+  const ytd = await rows(db, 'SELECT date, am, pm, weekend FROM work_location WHERE date >= ? AND date < ? ORDER BY date', `${year}-01-01`, day);
   let be = 0, nl = 0;
-  for (const w of ytd) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
+  for (const w of ytd) if (!w.weekend) for (const v of [w.am, w.pm]) { if (/🇧🇪/.test(v || '')) be += .5; else if (/🇳🇱/.test(v || '')) nl += .5; }
   return {
     win_if: j ? safeText(env, j.win_if) : '', must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
     mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
     steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
     // A row with empty fields (the day not filled in yet) counts as no row.
-    work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl }
+    work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl, missing: missingDays(ytd, day) }
   };
+}
+
+// Past work days with no place logged: a weekday row with neither morning nor afternoon
+// filled in, or a weekday with no row at all since the first row of the year. Today is not
+// counted (it is still being filled in), and rows marked weekend never are.
+export function missingDays(ytd, day) {
+  const seen = new Map((ytd || []).map(w => [w.date, w]));
+  if (!seen.size) return [];
+  const out = [], first = [...seen.keys()].sort()[0];
+  for (let t = Date.parse(first + 'T12:00:00Z'), end = Date.parse(day + 'T12:00:00Z'); t < end; t += 864e5) {
+    const d = new Date(t), date = d.toISOString().slice(0, 10), dow = d.getUTCDay(), w = seen.get(date);
+    if (w ? w.weekend || w.am || w.pm : dow === 0 || dow === 6) continue;
+    out.push(date);
+  }
+  return out;
 }
 
 // Recovery comes from the engine's /recovery (the readiness rules, one place for every dashboard).
@@ -222,7 +237,7 @@ export async function board(env, s, now = Date.now()) {
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
   const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
     safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
-    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0 } }),
+    safe('journal', journalDay(env, day), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s, now), null), s.day(day), safe('calendar', calendar(env, s, now), null)
   ]);

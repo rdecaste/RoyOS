@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, missingDays, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -71,4 +71,20 @@ test('weather: Open-Meteo shaped for the tile, the strip starting at the current
   }, NOW);
   assert.equal(w.temp, 14.4); assert.equal(w.day, true); assert.equal(w.sunset, '19:05'); assert.equal(w.hi, 16.2); assert.equal(w.rain, 80);
   assert.equal(w.hours.length, 12); assert.equal(w.hours[0].t, '12:00', '10:00 UTC is 12:00 in Amsterdam'); assert.equal(w.hours[11].t, '23:00'); assert.equal(w.hours[0].temp, 16);
+});
+
+test('missing days: past weekdays with no place, never today or weekends', () => {
+  const ytd = [
+    { date: '2026-09-24', am: '🇧🇪 Beerse', pm: '🇧🇪 Beerse', weekend: 0 },
+    { date: '2026-09-25', am: '🏖️ Holiday', pm: '🇳🇱 Home', weekend: 0 },
+    { date: '2026-09-28', am: null, pm: null, weekend: 0 },
+    { date: '2026-09-29', am: '🇧🇪 Ghent', pm: '', weekend: 0 },
+    { date: '2026-09-30', am: '', pm: null, weekend: 0 },
+    { date: '2026-10-03', am: null, pm: null, weekend: 1 },
+    { date: '2026-10-05', am: '🇳🇱 Home', pm: '🇳🇱 Home', weekend: 0 },
+    { date: '2026-10-06', am: null, pm: null, weekend: 0 }
+  ];
+  // 1 and 2 Oct have no row at all: weekdays, so missing; 26 and 27 Sep are a weekend.
+  assert.deepEqual(missingDays(ytd, '2026-10-06'), ['2026-09-28', '2026-09-30', '2026-10-01', '2026-10-02']);
+  assert.deepEqual(missingDays([], '2026-10-06'), []);
 });
