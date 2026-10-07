@@ -241,9 +241,19 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .wx-scene .k2 { top: 64px; scale: 1.4; animation-duration: 110s; animation-delay: -70s; opacity: .85; }
 .os .wx-scene .k3 { top: 96px; scale: .8; animation-duration: 64s; animation-delay: -38s; opacity: .75; }
 .os .wx-scene .k4 { top: 18px; scale: 1.7; animation-duration: 140s; animation-delay: -100s; opacity: .7; }
-.os .wx-scene .rain { inset: -20px 0 0; opacity: .7; background: repeating-linear-gradient(105deg, transparent 0 11px, color-mix(in oklab, var(--second) 60%, transparent) 11px 12.5px, transparent 12.5px 23px) 0 0 / 46px 22px; animation: wxpour .45s linear infinite; }
-.os .wx-scene .rain.r2 { opacity: .35; background-size: 31px 17px; animation-duration: .7s; }
-.os .wx-scene .rain.light { opacity: .35; }
+/* Rain: single drops falling in a box tilted by the wind, far ones thin and faint, near ones long and bright with
+   a lit head; --len and --dur set by the level (drizzle, light, rain, heavy), --k varies each drop. */
+.os .wx-scene .rbox { inset: -60px -70px; transform: rotate(calc(-1 * var(--lean))); --drop: color-mix(in oklab, var(--second) 35%, #e4ecff); --len: 18px; --dur: .7s; --fo: .5; --no: 1; }
+.os .wx-scene .rbox b { position: absolute; top: 0; width: 1.6px; height: calc(var(--len) * var(--k)); border-radius: 0 0 2px 2px; opacity: var(--no);
+  background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--drop) 70%, transparent) 70%, #fff); animation: wxfall calc(var(--dur) * var(--k)) linear infinite; animation-delay: var(--dl); will-change: translate; }
+.os .wx-scene .rbox b.f { width: 1.2px; height: calc(var(--len) * var(--k) * .6); opacity: var(--fo); animation-duration: calc(var(--dur) * var(--k) * 1.35); }
+.os .wx-scene .rl-drizzle { --len: 8px; --dur: 1.4s; --fo: .55; --no: .9; }
+.os .wx-scene .rl-drizzle b { border-radius: 2px; }
+.os .wx-scene .rl-light { --len: 14px; --dur: .85s; --fo: .45; --no: .95; }
+.os .wx-scene .rl-heavy { --len: 28px; --dur: .5s; --fo: .6; --no: 1; }
+.os .wx-scene .rl-heavy b.n { width: 2px; }
+/* A drop hitting the ground: a ring that opens and fades */
+.os .wx-scene .splash { width: 12px; height: 3px; margin-left: -6px; border-radius: 50%; border: 1px solid color-mix(in oklab, var(--second) 35%, #e4ecff); opacity: 0; animation: wxsplash 1.6s ease-out infinite; }
 .os .wx-scene .snow { inset: -40px 0 0; background: radial-gradient(circle, #fff 0 1.6px, transparent 2.2px) 0 0 / 26px 26px, radial-gradient(circle, rgba(255, 255, 255, .7) 0 1.1px, transparent 1.6px) 13px 9px / 19px 19px; animation: wxflake 4s linear infinite; }
 .os .wx-scene .mist { left: -20%; right: -20%; height: 26px; border-radius: 50%; background: color-mix(in oklab, color-mix(in oklab, #fff 70%, var(--second)) 30%, transparent); filter: blur(8px); animation: wxbob 9s ease-in-out infinite alternate; }
 .os .wx-scene .mist.m1 { top: 70px; } .os .wx-scene .mist.m2 { top: 100px; animation-duration: 12s; animation-direction: alternate-reverse; }
@@ -256,7 +266,8 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .wx-labs .peak { color: color-mix(in oklab, var(--second) 70%, #fff); }
 @keyframes wxbob { from { translate: -3px 0; } to { translate: 3px 0; } }
 @keyframes wxdrift { from { left: -200px; } to { left: 460px; } }
-@keyframes wxpour { to { background-position: -6px 22px; } }
+@keyframes wxfall { from { translate: 0 -40px; } to { translate: 0 300px; } }
+@keyframes wxsplash { 0%, 55% { opacity: 0; scale: .2; } 60% { opacity: .9; } 100% { opacity: 0; scale: 1.5; } }
 @keyframes wxflake { to { background-position: 6px 26px, -4px 19px; } }
 @keyframes wxglow { to { filter: brightness(1.12); transform: scale(1.06); } }
 
