@@ -840,6 +840,23 @@ function renderClock() {
 }
 // ---- The weather tile: a small sky in the week's world colours for the hour and the weather, the temperature, today's range, the wind, the next 12 hours ----
 const WX_KIND = code => (code == null ? 'none' : code <= 1 ? 'clear' : code <= 3 ? 'cloud' : code <= 49 ? 'fog' : code <= 57 ? 'drizzle' : code <= 67 || (code >= 80 && code <= 82) ? 'rain' : code <= 77 || code === 85 || code === 86 ? 'snow' : code >= 95 ? 'thunder' : 'cloud');
+// Rain as single drops in two depths (far ones thin and faint, near ones longer and brighter), each with
+// its own place, speed and length, leaning with the wind; rain splashes at the bottom. The drops come
+// from a fixed sequence, so the scene's HTML stays the same between redraws.
+const WX_WET = { drizzle: [130, 0], light: [90, 5], rain: [120, 8], heavy: [170, 12] };
+function rainHtml(w, kind) {
+  const lvl = kind === 'drizzle' ? 'drizzle' : [61, 80].includes(w.code) ? 'light' : [65, 67, 82].includes(w.code) || kind === 'thunder' ? 'heavy' : 'rain';
+  const [n, sp] = WX_WET[lvl], r = i => ((Math.sin(i * 127.1 + 311.7) * 43758.5453) % 1 + 1) % 1;
+  const lean = Math.min(22, 6 + Math.round((w.wind || 0) / 4) * 2);
+  let h = '<i class="rbox rl-' + lvl + '" style="--lean:' + lean + 'deg">';
+  for (let i = 0; i < n; i++) {
+    const far = i % 3 !== 0;
+    h += '<b class="' + (far ? 'f' : 'n') + '" style="left:' + (r(i) * 100).toFixed(1) + '%;--k:' + (0.75 + r(i + 50) * 0.5).toFixed(2) + ';--dl:-' + (r(i + 99) * 2).toFixed(2) + 's"></b>';
+  }
+  h += '</i>';
+  for (let i = 0; i < sp; i++) h += '<i class="splash" style="left:' + (4 + r(i + 200) * 92).toFixed(1) + '%;bottom:' + (2 + r(i + 250) * 10).toFixed(0) + 'px;animation-delay:-' + (r(i + 300) * 1.6).toFixed(2) + 's"></i>';
+  return h;
+}
 // The sun (or moon) rides an arc across the tile from sunrise to sunset (sunset to sunrise at night).
 function skyScene(w, kind) {
   const m = nowMin(), sr = minOf(w.sunrise || '07:30'), ss = minOf(w.sunset || '19:00');
@@ -850,7 +867,7 @@ function skyScene(w, kind) {
   let h = !day && (kind === 'clear' || w.code === 2) ? '<i class="stars"></i><i class="stars s2"></i>' : '';
   if (kind !== 'rain' && kind !== 'thunder' && w.code !== 3) h += '<i class="orb' + (day ? '' : ' moon') + '"></i>';
   h += Array.from({ length: n }, (_, i) => '<i class="cloud k' + (i + 1) + '"></i>').join('');
-  if (wet) h += '<i class="rain' + (kind === 'drizzle' ? ' light' : '') + '"></i><i class="rain r2"></i>';
+  if (wet) h += rainHtml(w, kind);
   if (kind === 'snow') h += '<i class="snow"></i>';
   if (kind === 'fog') h += '<i class="mist m1"></i><i class="mist m2"></i>';
   if (kind === 'thunder') h += '<i class="bolt"></i>';
