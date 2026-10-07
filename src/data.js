@@ -129,7 +129,7 @@ export async function journalDay(env, day, desk = []) {
   const j = (await rows(db, 'SELECT id, win_if, did_it_happen, mood_morning, mood_evening FROM journal WHERE date = ? ORDER BY updated_at DESC LIMIT 1', day))[0] || null;
   const focus = j ? await rows(db, 'SELECT grp, position, text, done FROM journal_focus WHERE journal_id = ? ORDER BY grp, position', j.id) : [];
   const group = g => focus.filter(f => f.grp === g).map(f => ({ t: f.text || '', done: !!f.done }));
-  const todos = await rows(db, "SELECT task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
+  const todos = await rows(db, "SELECT id, task, tag, due FROM todos WHERE status NOT IN ('Done','Completed') AND tag IS NOT NULL AND lower(tag) LIKE '%steph%' ORDER BY due LIMIT 10");
   const work = (await rows(db, 'SELECT am, pm, commute FROM work_location WHERE date = ? LIMIT 1', day))[0] || null;
   const year = day.slice(0, 4);
   const ytd = mergeWork(await rows(db, 'SELECT date, am, pm, weekend FROM work_location WHERE date >= ? AND date < ? ORDER BY date', `${year}-01-01`, day), desk);
@@ -138,7 +138,8 @@ export async function journalDay(env, day, desk = []) {
   return {
     win_if: j ? safeText(env, j.win_if) : '', did_it_happen: j && j.did_it_happen || null, must: group('must').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t), can: group('can').map(x => ({ ...x, t: safeText(env, x.t) })).filter(x => x.t),
     mood_morning: j && j.mood_morning || null, mood_evening: j && j.mood_evening || null,
-    steph: todos.map(t => ({ t: t.task, due: t.due ? t.due.slice(5) : '' })),
+    // id: a tick on Roy OS closes the reminder in D1 through the quest engine (src/steph.js).
+    steph: todos.map(t => ({ id: t.id, t: t.task, due: t.due ? t.due.slice(5) : '' })),
     // A row with empty fields (the day not filled in yet) counts as no row.
     work: work && (work.am || work.pm || work.commute) ? { am: work.am || '🇳🇱 Home', pm: work.pm || work.am || '🇳🇱 Home', commute: work.commute || 'N/A' } : null, border: { be, nl, missing: missingDays(ytd, day) }
   };

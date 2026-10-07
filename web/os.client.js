@@ -76,7 +76,7 @@ const ALLEV = () => EVENTS().concat(CAL());
 const daySpan = i => (i.end_day ? dayFmt(i.day) + ' – ' + dayFmt(i.end_day) : i.day === D.today ? 'Today' : dayFmt(i.day)) + (i.all_day ? '' : ' · ' + i.from + '–' + i.to);
 const ticked = x => (E.ticks[x.t] != null ? E.ticks[x.t] : !!x.done);
 const focusList = g => E.added.filter(a => a.g === g).map(a => ({ t: a.t, done: !!E.ticks[a.t], added: true })).concat((D.journal[g] || []).map(x => ({ t: x.t, done: ticked(x) })));
-const stephList = () => D.journal.steph.map(x => ({ t: x.t, due: x.due, done: !!E.ticks[x.t] }));
+const stephList = () => D.journal.steph.map(x => ({ id: x.id, t: x.t, due: x.due, done: !!E.ticks[x.t] }));
 const workToday = () => E.work || D.journal.work || { am: '🇳🇱 Home', pm: '🇳🇱 Home', commute: 'N/A' };
 let WIN = null, popPick = 0, moodPick = 0, lastPhase = null, clockPhase = null;
 
@@ -198,7 +198,7 @@ function nightTip(i) {
   return '<span class="tt">' + (i === F().nights.length - 1 ? 'Last night' : dayFmt(d.day)) + '</span><b style="color:' + NIGHTC[d.verdict] + '">' + NIGHTW[d.verdict] + '</b><div class="kv"><span>Sleep</span><b>' + sleepTxt(d.sleep) + '</b><span class="mut">usual ' + sleepTxt(U.sleep) + '</span><span>HRV</span><b>' + (d.hrv == null ? '–' : d.hrv + ' ms') + '</b><span class="mut">usual ' + one(U.hrv) + '</span><span>Resting HR</span><b>' + (d.rhr == null ? '–' : d.rhr) + '</b><span class="mut">usual ' + one(U.rhr) + '</span></div>';
 }
 const pips = k => '<div class="pips">' + Array.from({ length: k.peak }, (_, i) => '<i class="' + (i < k.level ? 'on' : '') + '"></i>').join('') + '</div>';
-const todoBtn = (x, g, cls) => '<button type="button" class="todo' + (x.done ? ' done' : '') + (x.added ? ' new' : '') + (cls ? ' ' + cls : '') + '" data-act="todo" data-g="' + g + '" data-t="' + esc(x.t) + '" role="checkbox" aria-checked="' + !!x.done + '"><span class="chk"></span><span class="tx">' + esc(x.t) + '</span>' + (x.due && !x.done ? '<em>' + esc(x.due) + '</em>' : '<span></span>') + '</button>';
+const todoBtn = (x, g, cls) => '<button type="button" class="todo' + (x.done ? ' done' : '') + (x.added ? ' new' : '') + (cls ? ' ' + cls : '') + '" data-act="todo" data-g="' + g + '" data-t="' + esc(x.t) + '"' + (x.id ? ' data-id="' + esc(x.id) + '"' : '') + ' role="checkbox" aria-checked="' + !!x.done + '"><span class="chk"></span><span class="tx">' + esc(x.t) + '</span>' + (x.due && !x.done ? '<em>' + esc(x.due) + '</em>' : '<span></span>') + '</button>';
 
 // ---- The Goku card's load chart (rdecaste/MainQuest index.html, loadChart), the same widget here ----
 // 84 days of long-term load (fitness, the power level) and short-term load (fatigue), the
@@ -1201,7 +1201,7 @@ function fullscreen() {
 }
 function doAct(el, e) {
   const a = el.dataset.act;
-  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done }, () => { if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
+  if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done, ...(el.dataset.g === 'steph' && el.dataset.id ? { steph_id: el.dataset.id } : {}) }, out => { if (out.steph && !out.steph.ok) notify({ app: 'steph', html: 'Ticked here, but not closed for Steph: ' + esc(out.steph.message || out.steph.code) }); else if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
   else if (a === 'card') openCard(el.dataset.card);
   else if (a === 'win') openWinCard();
   else if (a === 'missday') { missPick = missPick === el.dataset.d ? null : el.dataset.d; refreshWin(); }

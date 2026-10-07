@@ -7,6 +7,7 @@
 //   GET  /?at=2026-10-12T07:00   a preview: the board at that time (Amsterdam), read only; /data?at= feeds it.
 //                          Nothing is saved, no cache written, no world, critter or commute run started.
 //   POST /act              one edit on the board: {type: todo_tick|todo_add|mood|work|plan|undo, ...}; work with a past `day` fills in that day,
+//                          a todo_tick with steph_id also closes (or reopens) that From Steph reminder in D1 via the quest engine (src/steph.js),
 //                          and places and ride go on to the admin board's work_location (src/work.js);
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
@@ -30,6 +31,7 @@ import { deskPage, loginPage } from './page.js';
 import { MOOD_ART } from './moodart.js';
 import { applyActions, askPrompt } from './ask.js';
 import { syncWork } from './work.js';
+import { tickReminder } from './steph.js';
 
 export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
@@ -238,7 +240,12 @@ export default {
           return json({ ok: 1, edits: undo, undo: false });
         }
         const n = await edit(env, s, day, data => ({ applied: applyActions(data, [a], Date.now()) }));
-        return json(await withWork(env, s, day, n));
+        // A From Steph tick also closes (or, unticked, reopens) the reminder in D1, through the quest engine.
+        const steph = a.type === 'todo_tick' && a.steph_id
+          ? await tickReminder(env, a.steph_id, a.done === true || a.done === '1' || a.done === 'true').catch(err => ({ ok: 0, code: 'engine', message: err.message }))
+          : null;
+        if (steph && !steph.ok) console.error('steph reminder: ' + steph.code + ' ' + steph.message);
+        return json({ ...(await withWork(env, s, day, n)), ...(steph ? { steph } : {}) });
       }
 
       if (path === '/ask' && request.method === 'POST') {
