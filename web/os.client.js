@@ -378,11 +378,16 @@ function brief(ph, m) {
 }
 
 // ---- The board: 1920 × 1080, scaled to the window and centred; the phone layout flows instead ----
-const BW = 1920, BH = 1080;
+// A squarer window (the iPad Air in landscape, 1180 × 820) gets the tablet stage: 1600 px wide and as
+// tall as the window's shape asks (1000 to 1200 px), so the board fills the screen with no bars.
+let BW = 1920, BH = 1080;
 const portrait = () => matchMedia('(max-width: 900px), (orientation: portrait)').matches;
 function fitBoard() {
   const b = $('board');
   if (portrait()) { b.style.transform = ''; return; }
+  const tab = innerWidth / innerHeight < 1.55;
+  BW = tab ? 1600 : 1920; BH = tab ? Math.round(Math.min(1200, Math.max(1000, 1600 * innerHeight / innerWidth))) : 1080;
+  b.classList.toggle('tab', tab); b.style.setProperty('--bh', BH + 'px');
   const s = Math.min(innerWidth / BW, innerHeight / BH);
   b.style.transform = 'translate(' + Math.round((innerWidth - BW * s) / 2) + 'px, ' + Math.round((innerHeight - BH * s) / 2) + 'px) scale(' + s + ')';
 }
@@ -960,10 +965,11 @@ let focusMax = 3;
 const GAP = 16;
 // The side columns share the screen's 1080 px: each stack runs from its top to 16 px above the
 // day row, its tiles spaced evenly, so the bottoms line up with Your day and Ask Claude.
-const COLS = [{ ids: ['wFocus', 'wBoss', 'wMe'], top: 262 }, { ids: ['wWx', 'wDates', 'wSteph', 'wMood', 'wCommute'], top: 54 }], COL_END = 892 - GAP;
-const colRoom = c => COL_END - c.top - c.ids.reduce((n, id) => n + $(id).offsetHeight, 0) - GAP * (c.ids.length - 1);
+const COLS = [{ ids: ['wFocus', 'wBoss', 'wMe'], top: 262 }, { ids: ['wWx', 'wDates', 'wSteph', 'wMood', 'wCommute'], top: 54 }];
+const colEnd = () => BH - 188 - GAP; // the day row starts 188 px above the stage's bottom (892 on the ZenScreen)
+const colRoom = c => colEnd() - c.top - c.ids.reduce((n, id) => n + $(id).offsetHeight, 0) - GAP * (c.ids.length - 1);
 function stackCol(c) {
-  const els = c.ids.map($), free = COL_END - c.top - els.reduce((n, e) => n + e.offsetHeight, 0), gap = Math.max(GAP, free / (els.length - 1));
+  const els = c.ids.map($), free = colEnd() - c.top - els.reduce((n, e) => n + e.offsetHeight, 0), gap = Math.max(GAP, free / (els.length - 1));
   let y = c.top;
   for (const e of els) { e.style.top = Math.round(y) + 'px'; y += e.offsetHeight + gap; }
 }

@@ -720,6 +720,18 @@ body.focusing .os .fring { opacity: 1; transform: none; pointer-events: auto; }
 .os .ripple { position: absolute; z-index: 7; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 12px var(--accent); pointer-events: none; animation: ripple .9s ease-out forwards; }
 @keyframes ripple { to { transform: scale(7); opacity: 0; } }
 
+/* ---- Squarer screens (the iPad Air, 1180 × 820 in landscape): the same board on a 1600 px wide stage
+   whose height follows the screen's shape (fitBoard sets --bh), so it fills the screen with no bars and
+   everything shows about a fifth bigger than the 1920 stage would. The right column moves in, Your day
+   narrows, and the bottom row keeps to the bottom edge; the ZenScreen layout above is untouched. ---- */
+.board.tab { width: 1600px; height: var(--bh, 1112px); }
+.board.tab .os .wx, .board.tab .os .dates, .board.tab .os .steph, .board.tab .os .mood, .board.tab .os .comm, .board.tab .os .askt { left: 1156px; }
+.board.tab .os .day { width: 1110px; }
+.board.tab .os .day, .board.tab .os .askt { top: auto; bottom: 24px; }
+.board.tab .os .isl-pill { max-width: 460px; }
+.board.tab .os .fring { left: 570px; top: calc(var(--bh, 1112px) / 2 - 390px); }
+.board.tab .os .lore { left: 360px; }
+
 /* ---- Phone and portrait: the tiles in one scrolling column ---- */
 @media (max-width: 900px), (orientation: portrait) {
   :root { font-size: 15px; }
