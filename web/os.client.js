@@ -1052,10 +1052,10 @@ function renderDates() {
   const c = COMING().slice(0, 3);
   $('datesBody').innerHTML = D.calendar ? (c.length ? c.map(i => '<div class="ev"><span class="ed">' + esc(i.day <= D.today ? 'Today' : wdShort(i.day) + ' ' + +i.day.slice(8, 10)) + '</span><span class="et">' + esc(i.t) + '</span></div>').join('') : '<div class="tsay">Nothing in the next 30 days.</div>') : '<div class="tsay">No calendar connected.</div>';
 }
-// Your day: three thin lanes from 06 to 23, one now line across them. An event for everyone (a
-// family event with no name in it) shows once, as one block across the three lanes, unless
-// something else is on at the same time; then each lane gets its own copy.
-const LANES = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']];
+// Your day: two lanes, Steph and Kids, from 06 to 23, one now line across them (no Roy lane since
+// 9 Oct 2026, Roy asked; his own plan still drives the now pill). An event for everyone shows once,
+// as one block across both lanes, unless something else is on at the same time; then each lane gets its own copy.
+const LANES = [['steph', 'Steph'], ['kids', 'Kids']];
 const blkLabel = e => esc(e.t + ', ' + e.from + ' to ' + e.to + (e.cal ? '. From the family calendar' : '. Edit'));
 function renderDay() {
   const m = nowMin(), nowIn = m >= DAY0 * 60 && m <= DAY1 * 60;

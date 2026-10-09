@@ -307,12 +307,12 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .be b { position: absolute; inset: 0; display: grid; place-items: center; font: 700 15px/1 var(--f-sys); font-variant-numeric: tabular-nums; }
 .os .cnote { margin-top: 6px; font-size: 14px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Bottom: Your day (three thin lanes) and Ask Claude */
+/* Bottom: Your day (two lanes, Steph and Kids) and Ask Claude */
 .os .day { left: 24px; top: 892px; width: 1430px; height: 164px; padding: 16px 20px; --ac: #5b93f0; }
 .os .lanes { position: relative; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px 12px; align-items: center; margin-top: 14px; }
 .os .lname { font: 600 12px/1 var(--f-sys); letter-spacing: .12em; text-transform: uppercase; }
 .os .lname.roy { color: #8fb6ff; } .os .lname.steph { color: #ff9ad6; } .os .lname.kids { color: #ffc65a; }
-.os .track { position: relative; height: 26px; border-radius: 7px; background: rgba(255, 255, 255, .04); cursor: copy; }
+.os .track { position: relative; height: 34px; border-radius: 7px; background: rgba(255, 255, 255, .04); cursor: copy; }
 .os .nowl { position: absolute; top: -4px; bottom: -4px; z-index: 2; width: 2px; background: var(--second); box-shadow: 0 0 8px var(--second); pointer-events: none; }
 .blk { position: absolute; display: flex; align-items: center; padding: 0 10px; overflow: hidden; border-radius: 6px; white-space: nowrap; font: 600 13px/1 var(--f-body); cursor: pointer; transition: filter .15s, opacity .4s; }
 .blk span { overflow: hidden; text-overflow: ellipsis; }
@@ -353,8 +353,8 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 @keyframes wxflash { 0%, 88%, 92%, 100% { opacity: 0; } 89%, 91% { opacity: .75; } 90% { opacity: .35; } }
 @keyframes wxtwinkle { from { opacity: .55; } to { opacity: 1; } }
 .blk.roy { background: var(--roy); color: #fff; } .blk.steph { background: var(--steph); color: #2a0a1e; } .blk.kids { background: var(--kids); color: #2a1800; }
-/* Calendar events wear their lane's colour like the rest; an event for everyone spans the lanes in all three */
-.blk.all { background: linear-gradient(180deg, var(--roy), var(--steph) 50%, var(--kids)); color: #14101c; }
+/* Calendar events wear their lane's colour like the rest; an event for everyone spans both lanes in both colours */
+.blk.all { background: linear-gradient(180deg, var(--steph), var(--kids)); color: #14101c; }
 .blk.past { opacity: .4; }
 .os .lanes > .blk.span { top: 2px; bottom: 2px; z-index: 1; }
 .blk.flash { animation: flash 1.2s ease-in-out 3; }
