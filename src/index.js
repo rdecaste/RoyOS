@@ -15,7 +15,7 @@
 //   POST /redo             {what: clip|all, week}: the menu's paid redo of a week's world (this week or the next only):
 //                          `clip` keeps the still (and the critter) and makes a new clip, `all` a new still and clip
 //                          with the same character. Refused while that week is being made.
-//   GET  /card/boss, /card/goku   the boss card and the Goku card as on Roy's iPhone, for the boss widget's popup
+//   GET  /card/boss, /card/goku, /card/vault   the boss, Goku and Vault cards as on Roy's iPhone, for the Showdown popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
 //   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1, character?)   POST /theme/retry (week)
@@ -37,10 +37,10 @@ export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
 
 const PAGE_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
-// The boss widget's popup shows the real cards. They are their own Workers (boss, mainquest)
+// The boss widget's popup shows the real cards. They are their own Workers (boss, mainquest, vaultquest)
 // behind Cloudflare Access; a service binding reaches them without it, so they open here
 // behind the desk cookie, same origin, and may be framed by this page only.
-const CARDS = { boss: 'BOSS_CARD', goku: 'GOKU_CARD' };
+const CARDS = { boss: 'BOSS_CARD', goku: 'GOKU_CARD', vault: 'VAULT_CARD' };
 const CARD_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': "frame-ancestors 'self'", 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' };
 async function card(env, name) {
   const bind = env[CARDS[name]];

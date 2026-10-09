@@ -161,6 +161,17 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .sbar b { position: absolute; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(90, 184, 255, .6), rgba(170, 225, 255, .95)); }
 .os .tn { justify-self: end; font: 600 15px/1 var(--f-sys); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .os .tn small { font-size: inherit; color: var(--dim); }
+/* The vault row: the core in the vault's rarity colour, the shield, and the week's Nightly Watch as seven embers */
+.os .srow.vault { --rar: #b35cff; }
+.os .srow.vault .k.vt { color: var(--rar); }
+.os .srow.vault .k.sh { color: #9fd4ff; font-variant-numeric: tabular-nums; }
+.os .embers7 { display: flex; gap: 6px; }
+.os .embers7 i { flex: 1; height: 8px; border-radius: 3px; background: rgba(255, 255, 255, .1); }
+.os .embers7 i.held { background: #ff9a2e; box-shadow: 0 0 8px #ff9a2e; }
+.os .embers7 i.spent { background: var(--bad); }
+.os .embers7 i.today { box-shadow: inset 0 0 0 1.5px #ffc24a; animation: emberwait 2.4s ease-in-out infinite; }
+@keyframes emberwait { 50% { box-shadow: inset 0 0 0 1.5px rgba(255, 194, 74, .35); } }
+.os .tn.ok { color: var(--good); } .os .tn.due { color: var(--warn); } .os .tn.bad { color: var(--bad); }
 
 .os .me { left: 24px; top: 704px; --ac: #ff7a7a; }
 .os .g2 { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 18px; align-items: center; margin-top: 14px; }

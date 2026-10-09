@@ -92,6 +92,36 @@ export function bossView(env, boss, mq, hero) {
   return b || goku ? { boss: b, goku } : null;
 }
 
+// The vault quest (GET /vault, the Vault card's own state): the core saved towards the goal, the
+// shield and this week's Nightly Watch. Read only: the watch and core charges are kept on the Vault
+// card. The shield is worked out as the card does it: the game day of the week (Monday 04:00 = 1/7),
+// or broken from the first breach this week.
+export function vaultView(env, state, now = Date.now()) {
+  if (!state) return null;
+  const v = state.vault;
+  if (!v) return { active: false };
+  const num = x => (Number.isFinite(Number(x)) ? Number(x) : 0);
+  const today = gameDay(now), dow = k => (new Date(k + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  const d = dow(today), week = ymd(Date.parse(today + 'T12:00:00Z') - d * DAY);
+  let breach = null;
+  for (const e of state.events || []) {
+    if (e.type !== 'BREACH') continue;
+    const t = Date.parse(e.at), g = Number.isFinite(t) ? gameDay(t) : null;
+    if (g && g >= week && g <= today && (breach === null || dow(g) < breach)) breach = dow(g);
+  }
+  if (breach === null && v.breach && v.breach.week === week && v.breach.last_at && Number.isFinite(Date.parse(v.breach.last_at))) breach = dow(gameDay(Date.parse(v.breach.last_at)));
+  const start = String(v.started_at || '').slice(0, 10);
+  const w = state.watch || null;
+  return {
+    active: true, name: safeText(env, v.name), tier: num(v.tier) || 1,
+    form: safeText(env, v.form && v.form.name), rarity: v.form && v.form.rarity || 'Common', next_form: safeText(env, v.next_form && v.next_form.name) || null,
+    currency: v.currency || 'EUR', balance: num(v.balance), target: num(v.target), pct: num(v.funding_pct), funded: !!v.funded,
+    months_ahead: num(v.months_ahead), projected: v.projected_completion || null,
+    shield: { integrity: breach !== null ? 0 : d + 1, breached: breach !== null, armed: !start || today >= start },
+    watch: w ? { today: d, today_status: w.today_status || null, days: (w.days || []).map(x => ({ status: x.status || null })), streak: num(w.streak), held_week: num(w.held_week), bonus_needed: num(w.bonus_needed) } : null
+  };
+}
+
 // Long-term and short-term load, last 28 days (power.load ÷ 100), the week's peak and the ki charge.
 // The series is fitness and fatigue times a factor (100 today); the factor is read off
 // today's values rather than assumed, so a change in the engine cannot skew the chart.
@@ -302,8 +332,8 @@ export async function board(env, s, now = Date.now(), { preview = false } = {}) 
   const safe = (label, p, fallback) => p.catch(err => { errors.push(`${label}: ${err.message}`); return fallback; });
   const focusP = safe('focus', Promise.resolve().then(() => s.focusDay(day)), []);
   const deskWork = safe('desk work', Promise.resolve().then(() => s.works(day.slice(0, 4) + '-01-01', day)), []);
-  const [boss, hero, mq, questboard, journal, sleep, week, wx, dayState, cal] = await Promise.all([
-    safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []),
+  const [boss, hero, mq, questboard, vault, journal, sleep, week, wx, dayState, cal] = await Promise.all([
+    safe('boss', engine(env, '/boss'), null), safe('hero', engine(env, '/hero'), null), safe('mainquest', engine(env, '/mainquest'), null), safe('questboard', engine(env, '/questboard'), []), safe('vault', engine(env, '/vault'), null),
     safe('journal', deskWork.then(desk => journalDay(env, day, desk)), { win_if: '', must: [], can: [], steph: [], work: null, border: { be: 0, nl: 0, missing: [] } }),
     safe('recovery', recovery(env), { last: null, usual: {}, nights: [] }), safe('workouts', trainingWeek(env, day), { hours: 0, sessions: 0, target: 6, list: [], tss: 0, zones: [0, 0, 0, 0, 0] }),
     safe('weather', weather(env, s, now, { preview }), null), s.day(day), safe('calendar', calendar(env, s, now, { preview }), null)
@@ -314,7 +344,7 @@ export async function board(env, s, now = Date.now(), { preview = false } = {}) 
   const edits = dayState && dayState.data || emptyDay();
   return {
     today: day, now: hhmm(now), week: isoWeek(now), errors,
-    main: mainHabits(boss, hero, now), win: winToday(boss, now), boss: bossView(env, boss, mq, hero),
+    main: mainHabits(boss, hero, now), win: winToday(boss, now), boss: bossView(env, boss, mq, hero), vault: vaultView(env, vault, now),
     quest: focusQuest ? { title: focusQuest.questTitle, phase: focusQuest.questPhase, next_move: focusQuest.nextMove, target: focusQuest.targetDate, days_left: focusQuest.targetDate ? Math.round((Date.parse(focusQuest.targetDate + 'T12:00:00Z') - Date.parse(day + 'T12:00:00Z')) / DAY) : null, evidence: focusQuest.latestEvidence, check: focusQuest.passFailQuestion, quote: safeText(env, focusQuest.quote), author: safeText(env, focusQuest.quoteAuthor), longest_km: (/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '') || [])[1] ? +(/([\d.]+)\s*km/.exec(focusQuest.latestEvidence || '')[1]) : null, goal_km: /half marathon/i.test(focusQuest.questTitle || '') ? 21.1 : null } : null,
     journal, fitness: { recovery: sleep.last, usual: sleep.usual, nights: sleep.nights, clal: P.clal, peak: P.peak, ki: P.ki, now: P.now, ratio: P.ratio, load: P.load, moves: P.moves, week },
     weather: wx ? { ...wx, place: env.WEATHER_PLACE || 'Home' } : wx, calendar: cal, edits, undo: !!(dayState && dayState.undo), focus
