@@ -304,6 +304,14 @@ const TIPS = {
   weather: () => { const w = D.weather; return w && w.temp != null ? '<span class="tt">Weather at home</span><b>' + Math.round(w.temp) + '° · ' + esc(WMO[w.code] || '') + '</b>' + (w.feels != null ? '<br>Feels like ' + Math.round(w.feels) + '°' : '') + '<div class="kv"><span>Today</span><b>' + (w.hi != null ? Math.round(w.hi) + '° / ' + Math.round(w.lo) + '°' : '–') + '</b><span></span><span>Rain chance</span><b>' + (w.rain != null ? w.rain + '%' : '–') + '</b><span></span><span>Wind</span><b>' + (w.wind != null ? Math.round(w.wind) + ' km/h' : '–') + '</b><span></span><span>Sun</span><b>' + esc(w.sunrise || '–') + ' – ' + esc(w.sunset || '–') + '</b><span></span></div><span class="hint">' + esc(rainSoon(w)) + ' Open-Meteo for home, every 15 minutes.</span>' : ''; },
   habits: () => { const m = nowMin(); return '<span class="tt">Main habits · from the boss card</span>' + D.main.map(x => { const st = habitState(x, m); return '<div class="hb-line ' + st.st + '">' + esc(x.icon) + ' ' + esc(x.short) + ' <span class="mut">· ' + habitLine(x, st) + '</span></div>'; }).join('') + '<span class="hint">Tick them off on the boss card: tap the boss.</span>'; },
   boss: () => { const b = BOSS().boss; return b ? '<span class="tt">Boss' + (b.level ? ' · level ' + b.level : '') + '</span><b>' + esc(b.name) + '</b>' + (b.epithet ? '<br><span class="mut">' + esc(b.epithet) + '</span>' : '') + '<br>HP ' + fmtNum(b.hp) + ' of ' + fmtNum(b.max) + (b.status && b.status !== 'Active' ? ' · ' + esc(b.status) : '') + '<span class="hint">Tap to open the boss card</span>' : '<span class="tt">Boss</span>The boss card did not answer.'; },
+  vault: () => { const v = VAULT(); if (!v) return '<span class="tt">Vault</span>The Vault card did not answer.'; if (!v.active) return '<span class="tt">Vault</span>No active vault. Forge one on the Vault card.<span class="hint">Tap to open the Vault card</span>';
+    const w = v.watch || {};
+    return '<span class="tt">Vault · ' + esc(v.rarity) + ' · tier ' + v.tier + '</span>' + (v.form ? '<b>' + esc(v.form) + '</b>' : '') + (v.name ? '<br><span class="mut">' + esc(v.name) + '</span>' : '') +
+      '<div class="kv"><span>Core</span><b>' + eur(v.balance) + ' / ' + eur(v.target) + '</b><span class="mut">' + one(v.pct) + '%</span>' +
+      '<span>Pace</span><b>' + (v.funded ? 'Funded' : v.months_ahead > 0 ? v.months_ahead + ' mo ahead' : v.months_ahead < 0 ? -v.months_ahead + ' mo behind' : 'on plan') + '</b><span class="mut">' + (v.projected ? 'done ' + esc(v.projected) : '') + '</span>' +
+      '<span>Shield</span><b>' + (v.shield.breached ? 'Breached' : v.shield.armed ? v.shield.integrity + ' / 7' : 'Arming') + '</b><span></span>' +
+      (v.watch ? '<span>Watch</span><b>' + (w.held_week || 0) + ' held this week</b><span class="mut">' + (w.streak ? w.streak + ' night streak' : '') + '</span>' : '') +
+      (v.next_form ? '<span>Next tier</span><b>' + esc(v.next_form) + '</b><span></span>' : '') + '</div><span class="hint">Tap to open the Vault card, where you keep the Nightly Watch</span>'; },
   goku: () => { const g = BOSS().goku; return g ? '<span class="tt">Goku' + (g.form ? ' · ' + esc(g.form) : '') + '</span><div class="kv">' + (g.level ? '<span>Level</span><b>' + g.level + '</b><span></span>' : '') + (g.max_hp ? '<span>HP</span><b>' + fmtNum(g.hp) + ' / ' + fmtNum(g.max_hp) + '</b><span class="mut">' + (g.shield ? '+' + g.shield + ' ki shield' : '') + '</span>' : '') + (g.xp_max ? '<span>XP</span><b>' + fmtNum(g.xp) + ' / ' + fmtNum(g.xp_max) + '</b><span></span>' : '') + (g.power ? '<span>Power level</span><b>' + fmtNum(g.power) + '</b><span></span>' : '') + '</div><span class="hint">Tap to open the Goku card</span>' : ''; },
   lastmood: () => { const m = lastMood(); return m ? '<span class="tt">Last logged · ' + hhmm(m.at) + '</span><b>' + FEEL[m.m - 1] + '</b>' + (m.note ? '<br>' + esc(m.note) : '') : 'No mood logged yet today'; },
   blk: el => { const e = ALLEV().find(x => x.id === el.dataset.id); if (!e) return ''; return '<span class="tt">' + esc(WHO[e.who] || '') + ' · ' + e.from + '–' + e.to + ' · ' + dur(minOf(e.to) - minOf(e.from)) + '</span><b>' + esc((e.ic || '') + ' ' + e.t) + '</b><span class="hint">' + (e.cal ? 'From the family calendar' : 'Tap to edit') + '</span>'; }
@@ -991,6 +999,23 @@ function renderBossW() {
     ? '<span class="k">Goku' + (g.level ? ' · Lv ' + g.level : '') + '</span>' + (g.max_hp ? sbar('var(--good)', g.hp, g.max_hp, g.shield ? '<b style="left:' + pct(g.hp, g.max_hp) + '%;width:' + Math.min(pct(g.shield, g.max_hp), 100 - pct(g.hp, g.max_hp)) + '%"></b>' : '') + tnum(g.hp, g.max_hp) : '<span></span><span></span>') +
       (g.power || g.xp_max ? '<span class="k pw">' + (g.power ? '⚡ ' + fmtNum(g.power) : '') + '</span>' + (g.xp_max ? sbar('var(--gold)', g.xp, g.xp_max) + tnum(g.xp, g.xp_max) : '<span></span><span></span>') : '')
     : '<span class="k">Goku</span><span class="say">Not answering</span>';
+  renderVaultW();
+}
+// The vault quest: the core (saved towards the goal) in the vault's rarity colour, the shield and the
+// week's Nightly Watch, read from the quest engine (GET /vault). Read only: the watch is kept on the Vault card.
+const VAULT = () => D.vault || null;
+const RARITY = { Common: '#e9e6de', Uncommon: '#4ee36a', Rare: '#3f8cff', Epic: '#b35cff', Legendary: '#ff9a1f', Mythic: '#ff5fd2' };
+const eur = n => '€' + (Math.abs(n) >= 1000 ? (Math.round(n / 100) / 10).toLocaleString('en-GB') + 'k' : Math.round(n).toLocaleString('en-GB'));
+function renderVaultW() {
+  const v = VAULT(), el = $('vaultSide');
+  if (!v || !v.active) { el.setAttribute('aria-label', 'Open the Vault card'); el.innerHTML = '<span class="k vt">Vault</span><span class="say">' + (v ? 'No active vault' : 'Not answering') + '</span>'; return; }
+  const w = v.watch, m = nowMin(), evening = m >= 18 * 60 || m < 4 * 60;
+  el.style.setProperty('--rar', RARITY[v.rarity] || RARITY.Common);
+  el.setAttribute('aria-label', 'Vault, tier ' + v.tier + ', ' + Math.round(v.pct) + '% saved. Open the Vault card');
+  const embers = w ? '<span class="embers7">' + w.days.map((d, i) => '<i class="' + (d.status || (i === w.today ? 'today' : '')) + '"></i>').join('') + '</span>' : '<span></span>';
+  const watch = !w ? '<span></span>' : w.today_status === 'held' ? '<span class="tn ok">Held ✓</span>' : w.today_status === 'spent' ? '<span class="tn bad">Spent</span>' : '<span class="tn' + (evening ? ' due' : '') + '">Watch open</span>';
+  el.innerHTML = '<span class="k vt">Vault · T' + v.tier + '</span>' + sbar('var(--rar)', v.balance, v.target) + '<span class="tn">' + eur(v.balance) + ' <small>/ ' + eur(v.target) + '</small></span>' +
+    '<span class="k sh">' + (v.shield.breached ? '🛡 Breached' : v.shield.armed ? '🛡 ' + v.shield.integrity + ' / 7' : '🛡 Arming') + '</span>' + embers + watch;
 }
 // Me today: the recovery ring, the load ratio, ki charge and this week's training.
 function renderMe() {
@@ -1151,7 +1176,8 @@ function refreshWin() { if (WIN && WIN.def.live !== false) WIN.def.render(WIN.el
 // ---- Actions ----
 // ---- The cards: the boss card and the Goku card as on Roy's iPhone, served by Roy OS (/card/…) ----
 // Habits are ticked there, so the board refreshes when the card closes.
-const CARD_SRC = { boss: '/card/boss', goku: '/card/goku' };
+const CARD_SRC = { boss: '/card/boss', goku: '/card/goku', vault: '/card/vault' };
+const CARD_NAME = { boss: 'Boss card', goku: 'Goku card', vault: 'Vault card' };
 let cardOpen = null;
 function openCard(key) {
   if (WIN) closeWin(true);
@@ -1159,11 +1185,11 @@ function openCard(key) {
   const pop = $('cardPop'), phone = $('cardPhone');
   Object.keys(CARD_SRC).forEach(k => {
     let f = phone.querySelector('iframe[data-card="' + k + '"]');
-    if (k === key && !f) { f = document.createElement('iframe'); f.dataset.card = k; f.title = k === 'boss' ? 'Boss card' : 'Goku card'; f.src = CARD_SRC[k]; f.allow = 'autoplay; fullscreen'; phone.appendChild(f); }
+    if (k === key && !f) { f = document.createElement('iframe'); f.dataset.card = k; f.title = CARD_NAME[k]; f.src = CARD_SRC[k]; f.allow = 'autoplay; fullscreen'; phone.appendChild(f); }
     if (f) f.hidden = k !== key;
   });
-  $('ctBoss').setAttribute('aria-selected', String(key === 'boss')); $('ctGoku').setAttribute('aria-selected', String(key === 'goku'));
-  pop.setAttribute('aria-label', key === 'boss' ? 'Boss card' : 'Goku card');
+  $('ctBoss').setAttribute('aria-selected', String(key === 'boss')); $('ctGoku').setAttribute('aria-selected', String(key === 'goku')); $('ctVault').setAttribute('aria-selected', String(key === 'vault'));
+  pop.setAttribute('aria-label', CARD_NAME[key]);
   if (!cardOpen) { pop.hidden = false; if (!reduced()) pop.querySelector('.cardbox').animate([{ transform: 'scale(.92)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(.2, .85, .25, 1)' }); }
   cardOpen = key;
   setTimeout(() => { const f = phone.querySelector('iframe:not([hidden])'); if (f) f.focus(); }, 60);

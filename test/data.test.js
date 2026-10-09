@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, vaultView, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -132,4 +132,26 @@ test('preview weather: "now" is the forecast at the previewed hour', () => {
   const v = previewWeather(w, at);
   assert.equal(v.temp, 8); assert.equal(v.feels, 6); assert.equal(v.code, 61); assert.equal(v.day, false); assert.equal(v.wind, 12);
   assert.equal(v.hours[0].t, '07:00'); assert.equal(v.hi, 14);
+});
+
+test('vault: core, shield and the week\'s watch from GET /vault, read only', () => {
+  // Friday 9 Oct 2026, 09:00 Amsterdam: day 5 of the game week that began Monday 5 Oct.
+  const now = Date.parse('2026-10-09T07:00:00Z');
+  const state = {
+    vault: { name: 'Iron Wallet', tier: 3, currency: 'EUR', balance: 4350, target: 12000, funding_pct: 36.3, funded: false, months_ahead: 1, projected_completion: '2027-08', started_at: '2026-06-01',
+      breach: { week: '2026-09-28', count: 1, last_at: '2026-09-30T10:00:00Z' }, form: { name: 'Sandglass Bastion', rarity: 'Epic' }, next_form: { name: 'Ember Citadel' } },
+    events: [{ type: 'BREACH', at: '2026-09-30T10:00:00Z' }],
+    watch: { today_status: null, days: [{ day: '2026-10-05', status: 'held' }, { day: '2026-10-06', status: 'spent' }, { day: '2026-10-07', status: 'held' }, { day: '2026-10-08', status: 'held' }, { status: null }, { status: null }, { status: null }], streak: 2, held_week: 3, bonus_needed: 5 }
+  };
+  const v = vaultView({}, state, now);
+  assert.equal(v.active, true); assert.equal(v.tier, 3); assert.equal(v.form, 'Sandglass Bastion'); assert.equal(v.rarity, 'Epic'); assert.equal(v.next_form, 'Ember Citadel');
+  assert.deepEqual(v.shield, { integrity: 5, breached: false, armed: true }, 'last week\'s breach does not count');
+  assert.equal(v.watch.today, 4); assert.deepEqual(v.watch.days.map(d => d.status), ['held', 'spent', 'held', 'held', null, null, null]);
+  const hit = vaultView({}, { ...state, events: [{ type: 'BREACH', at: '2026-10-07T12:00:00Z' }] }, now);
+  assert.deepEqual(hit.shield, { integrity: 0, breached: true, armed: true }, 'a breach this week breaks the shield');
+  assert.equal(vaultView({}, { ...state, vault: { ...state.vault, started_at: '2026-10-12' } }, now).shield.armed, false, 'not armed before the campaign starts');
+  assert.equal(vaultView({ DESK_HIDE: 'wallet' }, state, now).name, '', 'names go through safeText');
+  assert.deepEqual(vaultView({}, { vault: null }, now), { active: false });
+  assert.equal(vaultView({}, null, now), null);
+  assert.equal(vaultView({}, { vault: state.vault }, now).watch, null, 'no watch before the engine has one');
 });
