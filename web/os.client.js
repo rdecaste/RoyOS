@@ -78,6 +78,9 @@ const ticked = x => (E.ticks[x.t] != null ? E.ticks[x.t] : !!x.done);
 const focusList = g => E.added.filter(a => a.g === g).map(a => ({ t: a.t, done: !!E.ticks[a.t], added: true })).concat((D.journal[g] || []).map(x => ({ t: x.t, done: ticked(x) })));
 const stephList = () => D.journal.steph.map(x => ({ id: x.id, t: x.t, due: x.due, done: !!E.ticks[x.t] }));
 const workToday = () => E.work || D.journal.work || { am: '🇳🇱 Home', pm: '🇳🇱 Home', commute: 'N/A' };
+// Saturday or Sunday with nothing set for today: the Commute tile rests (Roy, 10 Oct 2026). Nothing is
+// written; a place set on a weekend day shows as usual.
+const weekendRest = () => [0, 6].includes(new Date(D.today + 'T12:00:00Z').getUTCDay()) && !E.work && !D.journal.work;
 let WIN = null, popPick = 0, moodPick = 0, lastPhase = null, clockPhase = null;
 
 // Main habits, read only: done when ticked on the boss card today, otherwise due, late or
@@ -121,6 +124,7 @@ function border() {
 }
 // Past work days the journal has no place for (from the server; today is never one).
 const missingWork = () => (D.journal.border && D.journal.border.missing) || [];
+const wdLong = d => new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(new Date(d + 'T12:00:00Z'));
 const dayShort = d => wdShort(d) + ' ' + (+d.slice(8)) + ' ' + MON[+d.slice(5, 7) - 1];
 // A tap on a missing day opens its morning, afternoon and ride; Save keeps it in Roy OS (that day's
 // DeskState row), the share and the missing list count it from then on.
@@ -297,7 +301,7 @@ const TIPS = {
   ratio: () => { const R2 = RATIO(); if (!R2) return ''; const z = [0, R2.zone, ZC[R2.zone]], rp = R2.yesterday, Pk = F().peak, why = Pk && L().length > 1 && Pk.date === PREV().date ? ' after the ' + esc(Pk.what) : '';
     return '<span class="tt">Load ratio · fatigue ÷ fitness · from the quest engine</span><b style="color:' + z[2] + '">' + R2.value.toFixed(2) + ' · ' + esc(R2.zone) + '</b>' + (R2.tsb != null ? ' <span class="mut">· TSB ' + (R2.tsb > 0 ? '+' : '') + R2.tsb + ' ' + esc(R2.state || '') + '</span>' : '') + '<br>' + esc(RSAY[R2.zone] || '') + '<span class="hint">' + (rp && rp.value != null ? 'Yesterday ' + rp.value.toFixed(2) + why + '. ' : '') + 'Low under ' + R2.bands.low + ', optimal to ' + R2.bands.optimal + ', high to ' + R2.bands.high + ', risk above.</span>'; },
   ki: () => { const k = F().ki; return k ? '<span class="tt">Ki charge</span><b>' + k.level + ' of ' + k.peak + ' · ' + kiState(k) + '</b><div class="kv"><span>Healing cap</span><b>' + (k.heal_cap || '–') + ' HP</b><span></span><span>Overnight bonus</span><b>+' + Math.round((k.recovery_bonus || 0) * 100) + '%</b><span></span></div>' : ''; },
-  commute: () => { const b = border(), T = workToday(); return '<span class="tt">Commute</span><div class="kv"><span>Morning</span><b>' + esc(T.am) + '</b><span></span><span>Afternoon</span><b>' + esc(T.pm) + '</b><span></span><span>Ride</span><b>' + esc(T.commute) + '</b><span></span></div><span class="hint">' + b.share + '% of this year’s work days in Belgium (minimum 50%), ' + b.spare + ' days to spare.' + (missingWork().length ? ' ' + missingWork().length + ' day' + (missingWork().length === 1 ? '' : 's') + ' missing.' : '') + ' Tap to change today.</span>'; },
+  commute: () => { const b = border(), T = workToday(); if (weekendRest()) return '<span class="tt">Commute</span><span class="hint">Weekend, no commute today. ' + b.share + '% of this year’s work days in Belgium, ' + b.spare + ' days to spare. Tap if you work today.</span>'; return '<span class="tt">Commute</span><div class="kv"><span>Morning</span><b>' + esc(T.am) + '</b><span></span><span>Afternoon</span><b>' + esc(T.pm) + '</b><span></span><span>Ride</span><b>' + esc(T.commute) + '</b><span></span></div><span class="hint">' + b.share + '% of this year’s work days in Belgium (minimum 50%), ' + b.spare + ' days to spare.' + (missingWork().length ? ' ' + missingWork().length + ' day' + (missingWork().length === 1 ? '' : 's') + ' missing.' : '') + ' Tap to change today.</span>'; },
   steph: () => { const open = stephList().filter(x => !x.done); return '<span class="tt">From Steph</span>' + (open.length ? '<ul>' + open.map(x => '<li>' + esc(x.t) + (x.due ? ' <span class="mut">· ' + esc(x.due) + '</span>' : '') + '</li>').join('') + '</ul>' : 'Nothing open. To-dos tagged Steph in the journal land here.'); },
   dates: () => { const l = COMING().slice(0, 6); return '<span class="tt">Coming up · family calendar</span>' + (l.length ? '<div class="kv">' + l.map(i => '<span>' + esc(daySpan(i)) + '</span><b>' + esc(i.t) + '</b><span class="mut">' + esc(WHO[i.who] === 'Everyone' ? '' : WHO[i.who] || '') + '</span>').join('') + '</div>' : 'Nothing in the next 30 days.') + '<span class="hint">' + (D.calendar ? 'Read from the shared iCloud calendar, refreshed every 10 minutes.' : 'No calendar connected.') + '</span>'; },
   quest: () => { const q = D.quest; return q ? '<span class="tt">Quest · ' + esc(q.phase) + ' phase</span><b>' + esc(q.title) + '</b><br><span class="mut">Next move:</span> ' + esc(q.next_move) + (q.longest_km && q.goal_km ? '<span class="hint">Longest run ' + q.longest_km + ' of ' + q.goal_km + ' km · ' + q.days_left + ' days to go</span>' : '') : ''; },
@@ -1036,11 +1040,12 @@ function renderMood() {
 }
 // Commute: morning and afternoon places, the ride, and the year's share of work days in Belgium.
 function renderCommute() {
-  const T = workToday(), b = border(), C = 2 * Math.PI * 15;
-  $('commRide').textContent = T.commute && T.commute !== 'N/A' ? T.commute : 'No ride';
-  $('commBody').innerHTML = '<div class="pl"><small>Morning</small>' + esc(T.am) + '</div><div class="pl"><small>Afternoon</small>' + esc(T.pm) + '</div>' +
+  const T = workToday(), b = border(), C = 2 * Math.PI * 15, rest = weekendRest();
+  $('wCommute').classList.toggle('wkend', rest);
+  $('commRide').textContent = rest ? 'No commute' : T.commute && T.commute !== 'N/A' ? T.commute : 'No ride';
+  $('commBody').innerHTML = (rest ? '<div class="pl rest"><small>' + esc(wdLong(D.today)) + '</small>Weekend</div><div class="pl rest"><small>Back to work</small>Monday</div>' : '<div class="pl"><small>Morning</small>' + esc(T.am) + '</div><div class="pl"><small>Afternoon</small>' + esc(T.pm) + '</div>') +
     '<div class="be"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="#ffcf3a" stroke-width="4" stroke-dasharray="' + (b.share / 100 * C).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 18 18)"/></svg><b>' + b.share + '%</b></div>';
-  $('commNote').textContent = b.share + '% of work days in Belgium · ' + (b.spare >= 0 ? b.spare + ' day' + (b.spare === 1 ? '' : 's') + ' to spare' : -b.spare + ' days short');
+  $('commNote').textContent = b.share + '% of work days in Belgium · ' + (b.spare >= 0 ? b.spare + ' day' + (b.spare === 1 ? '' : 's') + ' to spare' : -b.spare + ' day' + (b.spare === -1 ? '' : 's') + ' short');
 }
 function renderSteph() {
   const open = stephList().filter(x => !x.done);
@@ -1116,7 +1121,7 @@ const WINS = {
     render(b) {
       const T = workToday(), x = border();
       const sel = (id, label, list, v) => '<div class="fld"><label for="' + id + '">' + label + '</label><select class="sel" id="' + id + '">' + list.map(o => '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></div>';
-      b.innerHTML = '<div class="sec"><div class="sh"><span>Today</span></div><div class="grid3">' + sel('wAm', 'Morning', PLACES, T.am) + sel('wPm', 'Afternoon', PLACES, T.pm) + sel('wRide', 'Ride', RIDES, T.commute) + '</div></div>' +
+      b.innerHTML = '<div class="sec"><div class="sh"><span>Today</span>' + (weekendRest() ? '<span>Weekend · nothing logged unless you set it</span>' : '') + '</div><div class="grid3">' + sel('wAm', 'Morning', PLACES, T.am) + sel('wPm', 'Afternoon', PLACES, T.pm) + sel('wRide', 'Ride', RIDES, T.commute) + '</div></div>' +
         '<div class="sec"><div class="sh"><span>Work days this year</span><b>' + x.share + '% in Belgium</b></div><div class="bbar"><i style="width:' + x.share + '%"></i><i style="width:' + (100 - x.share) + '%"></i><span class="half"></span></div><div class="bnums"><span>🇧🇪 Belgium <b>' + one(x.be) + '</b></span><span>minimum 50%</span><span>🇳🇱 Netherlands <b>' + one(x.nl) + '</b></span></div><p class="say">You have <b>' + x.spare + ' days</b> to spare before Belgium drops under half of your work days. A change here is kept on this screen for today; the journal’s border page stays the record.</p></div>' +
         missingSec();
     } },
