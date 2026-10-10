@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, vaultView, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, vaultView, findEvents, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -154,4 +154,10 @@ test('vault: core, shield and the week\'s watch from GET /vault, read only', () 
   assert.deepEqual(vaultView({}, { vault: null }, now), { active: false });
   assert.equal(vaultView({}, null, now), null);
   assert.equal(vaultView({}, { vault: state.vault }, now).watch, null, 'no watch before the engine has one');
+});
+
+test('calendar check: finds events by title, keeps only their date lines', () => {
+  const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:a\r\nSUMMARY:nr mandy/ramon\r\nDTSTART;TZID=Europe/Brussels:20261011T10\r\n 0000\r\nORGANIZER:mailto:x@y.z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Other\r\nDTSTART:20261012\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+  assert.deepEqual(findEvents(ics, 'Mandy'), [{ title: 'nr mandy/ramon', lines: ['DTSTART;TZID=Europe/Brussels:20261011T100000'] }]);
+  assert.deepEqual(findEvents(ics, ''), []);
 });

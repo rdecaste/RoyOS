@@ -296,6 +296,35 @@ export async function calendar(env, s, now = Date.now(), { preview = false } = {
   return out;
 }
 
+// The admin check (GET /theme/calendar?q=): what each feed holds right now, read fresh, and the
+// events whose title has `q`, with their date lines as written. Never the feed links.
+const KEEP = /^(DTSTART|DTEND|DURATION|RRULE|EXDATE|RECURRENCE-ID|STATUS|LAST-MODIFIED)[;:]/;
+export function findEvents(text, q) {
+  const want = String(q || '').toLowerCase(), out = [];
+  if (!want) return out;
+  String(text).replace(/\r\n?/g, '\n').replace(/\n[ \t]/g, '').split('BEGIN:VEVENT').slice(1).forEach(block => {
+    const lines = block.split('END:VEVENT')[0].split('\n');
+    const sum = lines.find(l => /^SUMMARY[;:]/.test(l));
+    const title = sum ? sum.slice(sum.indexOf(':') + 1) : '';
+    if (title.toLowerCase().includes(want)) out.push({ title, lines: lines.filter(l => KEEP.test(l)) });
+  });
+  return out;
+}
+export async function calendarCheck(env, s, q, now = Date.now()) {
+  const list = feeds(env), out = [];
+  for (const f of list) {
+    try {
+      const res = await fetch(String(f.url).replace(/^webcal:/i, 'https:'), { headers: { accept: 'text/calendar' } });
+      const text = res.ok ? await res.text() : '';
+      const view = res.ok ? agenda(parseIcs(text), now, { days: 30, ...f.opts }) : null;
+      out.push({ feed: f.key, status: res.status, last_modified: res.headers.get('last-modified'), age: res.headers.get('age'), events: (text.match(/BEGIN:VEVENT/g) || []).length,
+        upcoming: view ? view.upcoming.map(i => i.day + (i.from ? ' ' + i.from : '') + ' ' + i.t) : null, found: findEvents(text, q) });
+    } catch (e) { out.push({ feed: f.key, error: e.message }); }
+  }
+  const cached = await s.cached('calendar:v2:' + list.map(f => f.key).join('+'));
+  return { ok: 1, today: ymd(now), feeds: out, cached: cached ? { today: cached.today, errors: cached.errors, upcoming: cached.upcoming.map(i => i.day + ' ' + i.t) } : null };
+}
+
 // ---- Focus sessions ----
 // A session the page sends (POST /act {type: focus}): the day it started (today or yesterday, for one that
 // ran past midnight), its start time, whole minutes focused (1 to 25) and whether it ran the full 25.

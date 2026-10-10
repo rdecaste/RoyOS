@@ -18,13 +18,14 @@
 //   GET  /card/boss, /card/goku, /card/vault   the boss, Goku and Vault cards as on Roy's iPhone, for the Showdown popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
+//   GET  /theme/calendar?q=   the feeds read fresh (status, counts, next 30 days, events matching q; never the links)
 //   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1, character?)   POST /theme/retry (week)
 //
 // Every hour (cron) the week's world is made if it is Monday 06:00 Amsterdam or later and
 // the week has none yet; a failed week is retried on the next tick.
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
-import { board, themeView, gameDay, focusSession, previewAt } from './data.js';
+import { board, themeView, gameDay, focusSession, previewAt, calendarCheck } from './data.js';
 import { loadCatalogue, pickTheme, loreFor, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
@@ -155,6 +156,7 @@ export default {
       if (path.startsWith('/theme/') && request.method !== 'OPTIONS') {
         if (!env.ADMIN_TOKEN || request.headers.get('X-Admin-Token') !== env.ADMIN_TOKEN) return json({ ok: 0, code: 'bad_token' }, 401);
         if (path === '/theme/list') return json({ ok: 1, themes: (await s.themes(12)).map(r => themeView(r, null)) });
+        if (path === '/theme/calendar') return json(await calendarCheck(env, s, url.searchParams.get('q')));
         if (path === '/theme/run' && request.method === 'POST') {
           const f = await readFields(request);
           return json(await ensureTheme(env, s, { week: f.week || themeWeek(), force: f.force === '1' || f.force === true, character: f.character || null }));
