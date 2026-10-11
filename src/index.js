@@ -15,6 +15,7 @@
 //   POST /redo             {what: clip|all, week}: the menu's paid redo of a week's world (this week or the next only):
 //                          `clip` keeps the still (and the critter) and makes a new clip, `all` a new still and clip
 //                          with the same character. Refused while that week is being made.
+//   GET  /go/garden        Work Garden with a one-time pass (src/garden.js); signed out, the login first and then on
 //   GET  /card/boss, /card/goku, /card/vault   the boss, Goku and Vault cards as on Roy's iPhone, for the Showdown popup
 //   GET  /status           no cookie: ok, week, theme status (for healthchecks)
 //   Admin (X-Admin-Token):
@@ -32,6 +33,7 @@ import { MOOD_ART } from './moodart.js';
 import { applyActions, askPrompt } from './ask.js';
 import { syncWork } from './work.js';
 import { tickReminder } from './steph.js';
+import { goGarden } from './garden.js';
 
 export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
@@ -51,7 +53,7 @@ async function card(env, name) {
 }
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 const page = (html, status = 200, extra = {}) => new Response(html, { status, headers: { ...PAGE_HEADERS, ...extra } });
-const NEXT = new Set(['/']);
+const NEXT = new Set(['/', '/go/garden']);
 const TZ = 'Europe/Amsterdam';
 const amsterdam = (ms, opts) => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hourCycle: 'h23', ...opts }).format(new Date(ms));
 const amsterdamHour = ms => Number(amsterdam(ms, { hour: '2-digit' }));
@@ -185,6 +187,7 @@ export default {
       const signedIn = await isSignedIn(request, env.DESK_PASSWORD);
       if (!signedIn) {
         if (path === '/') return new Response(null, { status: 303, headers: { Location: '/login?next=/' } });
+        if (path === '/go/garden') return new Response(null, { status: 303, headers: { Location: '/login?next=/go/garden' } });
         return json({ ok: 0, code: 'signed_out' }, 401);
       }
 
@@ -207,6 +210,7 @@ export default {
       }
       if (path === '/theme') return json({ ok: 1, theme: await currentTheme(env, s) });
       if (path.startsWith('/card/') && CARDS[path.slice(6)]) return card(env, path.slice(6));
+      if (path === '/go/garden' && request.method === 'GET') return goGarden(env);
 
       if (path === '/redo' && request.method === 'POST') {
         const f = await readFields(request), now = themeWeek();
