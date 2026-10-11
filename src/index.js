@@ -21,6 +21,8 @@
 //   Admin (X-Admin-Token):
 //   GET  /theme/list       the last 12 weeks            POST /theme/run (week?, force=1, character?)   POST /theme/retry (week)
 //
+// Studio (src/studio.js, service binding only): paints Work Garden's pictures with Roy OS's keys.
+//
 // Every hour (cron) the week's world is made if it is Monday 06:00 Amsterdam or later and
 // the week has none yet; a failed week is retried on the next tick.
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
@@ -37,6 +39,7 @@ import { goGarden } from './garden.js';
 
 export { DeskState } from './state.js';
 export { DeskTheme } from './workflows.js';
+export { Studio } from './studio.js';
 
 const PAGE_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
 // The boss widget's popup shows the real cards. They are their own Workers (boss, mainquest, vaultquest)

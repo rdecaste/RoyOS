@@ -22,3 +22,11 @@ test('/go/garden refuses when Work Garden is not connected or answers oddly', as
   assert.equal(odd.status, 502);
   assert.equal(odd.headers.get('Location'), null);
 });
+
+test('Studio only takes a short prompt and an https image', async () => {
+  const { checkPaint, checkClip } = await import('../src/garden.js');
+  assert.equal(checkPaint('a quiet landscape'), 'a quiet landscape');
+  for (const bad of ['', '   ', 'x'.repeat(4001), null, 42]) assert.throws(() => checkPaint(bad));
+  assert.deepEqual(checkClip('https://garden.example.test/media/landscape/a.jpg?exp=1&sig=2', 'loop'), { imageUrl: 'https://garden.example.test/media/landscape/a.jpg?exp=1&sig=2', prompt: 'loop' });
+  for (const bad of ['http://x.test/a.jpg', 'file:///etc/passwd', 'not a url']) assert.throws(() => checkClip(bad, 'loop'));
+});
