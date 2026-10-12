@@ -56,6 +56,7 @@ All need the desk cookie unless noted. JSON is `{ok, code, message, ...}`.
 - First world: `curl -X POST https://royos.<account>.workers.dev/theme/run -H "X-Admin-Token: …"`, then watch `GET /theme/list`.
 
 ## Change log
+- 2026-10-12: the Coming up hover is cleaner (Roy: "make this cleaner"): dates grouped under a small day header (Today, Wed 14 Oct), then time and title on one line each, no wrapping; the Kids tag is gone (the family calendar is Kids by rule), only Roy's own calendar items keep a Roy tag; the footnote is shorter.
 - 2026-10-11: Studio, a service-binding-only entrypoint that paints Work Garden's landscape (still and loop) with Roy OS's keys and the weekly world's functions, unchanged. No route, no data, nothing else changes.
 - 2026-10-11: Garden link in the menu bar (Roy chose "Pass from RoyOS"): Roy OS is the way into Work Garden, whose Access login his work laptop can't use. `GET /go/garden` gets a one-time pass from Work Garden's `GardenPass` entrypoint (service binding `WORK_GARDEN`, var `WORK_GARDEN_URL`) and opens Work Garden with it.
 - 2026-10-10: the Commute tile shows the weekend (Roy: "should show its weekend, in the weekend"): on Saturday and Sunday with nothing set for the day it reads "Weekend" and "Back to work Monday", "No commute" top right, in green with the ring dimmed; its window says nothing is logged unless he sets it. Nothing is written for weekend days. Also "1 day short" instead of "1 days short".
