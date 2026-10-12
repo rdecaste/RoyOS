@@ -529,6 +529,12 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 #tip .tt { display: block; margin-bottom: .28rem; font: 600 .58rem/1.2 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
 #tip .kv { display: grid; grid-template-columns: auto auto auto; gap: .14rem .7rem; margin-top: .3rem; font-variant-numeric: tabular-nums; }
 #tip .kv > span:nth-child(3n+1), #tip .mut { color: var(--dim); }
+#tip .cu-day { margin: .45rem 0 .12rem; padding-top: .35rem; border-top: 1px solid rgba(255, 255, 255, .08); font: 600 .6rem/1.2 var(--f-sys); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+#tip .tt + .cu-day { margin-top: .1rem; padding-top: 0; border-top: 0; }
+#tip .cu-row { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) auto; gap: .6rem; align-items: baseline; padding: .06rem 0; }
+#tip .cu-t { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tip .cu-row b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tip .cu-who { font-size: .66rem; color: var(--faint); }
 #tip .hint { display: block; margin-top: .35rem; font-size: .72rem; color: var(--faint); }
 #tip ul { margin: .2rem 0 0; padding-left: 1rem; }
 /* Notifications drop in at the top centre, over the world, clear of both widget columns. */
