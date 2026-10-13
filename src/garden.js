@@ -34,3 +34,10 @@ export function checkClip(imageUrl, prompt) {
   if (url.protocol !== 'https:') throw new Error('The image must be an https address');
   return { imageUrl: url.href, prompt };
 }
+// Work Garden's "Frame it with AI" (Roy, 13 Oct 2026: "have AI help/guide me to start a plant, similar like how a
+// quest is build"): a system and a user message for the chat model, each at most 8000 characters. Work Garden
+// runs its own sensitive-info guard on what goes in and on what comes back; Roy OS keeps nothing.
+export function checkDraft(system, user) {
+  for (const t of [system, user]) if (typeof t !== 'string' || !t.trim() || t.length > 8000) throw new Error('A system and a user message of 1 to 8000 characters are needed');
+  return [{ role: 'system', content: system }, { role: 'user', content: user }];
+}

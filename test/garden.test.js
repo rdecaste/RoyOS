@@ -30,3 +30,9 @@ test('Studio only takes a short prompt and an https image', async () => {
   assert.deepEqual(checkClip('https://garden.example.test/media/landscape/a.jpg?exp=1&sig=2', 'loop'), { imageUrl: 'https://garden.example.test/media/landscape/a.jpg?exp=1&sig=2', prompt: 'loop' });
   for (const bad of ['http://x.test/a.jpg', 'file:///etc/passwd', 'not a url']) assert.throws(() => checkClip(bad, 'loop'));
 });
+
+test('Studio drafts only from a short system and user message', async () => {
+  const { checkDraft } = await import('../src/garden.js');
+  assert.deepEqual(checkDraft('frame it', 'a project'), [{ role: 'system', content: 'frame it' }, { role: 'user', content: 'a project' }]);
+  for (const [s, u] of [['', 'x'], ['x', '  '], ['x', 'y'.repeat(8001)], [null, 'x'], ['x', 42]]) assert.throws(() => checkDraft(s, u));
+});
