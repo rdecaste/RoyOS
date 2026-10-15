@@ -1117,37 +1117,86 @@ function exViews() {
   const xs = near.map(t => t[0]), ys = near.map(t => t[1]);
   return { home: { cx: h[0] + .5, cy: h[1] + .5, wide: 28 }, fit: { x0: Math.min(...xs) - .5, x1: Math.max(...xs) + 1.5, y0: Math.min(...ys) - .5, y1: Math.max(...ys) + 1.5 } };
 }
-// Draws one sport's boxes into el (W × H px). view: {cx, cy, wide} (boxes across) or {x0, x1, y0, y1} (fit).
+// Draws one sport's boxes into el (W × H px). view: {cx, cy, wide} (boxes across), {x0, x1, y0, y1} (fit)
+// or {cx, cy, S} (S px per box, the window's zoom). The layers stay in el between draws, so a zoom or a pan
+// only moves the map images it already has and fetches the new ones.
+function exScale(view, W, H) { return view.S || (view.wide ? W / view.wide : Math.min(W / (view.x1 - view.x0), H / (view.y1 - view.y0))); }
 function exMap(el, sport, W, H, view, { square = false, labels = false } = {}) {
   const d = EX.sports[sport] || { tiles: [], stats: { square: { size: 0 } } };
-  el.style.width = W + 'px'; el.style.height = H + 'px';
-  el.innerHTML = '';
-  const S = view.wide ? W / view.wide : Math.min(W / (view.x1 - view.x0), H / (view.y1 - view.y0));
-  const cx = view.wide ? view.cx : (view.x0 + view.x1) / 2, cy = view.wide ? view.cy : (view.y0 + view.y1) / 2;
+  if (el.dataset.size !== W + 'x' + H || !el.querySelector('canvas')) {
+    el.style.width = W + 'px'; el.style.height = H + 'px'; el.dataset.size = W + 'x' + H;
+    el.innerHTML = '<div class="exl"></div><canvas></canvas><div class="exl"></div>';
+  }
+  const S = exScale(view, W, H);
+  const cx = view.x0 != null ? (view.x0 + view.x1) / 2 : view.cx, cy = view.y0 != null ? (view.y0 + view.y1) / 2 : view.cy;
   const ox = cx - W / 2 / S, oy = cy - H / 2 / S;
-  // Map tiles at the zoom where one is about 256 px here: k zoom levels above 14, f boxes per tile side
-  const k = Math.max(0, Math.round(Math.log2(256 / S))), z = 14 - k, f = 2 ** k, T = S * f;
-  const add = layer => { for (let ty = Math.floor(oy / f); ty * f < oy + H / S; ty++) for (let tx = Math.floor(ox / f); tx * f < ox + W / S; tx++) {
-    const img = new Image(); img.alt = ''; img.decoding = 'async';
-    img.style.cssText = 'left:' + ((tx * f - ox) * S).toFixed(1) + 'px;top:' + ((ty * f - oy) * S).toFixed(1) + 'px;width:' + (T + .5).toFixed(1) + 'px;height:' + (T + .5).toFixed(1) + 'px';
-    img.onerror = () => img.remove();
-    img.src = EX_ESRI + layer + '/MapServer/tile/' + z + '/' + ty + '/' + tx;
-    el.appendChild(img);
-  } };
-  add('Base');
-  const c = document.createElement('canvas'), dpr = window.devicePixelRatio || 1;
-  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); c.style.width = W + 'px'; c.style.height = H + 'px';
-  el.appendChild(c);
-  const g = c.getContext('2d'); g.scale(dpr, dpr);
-  const gap = S > 6 ? 1 : .5, month = exMonth();
-  g.globalAlpha = .82;
-  for (const [x, y, v] of d.tiles) { g.fillStyle = exShade(v, sport); g.fillRect((x - ox) * S + gap / 2, (y - oy) * S + gap / 2, S - gap, S - gap); }
+  // Map tiles at the zoom where one is about 256 px here (k zoom levels above 14, f boxes per tile side), Esri's
+  // dark canvas goes to zoom 16
+  const k = Math.max(-2, Math.round(Math.log2(256 / S))), z = 14 - k, f = 2 ** k, T = S * f;
+  const [base, c, ref] = el.children;
+  const layer = (box, name) => {
+    const keep = new Set();
+    for (let ty = Math.floor(oy / f); ty * f < oy + H / S; ty++) for (let tx = Math.floor(ox / f); tx * f < ox + W / S; tx++) {
+      const key = z + '/' + ty + '/' + tx; keep.add(key);
+      let img = box.querySelector('img[data-k="' + key + '"]');
+      if (!img) { img = new Image(); img.alt = ''; img.decoding = 'async'; img.dataset.k = key; img.onerror = () => img.remove(); img.src = EX_ESRI + name + '/MapServer/tile/' + key; box.appendChild(img); }
+      img.style.cssText = 'left:' + ((tx * f - ox) * S).toFixed(1) + 'px;top:' + ((ty * f - oy) * S).toFixed(1) + 'px;width:' + (T + .5).toFixed(1) + 'px;height:' + (T + .5).toFixed(1) + 'px';
+    }
+    box.querySelectorAll('img').forEach(i => { if (!keep.has(i.dataset.k)) i.remove(); });
+  };
+  layer(base, 'Base');
+  if (labels) layer(ref, 'Reference');
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== Math.round(W * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); c.style.width = W + 'px'; c.style.height = H + 'px'; }
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const gap = S > 6 ? 1 : .5, month = exMonth(), inView = (x, y) => x + 1 > ox && x < ox + W / S && y + 1 > oy && y < oy + H / S;
+  // Zoomed in, the boxes thin out so the streets under them show
+  g.globalAlpha = Math.min(.82, Math.max(.38, .82 - (S - 24) / 160));
+  for (const [x, y, v] of d.tiles) if (inView(x, y)) { g.fillStyle = exShade(v, sport); g.fillRect((x - ox) * S + gap / 2, (y - oy) * S + gap / 2, S - gap, S - gap); }
   g.globalAlpha = 1; g.strokeStyle = '#ffd65c'; g.lineWidth = S > 6 ? 1.6 : 1.2; g.shadowColor = 'rgba(255, 214, 92, .8)'; g.shadowBlur = 4;
-  for (const [x, y, , first] of d.tiles) if (first && first >= month) g.strokeRect((x - ox) * S + .8, (y - oy) * S + .8, S - 1.6, S - 1.6);
+  for (const [x, y, , first] of d.tiles) if (first && first >= month && inView(x, y)) g.strokeRect((x - ox) * S + .8, (y - oy) * S + .8, S - 1.6, S - 1.6);
   g.shadowBlur = 0;
   const q = d.stats.square;
-  if (square && q.size > 1) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.strokeRect((q.x - ox) * S, (q.y - oy) * S, q.size * S, q.size * S); }
-  if (labels) { add('Reference'); el.insertAdjacentHTML('beforeend', '<span class="attr">© Esri · OpenStreetMap</span>'); }
+  if (square && q.size > 1) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.strokeRect((q.x - ox) * S, (q.y - oy) * S, q.size * S, q.size * S); g.setLineDash([]); }
+}
+// The window's map zooms and pans: the wheel or a pinch zooms around the pointer, a drag pans, a double tap
+// zooms in, and the +, − and fit buttons. The zoom is kept while the window is open (a sport switch keeps it).
+let exZoom = null;
+function exZoomTo(factor, px, py) {
+  const m = $('exWinMap'); if (!m || !exZoom) return;
+  const W = m.clientWidth, H = m.clientHeight;
+  if (px == null) { px = W / 2; py = H / 2; }
+  const S2 = Math.min(exZoom.max, Math.max(exZoom.min, exZoom.S * factor));
+  const bx = exZoom.cx + (px - W / 2) / exZoom.S, by = exZoom.cy + (py - H / 2) / exZoom.S;
+  exZoom.cx = bx - (px - W / 2) / S2; exZoom.cy = by - (py - H / 2) / S2; exZoom.S = S2;
+  exDrawWin();
+}
+let exRaf = 0;
+function exDrawWin() {
+  if (exRaf) return;
+  exRaf = requestAnimationFrame(() => {
+    exRaf = 0;
+    const m = $('exWinMap'); if (!m || !exZoom) return;
+    const f = exZoom.fit; exZoom.cx = Math.min(f.x1 + 10, Math.max(f.x0 - 10, exZoom.cx)); exZoom.cy = Math.min(f.y1 + 10, Math.max(f.y0 - 10, exZoom.cy));
+    exMap(m, exSport, m.clientWidth, m.clientHeight, exZoom, { square: true, labels: true });
+  });
+}
+function exBindZoom(m) {
+  const pts = new Map(); let pinch = 0;
+  const local = e => { const r = m.getBoundingClientRect(), k = m.clientWidth / r.width; return [(e.clientX - r.left) * k, (e.clientY - r.top) * k]; };
+  m.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = local(e); exZoomTo(Math.exp(-e.deltaY * .0015), x, y); }, { passive: false });
+  m.addEventListener('dblclick', e => { const [x, y] = local(e); exZoomTo(2, x, y); });
+  m.addEventListener('pointerdown', e => { m.setPointerCapture(e.pointerId); pts.set(e.pointerId, local(e)); pinch = 0; m.classList.add('drag'); });
+  m.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !exZoom) return;
+    const p = local(e), was = pts.get(e.pointerId); pts.set(e.pointerId, p);
+    if (pts.size === 1) { exZoom.cx -= (p[0] - was[0]) / exZoom.S; exZoom.cy -= (p[1] - was[1]) / exZoom.S; exDrawWin(); return; }
+    const [a, b] = [...pts.values()], dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinch) exZoomTo(dist / pinch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+    pinch = dist;
+  });
+  const up = e => { pts.delete(e.pointerId); pinch = 0; if (!pts.size) m.classList.remove('drag'); };
+  m.addEventListener('pointerup', up); m.addEventListener('pointercancel', up);
 }
 function renderExplorer() {
   const st = EX && EX.sports.All ? EX.sports.All.stats : null, v = EX && exViews();
@@ -1223,15 +1272,18 @@ const WINS = {
       if (!v) { b.innerHTML = '<p class="say">' + (exState === 'loading' ? 'Loading your boxes…' : exState === 'off' ? 'The boxes are not reachable right now. They come from the quest engine.' : 'No boxes yet. They appear once Strava activities with GPS are read.') + '</p>'; return; }
       if (!EX.sports[exSport]) exSport = 'All';
       const st = EX.sports[exSport].stats, mon = MONTHS[+D.today.slice(5, 7) - 1], fmt = n => n.toLocaleString('en-GB'), a = EX.activities;
-      b.innerHTML = '<div class="exw"><div class="exmap" id="exWinMap"></div><div class="side">' +
+      b.innerHTML = '<div class="exw"><div class="exmapw"><div class="exmap" id="exWinMap" aria-label="Map of your boxes: scroll or pinch to zoom, drag to move"></div><div class="exzoom"><button type="button" data-act="exzoom" data-z="in" aria-label="Zoom in">+</button><button type="button" data-act="exzoom" data-z="out" aria-label="Zoom out">−</button><button type="button" data-act="exzoom" data-z="fit" aria-label="Show all boxes">' + icon('explorer') + '</button></div><span class="attr">© Esri · OpenStreetMap</span></div><div class="side">' +
         '<div class="exseg" role="group" aria-label="Sport">' + EX_SPORTS.filter(k => EX.sports[k]).map(k => '<button type="button" data-act="exsport" data-s="' + k + '" aria-pressed="' + (k === exSport) + '">' + k + '<small>' + fmt(EX.sports[k].stats.boxes) + '</small></button>').join('') + '</div>' +
         '<div class="exkpi"><div><span>Boxes</span><b>' + fmt(st.boxes) + '</b><small>explorer score</small></div><div class="gold"><span>New in ' + mon + '</span><b>+' + st.new_this_month + '</b><small>+' + fmt(st.new_this_year) + ' this year</small></div>' +
         '<div><span>Max square</span><b>' + st.square.size + '×' + st.square.size + '</b><small>all visited</small></div><div><span>Cluster</span><b>' + fmt(st.cluster) + '</b><small>boxes fully surrounded</small></div></div>' +
         exLatest() +
         '<div class="exkey"><span class="ramp">' + [1, 2, 5, 12, 30, 60].map(n => '<i style="background:' + exShade(n, exSport) + '"></i>').join('') + '</span><span>once → 60+ visits</span><span class="k"><i style="border:2px solid var(--gold)"></i>new in ' + mon + '</span><span class="k"><i style="border:2px dashed #fff"></i>max square</span></div>' +
         '<p class="say">Most visits in one box: ' + fmt(st.most_visits) + '. ' + fmt(a.done) + ' activities read since 1 July' + (a.todo ? ', ' + fmt(a.todo) + ' still to read' : '') + '.</p></div></div>';
-      const m = $('exWinMap'), W = Math.round(m.clientWidth) || 600;
-      exMap(m, exSport, W, Math.round(W * .75), v.fit, { square: true, labels: true });
+      const m = $('exWinMap'), W = Math.round(m.clientWidth) || 600, H = Math.round(W * .75);
+      m.style.height = H + 'px';
+      if (!exZoom || exZoom.win !== WIN) { const S = exScale(v.fit, W, H); exZoom = { win: WIN, fit: v.fit, cx: (v.fit.x0 + v.fit.x1) / 2, cy: (v.fit.y0 + v.fit.y1) / 2, S, min: S * .6, max: 320 }; }
+      exBindZoom(m);
+      exMap(m, exSport, W, H, exZoom, { square: true, labels: true });
     } },
   quest: { w: 33, title: 'Quest', tags: () => '',
     render(b) {
@@ -1351,6 +1403,7 @@ function fullscreen() {
 function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done, ...(el.dataset.g === 'steph' && el.dataset.id ? { steph_id: el.dataset.id } : {}) }, out => { if (out.steph && !out.steph.ok) notify({ app: 'steph', html: 'Ticked here, but not closed for Steph: ' + esc(out.steph.message || out.steph.code) }); else if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
+  else if (a === 'exzoom') { const z = el.dataset.z; if (z === 'fit' && exZoom) { exZoom.S = exScale(exZoom.fit, $('exWinMap').clientWidth, $('exWinMap').clientHeight); exZoom.cx = (exZoom.fit.x0 + exZoom.fit.x1) / 2; exZoom.cy = (exZoom.fit.y0 + exZoom.fit.y1) / 2; exDrawWin(); } else exZoomTo(z === 'in' ? 1.6 : 1 / 1.6); }
   else if (a === 'exsport') { exSport = el.dataset.s; if (WIN && WIN.key === 'explorer') WIN.def.render(WIN.el.querySelector('.wbody')); }
   else if (a === 'card') openCard(el.dataset.card);
   else if (a === 'win') openWinCard();
