@@ -326,7 +326,6 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .exmap { position: relative; overflow: hidden; border-radius: 12px; background: #191b1e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
 .exmap img { position: absolute; max-width: none; opacity: .9; pointer-events: none; }
 .exmap canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
-.exmap .attr { position: absolute; right: 8px; bottom: 6px; font: 600 10px/1 var(--f-sys); letter-spacing: .06em; color: rgba(241, 244, 251, .5); text-shadow: 0 1px 2px #000; }
 
 /* Bottom: Your day (two lanes, Steph and Kids) and Ask Claude */
 .os .day { left: 460px; top: 892px; width: 994px; height: 164px; padding: 16px 20px; --ac: #5b93f0; }
@@ -510,7 +509,15 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 
 /* Explorer window: the whole map left, the numbers right */
 .exw { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
-.exw .exmap { width: 100%; aspect-ratio: 4 / 3; }
+.exmapw { position: relative; min-width: 0; }
+.exw .exmap { width: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.exw .exmap.drag { cursor: grabbing; }
+.exmap .exl { position: absolute; inset: 0; }
+.exzoom { position: absolute; top: .5rem; right: .5rem; display: grid; gap: 1px; overflow: hidden; border-radius: .5rem; border: 1px solid var(--edge); background: var(--edge); }
+.exzoom button { width: 1.9rem; height: 1.9rem; display: grid; place-items: center; padding: 0; border: 0; background: rgba(9, 14, 27, .88); font: 600 1.05rem/1 var(--f-sys); color: var(--fg); }
+.exzoom button:hover { background: rgba(40, 46, 60, .95); }
+.exzoom .i { width: .95rem; height: .95rem; }
+.exmapw .attr { position: absolute; right: 8px; bottom: 6px; font: 600 10px/1 var(--f-sys); letter-spacing: .06em; color: rgba(241, 244, 251, .5); text-shadow: 0 1px 2px #000; pointer-events: none; }
 .exw .side { display: grid; gap: .85rem; min-width: 0; }
 .exseg { display: flex; gap: .2rem; padding: .2rem; border-radius: .6rem; background: rgba(255, 255, 255, .06); }
 .exseg button { flex: 1; padding: .38rem .3rem; border: 0; border-radius: .45rem; background: transparent; font: 600 .66rem/1 var(--f-sys); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
