@@ -927,19 +927,16 @@ function renderWeather() {
   const ch = wxChart((w.hours || []).slice(0, 12));
   $('wxChart').innerHTML = ch.svg; $('wxLabs').innerHTML = ch.labs;
 }
-// The now pill: Roy's current block and the time left, else the next one, else free.
-// Roy removed his own calendar (15 Oct 2026): with no Roy feed (unset or failing) and no Roy block
-// in the plan, the pill only shows a running focus session and the panel has no Roy row.
+// The now pill: Roy's current block and the time left, else the next one.
+// Roy removed his own calendar (15 Oct 2026): Roy only shows when he has a block now or later
+// today; otherwise the pill only shows a running focus session and the panel has no Roy row.
 const leftTxt = min => (min < 60 ? Math.max(1, Math.round(min)) + ' min' : dur(min));
-const royCal = () => { const c = D.calendar || {}; return (c.feeds || []).includes('roy') && !(c.errors || []).some(e => String(e).startsWith('roy:')); };
-const royOn = () => royCal() || EVENTS().some(e => e.who === 'roy');
 function renderIsland() {
-  const m = nowMin(), r = laneNow('roy', m), roy = royOn(), focus = FT && !FT.doneAt;
+  const m = nowMin(), r = laneNow('roy', m), roy = !!(r.cur || r.next), focus = FT && !FT.doneAt;
   $('island').classList.toggle('off', !roy && !focus);
   if (!roy && !focus) setIsland(false);
   $('islPill').innerHTML = focus ? '<em>FOCUS</em><span class="it">' + (FT.paused != null ? 'Paused · ' : '') + leftTxt(ftLeft() / 60e3) + ' left · session ' + (SESSIONS().length + 1) + ' today</span>' : r.cur ? '<em>NOW</em><span class="it">' + esc(r.cur.t) + ' · ' + leftTxt(r.cur.z - m) + ' left</span>'
-    : r.next ? '<em>NEXT</em><span class="it">' + esc(r.next.t) + ' · in ' + leftTxt(r.next.a - m) + '</span>'
-    : '<em>' + (ALLEV().length ? 'FREE' : 'PLAN') + '</em><span class="it">' + (ALLEV().length ? 'Nothing else planned today' : 'Nothing planned yet. Tap a lane to add.') + '</span>';
+    : r.next ? '<em>NEXT</em><span class="it">' + esc(r.next.t) + ' · in ' + leftTxt(r.next.a - m) + '</span>' : '';
   $('islPanel').innerHTML = [['roy', 'Roy'], ['steph', 'Steph'], ['kids', 'Kids']].filter(([w]) => roy || w !== 'roy').map(([w, name]) => { const x = laneNow(w, m);
     const cur = x.cur ? '<span><em>now</em>' + esc((x.cur.ic || '') + ' ' + x.cur.t) + ' <em>until ' + x.cur.to + '</em></span>' : '', nxt = x.next ? '<span class="nxt"><em>' + x.next.from + '</em>' + esc((x.next.ic || '') + ' ' + x.next.t) + '</span>' : '';
     return '<div class="isl-row"><span class="who ' + w + '">' + name + '</span><div class="what">' + (cur || nxt ? cur + nxt : '<span class="nxt">Free for the rest of the day</span>') + '</div></div>'; }).join('');
