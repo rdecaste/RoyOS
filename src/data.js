@@ -198,6 +198,33 @@ export function missingDays(ytd, day) {
   return out;
 }
 
+// ---- Explorer: the Strava boxes (zoom-14 map tiles) from the quest engine's /explorer ----
+// Read with the admin token, like /recovery, only when the board asks for it (GET /explorer). Each sport
+// keeps its stats and its boxes as [x, y, visits, first_day]. Never logged, cached or kept: the boxes show
+// where Roy lives and trains.
+export const EXPLORER_SPORTS = ['All', 'Ride', 'Run', 'Walk'];
+export async function explorer(env) { return explorerView(env, await engine(env, '/explorer', { admin: true })); }
+export function explorerView(env, raw) {
+  const num = v => (Number.isFinite(+v) ? +v : 0);
+  const count = v => (v && typeof v === 'object' ? num(v.size ?? v.boxes ?? v.count ?? v.visits) : num(v));
+  const sports = {};
+  for (const k of EXPLORER_SPORTS) {
+    const s = raw && raw.sports && raw.sports[k];
+    if (!s) continue;
+    const st = s.stats || {}, sq = st.square || {};
+    sports[k] = {
+      stats: { boxes: num(st.boxes), new_this_month: num(st.new_this_month), new_this_year: num(st.new_this_year), square: { size: num(sq.size), x: num(sq.x), y: num(sq.y) }, cluster: count(st.cluster), most_visits: count(st.most_visits) },
+      tiles: (Array.isArray(s.tiles) ? s.tiles : []).filter(t => Array.isArray(t) && Number.isInteger(t[0]) && Number.isInteger(t[1])).map(t => [t[0], t[1], Math.max(1, num(t[2])), typeof t[3] === 'string' ? t[3].slice(0, 10) : null])
+    };
+  }
+  const l = raw && raw.latest_new, a = raw && raw.activities || {};
+  return {
+    sports,
+    latest_new: l && l.day ? { day: String(l.day).slice(0, 10), name: safeText(env, l.name), sport: String(l.sport || ''), tiles: num(l.tiles), new_tiles: num(l.new_tiles) } : null,
+    activities: { done: num(a.done), todo: num(a.todo), no_gps: num(a.no_gps) }
+  };
+}
+
 // Recovery comes from the engine's /recovery (the readiness rules, one place for every dashboard).
 const SCORE = { good: 85, steady: 56, easy: 28 };
 export async function recovery(env) { return recoveryView(await engine(env, '/recovery', { admin: true })); }

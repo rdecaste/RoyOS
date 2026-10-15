@@ -51,6 +51,7 @@ const P = {
   claude: '<path d="M12 2.8c.6 4.9 4.3 8.6 9.2 9.2-4.9.6-8.6 4.3-9.2 9.2-.6-4.9-4.3-8.6-9.2-9.2 4.9-.6 8.6-4.3 9.2-9.2Z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
   cloud: '<path d="M7.5 18.5h9.8a3.9 3.9 0 0 0 .3-7.8 5.6 5.6 0 0 0-10.8 1.4 3.2 3.2 0 0 0 .7 6.4Z"/>',
+  explorer: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>', chev: '<path d="m9.5 6 6 6-6 6"/>'
 };
 P.os = P.logo;
@@ -60,7 +61,7 @@ const APPS = [['focus', 'Focus', '#f6c045'], ['boss', 'Showdown', '#ff5f6d'], ['
 const APP = Object.fromEntries(APPS.map(([k, name, ac]) => [k, { name, ac }]));
 // The menu bar's apps (the quest opens from the line written on the world).
 const BAR_APPS = APPS.filter(([k]) => k !== 'quest');
-APP.day = { name: 'Your day', ac: '#5b93f0' }; APP.claude = { name: 'Claude', ac: '#b18cff' }; APP.os = { name: 'Roy OS', ac: '#6fd8ff' };
+APP.day = { name: 'Your day', ac: '#5b93f0' }; APP.explorer = { name: 'Explorer', ac: '#ffd65c' }; APP.claude = { name: 'Claude', ac: '#b18cff' }; APP.os = { name: 'Roy OS', ac: '#6fd8ff' };
 
 // ---- The board's state: the server's data plus the day's edits ----
 const ICON = { work: '💼', move: '🚲', train: '🏃', fam: '👪', mind: '📓' };
@@ -1086,6 +1087,83 @@ function renderDay() {
   $('dayHours').textContent = [6, 9, 12, 15, 18, 21, 23].map(h => String(h).padStart(2, '0')).join(' · ');
 }
 function renderApps() { $('apps').innerHTML = BAR_APPS.map(([k, name, ac]) => '<button type="button" class="app" data-open="' + k + '" data-tip="' + esc(name) + '" aria-label="Open ' + esc(name) + '" style="--ac:' + ac + '">' + icon(k) + '</button>').join(''); }
+// ---- Explorer: the Strava boxes (zoom-14 map tiles, about 1.5 km) on a small dark map ----
+// GET /explorer reads the quest engine's /explorer; loaded with the page and every 30 minutes. The tile shows
+// the home area (around the most visited box), the box count and this month's new boxes; a tap opens the window
+// with the whole map, the sport switch, the max square and the latest new boxes. The base map is Esri's World
+// Dark Gray Canvas (no key); the boxes go lighter with visits, dark for once and white for 60 or more.
+let EX = null, exState = 'loading', exSport = 'All';
+const EX_SPORTS = ['All', 'Ride', 'Run', 'Walk'];
+const EX_HUE = { All: 190, Ride: 200, Run: 335, Walk: 100 };
+const EX_BANDS = [1, 3, 9, 24, 59, Infinity], EX_L = [24, 36, 50, 64, 80, 96], EX_S = [55, 52, 46, 38, 26, 10];
+const exShade = (v, sport) => { const i = EX_BANDS.findIndex(b => v <= b); return 'hsl(' + EX_HUE[sport] + ' ' + EX_S[i] + '% ' + EX_L[i] + '%)'; };
+const exMonth = () => D.today.slice(0, 7) + '-01';
+const EX_ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_';
+async function loadExplorer() {
+  try {
+    const r = await fetch('/explorer', { headers: { Accept: 'application/json' } });
+    const out = await r.json();
+    if (out.ok) { EX = out.explorer; exState = 'ok'; } else if (!EX) exState = 'off';
+  } catch (err) { if (!EX) exState = 'off'; }
+  renderExplorer();
+  if (WIN && WIN.key === 'explorer') WIN.def.render(WIN.el.querySelector('.wbody'));
+}
+// The home box: the one visited most (All). The home view is about 28 boxes wide around it;
+// the whole view fits every box within 40 boxes of home, so a far trip doesn't shrink the map to nothing.
+function exHome() { const t = (EX.sports.All || { tiles: [] }).tiles; return t.length ? t.reduce((a, b) => (b[2] > a[2] ? b : a)) : null; }
+function exViews() {
+  const h = exHome(); if (!h) return null;
+  const near = EX.sports.All.tiles.filter(t => Math.abs(t[0] - h[0]) <= 40 && Math.abs(t[1] - h[1]) <= 40);
+  const xs = near.map(t => t[0]), ys = near.map(t => t[1]);
+  return { home: { cx: h[0] + .5, cy: h[1] + .5, wide: 28 }, fit: { x0: Math.min(...xs) - .5, x1: Math.max(...xs) + 1.5, y0: Math.min(...ys) - .5, y1: Math.max(...ys) + 1.5 } };
+}
+// Draws one sport's boxes into el (W × H px). view: {cx, cy, wide} (boxes across) or {x0, x1, y0, y1} (fit).
+function exMap(el, sport, W, H, view, { square = false, labels = false } = {}) {
+  const d = EX.sports[sport] || { tiles: [], stats: { square: { size: 0 } } };
+  el.style.width = W + 'px'; el.style.height = H + 'px';
+  el.innerHTML = '';
+  const S = view.wide ? W / view.wide : Math.min(W / (view.x1 - view.x0), H / (view.y1 - view.y0));
+  const cx = view.wide ? view.cx : (view.x0 + view.x1) / 2, cy = view.wide ? view.cy : (view.y0 + view.y1) / 2;
+  const ox = cx - W / 2 / S, oy = cy - H / 2 / S;
+  // Map tiles at the zoom where one is about 256 px here: k zoom levels above 14, f boxes per tile side
+  const k = Math.max(0, Math.round(Math.log2(256 / S))), z = 14 - k, f = 2 ** k, T = S * f;
+  const add = layer => { for (let ty = Math.floor(oy / f); ty * f < oy + H / S; ty++) for (let tx = Math.floor(ox / f); tx * f < ox + W / S; tx++) {
+    const img = new Image(); img.alt = ''; img.decoding = 'async';
+    img.style.cssText = 'left:' + ((tx * f - ox) * S).toFixed(1) + 'px;top:' + ((ty * f - oy) * S).toFixed(1) + 'px;width:' + (T + .5).toFixed(1) + 'px;height:' + (T + .5).toFixed(1) + 'px';
+    img.onerror = () => img.remove();
+    img.src = EX_ESRI + layer + '/MapServer/tile/' + z + '/' + ty + '/' + tx;
+    el.appendChild(img);
+  } };
+  add('Base');
+  const c = document.createElement('canvas'), dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); c.style.width = W + 'px'; c.style.height = H + 'px';
+  el.appendChild(c);
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const gap = S > 6 ? 1 : .5, month = exMonth();
+  g.globalAlpha = .82;
+  for (const [x, y, v] of d.tiles) { g.fillStyle = exShade(v, sport); g.fillRect((x - ox) * S + gap / 2, (y - oy) * S + gap / 2, S - gap, S - gap); }
+  g.globalAlpha = 1; g.strokeStyle = '#ffd65c'; g.lineWidth = S > 6 ? 1.6 : 1.2; g.shadowColor = 'rgba(255, 214, 92, .8)'; g.shadowBlur = 4;
+  for (const [x, y, , first] of d.tiles) if (first && first >= month) g.strokeRect((x - ox) * S + .8, (y - oy) * S + .8, S - 1.6, S - 1.6);
+  g.shadowBlur = 0;
+  const q = d.stats.square;
+  if (square && q.size > 1) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.strokeRect((q.x - ox) * S, (q.y - oy) * S, q.size * S, q.size * S); }
+  if (labels) { add('Reference'); el.insertAdjacentHTML('beforeend', '<span class="attr">© Esri · OpenStreetMap</span>'); }
+}
+function renderExplorer() {
+  const st = EX && EX.sports.All ? EX.sports.All.stats : null, v = EX && exViews();
+  if (!st || !v) { $('expMap').innerHTML = ''; $('expBody').innerHTML = '<span class="say">' + (exState === 'loading' ? 'Loading your boxes…' : exState === 'off' ? 'Boxes not reachable right now.' : 'No boxes yet.') + '</span>'; return; }
+  exMap($('expMap'), 'All', 210, 130, v.home);
+  $('expBody').innerHTML = '<div class="n"><b>' + st.boxes.toLocaleString('en-GB') + '</b><span>boxes</span></div><div class="nw"><b>+' + st.new_this_month + '</b> new in ' + MONTHS[+D.today.slice(5, 7) - 1] + '</div>';
+  $('wExp').setAttribute('aria-label', 'Explorer: ' + st.boxes + ' boxes, ' + st.new_this_month + ' new this month. Open the map');
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function exLatest() {
+  const l = EX.latest_new; if (!l) return '';
+  const ago = Math.round((Date.parse(D.today + 'T12:00:00Z') - Date.parse(l.day + 'T12:00:00Z')) / 864e5);
+  const when = ago === 0 ? 'Today’s' : ago === 1 ? 'Yesterday’s' : ago < 7 ? new Date(l.day + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' }) + '’s' : dayFmt(l.day) + ':';
+  return '<div class="exlast"><span class="sh"><span>Latest new boxes</span></span><p>' + esc(when + ' ' + (l.sport || 'activity').toLowerCase()) + ': <b>+' + l.new_tiles + ' new box' + (l.new_tiles === 1 ? '' : 'es') + '</b></p><small>' + esc([l.name, dayFmt(l.day), l.tiles ? l.tiles + ' boxes on the way' : ''].filter(Boolean).join(' · ')) + '</small></div>';
+}
+
 function renderDockState() { qa('.app').forEach(a => a.classList.toggle('open', !!WIN && WIN.key === a.dataset.open)); }
 // Ask: one suggestion at a time under the title, changing every ten minutes; a tap puts it in the box.
 function renderAskTry() { const q = SUGG[Math.floor(now() / 6e5) % SUGG.length]; $('askTry').textContent = 'Try: “' + q + '”'; $('askTry').dataset.q = q; }
@@ -1139,6 +1217,22 @@ const WINS = {
     const byDay = []; l.forEach(i => { const k = i.day < D.today ? D.today : i.day; let g = byDay.find(x => x.day === k); if (!g) { g = { day: k, items: [] }; byDay.push(g); } g.items.push(i); });
     b.innerHTML = '<div class="rows cal">' + byDay.map(g => g.items.map((i, n) => '<div class="rowi"><span class="dd">' + (n ? '' : esc(g.day === D.today ? 'Today' : dayFmt(g.day))) + '</span><span>' + esc(i.t) + '<small>' + esc(i.all_day ? (i.end_day ? 'All day until ' + dayFmt(i.end_day) : 'All day') : i.from + '–' + i.to) + '</small></span><span class="who ' + esc(i.who) + '">' + esc(i.who === 'all' ? '' : WHO[i.who] || '') + '</span></div>').join('')).join('') + '</div><p class="say">Read from the shared iCloud calendar, refreshed every 10 minutes. Change it on your phone.</p>';
   } },
+  explorer: { w: 56, title: 'Explorer', tags: () => '', live: false,
+    render(b) {
+      const v = EX && exViews();
+      if (!v) { b.innerHTML = '<p class="say">' + (exState === 'loading' ? 'Loading your boxes…' : exState === 'off' ? 'The boxes are not reachable right now. They come from the quest engine.' : 'No boxes yet. They appear once Strava activities with GPS are read.') + '</p>'; return; }
+      if (!EX.sports[exSport]) exSport = 'All';
+      const st = EX.sports[exSport].stats, mon = MONTHS[+D.today.slice(5, 7) - 1], fmt = n => n.toLocaleString('en-GB'), a = EX.activities;
+      b.innerHTML = '<div class="exw"><div class="exmap" id="exWinMap"></div><div class="side">' +
+        '<div class="exseg" role="group" aria-label="Sport">' + EX_SPORTS.filter(k => EX.sports[k]).map(k => '<button type="button" data-act="exsport" data-s="' + k + '" aria-pressed="' + (k === exSport) + '">' + k + '<small>' + fmt(EX.sports[k].stats.boxes) + '</small></button>').join('') + '</div>' +
+        '<div class="exkpi"><div><span>Boxes</span><b>' + fmt(st.boxes) + '</b><small>explorer score</small></div><div class="gold"><span>New in ' + mon + '</span><b>+' + st.new_this_month + '</b><small>+' + fmt(st.new_this_year) + ' this year</small></div>' +
+        '<div><span>Max square</span><b>' + st.square.size + '×' + st.square.size + '</b><small>all visited</small></div><div><span>Cluster</span><b>' + fmt(st.cluster) + '</b><small>boxes fully surrounded</small></div></div>' +
+        exLatest() +
+        '<div class="exkey"><span class="ramp">' + [1, 2, 5, 12, 30, 60].map(n => '<i style="background:' + exShade(n, exSport) + '"></i>').join('') + '</span><span>once → 60+ visits</span><span class="k"><i style="border:2px solid var(--gold)"></i>new in ' + mon + '</span><span class="k"><i style="border:2px dashed #fff"></i>max square</span></div>' +
+        '<p class="say">Most visits in one box: ' + fmt(st.most_visits) + '. ' + fmt(a.done) + ' activities read since 1 July' + (a.todo ? ', ' + fmt(a.todo) + ' still to read' : '') + '.</p></div></div>';
+      const m = $('exWinMap'), W = Math.round(m.clientWidth) || 600;
+      exMap(m, exSport, W, Math.round(W * .75), v.fit, { square: true, labels: true });
+    } },
   quest: { w: 33, title: 'Quest', tags: () => '',
     render(b) {
       const q = D.quest; if (!q) { b.innerHTML = '<p class="say">No quest in focus.</p>'; return; }
@@ -1257,6 +1351,7 @@ function fullscreen() {
 function doAct(el, e) {
   const a = el.dataset.act;
   if (a === 'todo') { const t = el.dataset.t, done = el.getAttribute('aria-checked') !== 'true'; E.ticks[t] = done; renderFocusW(); fitAfterRender(); renderSteph(); refreshWin(); act({ type: 'todo_tick', text: t, done, ...(el.dataset.g === 'steph' && el.dataset.id ? { steph_id: el.dataset.id } : {}) }, out => { if (out.steph && !out.steph.ok) notify({ app: 'steph', html: 'Ticked here, but not closed for Steph: ' + esc(out.steph.message || out.steph.code) }); else if (done) notify({ app: el.dataset.g === 'steph' ? 'steph' : 'focus', html: 'Done: <b>' + esc(t) + '</b>' }); }); }
+  else if (a === 'exsport') { exSport = el.dataset.s; if (WIN && WIN.key === 'explorer') WIN.def.render(WIN.el.querySelector('.wbody')); }
   else if (a === 'card') openCard(el.dataset.card);
   else if (a === 'win') openWinCard();
   else if (a === 'missday') { missPick = missPick === el.dataset.d ? null : el.dataset.d; refreshWin(); }
@@ -1380,6 +1475,8 @@ matchMedia('(max-width: 900px), (orientation: portrait)').addEventListener('chan
 setTimeout(nudges, 900);
 setInterval(() => { renderClock(); renderIsland(); renderDay(); renderPreview(); }, 15e3);
 setInterval(refresh, 60e3);
+renderExplorer(); loadExplorer();
+setInterval(loadExplorer, 30 * 60e3);
 setInterval(() => { renderBossW(); renderMe(); renderMood(); renderAskTry(); nudges(); }, 60e3);
 setInterval(drift, 4 * 60e3);
 setInterval(moveNight, 120e3);

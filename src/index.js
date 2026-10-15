@@ -11,6 +11,7 @@
 //                          and places and ride go on to the admin board's work_location (src/work.js);
 //                          or a finished focus session {type: focus, day, at, min, done} (kept in DeskState's focus table)
 //   POST /ask              the Ask box: {text} → the assistant's reply and the edits it made
+//   GET  /explorer         the Strava boxes for the Explorer tile, read from the quest engine's /explorer with the admin token
 //   GET  /theme            this week's world (and next week's pick, and the week's critter when it has one)
 //   POST /redo             {what: clip|all, week}: the menu's paid redo of a week's world (this week or the next only):
 //                          `clip` keeps the still (and the critter) and makes a new clip, `all` a new still and clip
@@ -27,7 +28,7 @@
 // the week has none yet; a failed week is retried on the next tick.
 import { isSignedIn, sameText, sessionCookie, clearCookie } from './auth.js';
 import { state } from './state.js';
-import { board, themeView, gameDay, focusSession, previewAt } from './data.js';
+import { board, themeView, gameDay, focusSession, previewAt, explorer } from './data.js';
 import { loadCatalogue, pickTheme, loreFor, remakeDue, critterDue, isoWeek, weekAfter, ymd } from './themes.js';
 import { chatJson } from './media.js';
 import { deskPage, loginPage } from './page.js';
@@ -210,6 +211,10 @@ export default {
         if (env.ADMIN_BOARD && env.ADMIN_PASSWORD) ctx.waitUntil(syncWork(env, s, ymd(Date.now())).catch(err => console.error('work sync: ' + (err && err.message || err))));
         const [data, theme] = await Promise.all([board(env, s), currentTheme(env, s)]);
         return json({ ok: 1, ...data, theme });
+      }
+      if (path === '/explorer' && request.method === 'GET') {
+        try { return json({ ok: 1, explorer: await explorer(env) }); }
+        catch (err) { return json({ ok: 0, code: 'explorer_unavailable', message: err.message }, 502); }
       }
       if (path === '/theme') return json({ ok: 1, theme: await currentTheme(env, s) });
       if (path.startsWith('/card/') && CARDS[path.slice(6)]) return card(env, path.slice(6));

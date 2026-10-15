@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, vaultView, MAIN_HABITS } from '../src/data.js';
+import { mainHabits, bossView, power, safeText, gameDay, recoveryView, weatherView, previewWeather, previewAt, missingDays, mergeWork, winToday, focusSession, vaultView, explorerView, MAIN_HABITS } from '../src/data.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 
@@ -154,4 +154,28 @@ test('vault: core, shield and the week\'s watch from GET /vault, read only', () 
   assert.deepEqual(vaultView({}, { vault: null }, now), { active: false });
   assert.equal(vaultView({}, null, now), null);
   assert.equal(vaultView({}, { vault: state.vault }, now).watch, null, 'no watch before the engine has one');
+});
+
+test('explorer: keeps each sport\'s stats and boxes as [x, y, visits, first_day], drops bad boxes, hides the main quest', () => {
+  // Made-up boxes: nothing here is a real place.
+  const raw = {
+    sports: {
+      All: { stats: { boxes: 3, new_this_month: 1, new_this_year: 3, square: { size: 1, x: 100, y: 200 }, cluster: { size: 0 }, most_visits: 7 },
+        tiles: [[100, 200, 7, '2026-07-02', '2026-10-14'], [101, 200, 1, '2026-10-03T08:00:00Z', '2026-10-03'], ['x', 1, 2, '2026-07-01'], [102, 201]] },
+      Ride: { stats: { boxes: 1 }, tiles: [[100, 200, 4, '2026-07-02', '2026-10-14']] },
+      Swim: { stats: { boxes: 9 }, tiles: [] }
+    },
+    latest_new: { day: '2026-10-13', name: 'Loop past the fap shop', sport: 'Ride', tiles: 20, new_tiles: 4 },
+    activities: { done: 154, todo: 0, no_gps: 3 }
+  };
+  const x = explorerView({ DESK_HIDE: 'fap' }, raw);
+  assert.deepEqual(Object.keys(x.sports), ['All', 'Ride']);
+  assert.deepEqual(x.sports.All.tiles, [[100, 200, 7, '2026-07-02'], [101, 200, 1, '2026-10-03'], [102, 201, 1, null]]);
+  assert.equal(x.sports.All.stats.cluster, 0);
+  assert.equal(x.sports.All.stats.most_visits, 7);
+  assert.deepEqual(x.sports.Ride.stats.square, { size: 0, x: 0, y: 0 });
+  assert.equal(x.latest_new.name, '', 'the main quest never reaches the screen');
+  assert.equal(x.latest_new.new_tiles, 4);
+  assert.deepEqual(x.activities, { done: 154, todo: 0, no_gps: 3 });
+  assert.deepEqual(explorerView({}, null), { sports: {}, latest_new: null, activities: { done: 0, todo: 0, no_gps: 0 } });
 });

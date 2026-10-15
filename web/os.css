@@ -312,8 +312,24 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .os .comm.wkend .be { opacity: .55; }
 .os .cnote { margin-top: 6px; font-size: 14px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Explorer (bottom left): the Strava boxes on a small dark map of home, the box count and this month's new ones.
+   A tap opens the Explorer window with the whole map and the rest. */
+.os .ex { left: 24px; top: 892px; height: 164px; padding: 16px 20px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; --ac: #ffd65c; }
+.os .exside { display: grid; align-content: space-between; min-width: 0; }
+.os .exnum { display: grid; gap: 14px; }
+.os .exnum .n { display: grid; gap: 6px; }
+.os .exnum .n b { font: 700 46px/.85 var(--f-display); font-variant-numeric: tabular-nums; }
+.os .exnum .n span { font: 600 11px/1 var(--f-sys); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.os .exnum .nw { font-size: 15px; color: var(--dim); white-space: nowrap; }
+.os .exnum .nw b { font-weight: 600; color: var(--gold); text-shadow: 0 0 12px rgba(255, 214, 92, .35); }
+.os .exnum .say { font-size: 14px; color: var(--dim); }
+.exmap { position: relative; overflow: hidden; border-radius: 12px; background: #191b1e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.exmap img { position: absolute; max-width: none; opacity: .9; pointer-events: none; }
+.exmap canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
+.exmap .attr { position: absolute; right: 8px; bottom: 6px; font: 600 10px/1 var(--f-sys); letter-spacing: .06em; color: rgba(241, 244, 251, .5); text-shadow: 0 1px 2px #000; }
+
 /* Bottom: Your day (two lanes, Steph and Kids) and Ask Claude */
-.os .day { left: 24px; top: 892px; width: 1430px; height: 164px; padding: 16px 20px; --ac: #5b93f0; }
+.os .day { left: 460px; top: 892px; width: 994px; height: 164px; padding: 16px 20px; --ac: #5b93f0; }
 .os .lanes { position: relative; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px 12px; align-items: center; margin-top: 14px; }
 .os .lname { font: 600 12px/1 var(--f-sys); letter-spacing: .12em; text-transform: uppercase; }
 .os .lname.roy { color: #8fb6ff; } .os .lname.steph { color: #ff9ad6; } .os .lname.kids { color: #ffc65a; }
@@ -491,6 +507,31 @@ svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; s
 .rowi .in { font: 600 .84rem/1 var(--f-display); color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rowi.soon .in { color: #ff9f5a; }
 .todo.wide { font-size: .95rem; }
+
+/* Explorer window: the whole map left, the numbers right */
+.exw { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
+.exw .exmap { width: 100%; aspect-ratio: 4 / 3; }
+.exw .side { display: grid; gap: .85rem; min-width: 0; }
+.exseg { display: flex; gap: .2rem; padding: .2rem; border-radius: .6rem; background: rgba(255, 255, 255, .06); }
+.exseg button { flex: 1; padding: .38rem .3rem; border: 0; border-radius: .45rem; background: transparent; font: 600 .66rem/1 var(--f-sys); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+.exseg button small { margin-left: .3rem; font-size: .6rem; font-variant-numeric: tabular-nums; }
+.exseg button:hover { color: var(--fg); }
+.exseg button[aria-pressed="true"] { background: rgba(255, 255, 255, .16); color: var(--fg); }
+.exkpi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; border-radius: .7rem; background: var(--edge); }
+.exkpi div { display: grid; gap: .25rem; padding: .6rem .7rem; background: rgb(var(--tint)); }
+.exkpi span { font: 600 .56rem/1.2 var(--f-sys); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.exkpi b { font: 700 1.6rem/.9 var(--f-display); font-variant-numeric: tabular-nums; }
+.exkpi small { font-size: .66rem; color: var(--faint); }
+.exkpi .gold b { color: var(--gold); }
+.exlast { display: grid; gap: .2rem; padding: .6rem .7rem; border-radius: .7rem; border: 1px solid rgba(255, 214, 92, .3); background: rgba(255, 214, 92, .06); }
+.exlast p { margin: 0; font-size: .86rem; }
+.exlast p b { color: var(--gold); font-weight: 600; }
+.exlast small { font-size: .7rem; color: var(--dim); }
+.exkey { display: flex; flex-wrap: wrap; gap: .4rem .7rem; align-items: center; font: 500 .62rem/1 var(--f-sys); color: var(--dim); }
+.exkey .ramp { display: inline-flex; }
+.exkey .ramp i { width: 1.1rem; height: .5rem; }
+.exkey .k { display: inline-flex; align-items: center; gap: .3rem; }
+.exkey .k i { width: .6rem; height: .6rem; }
 
 /* Mood window */
 .facesbig { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
@@ -766,7 +807,7 @@ body.focusing .os .fring { opacity: 1; transform: none; pointer-events: auto; }
   .os .askpop { left: -1px; width: auto; }
   #notes { left: 16px; right: 16px; width: auto; transform: none; }
   .win { max-height: calc(100% - 3rem); }
-  .bodygrid, .grid3 { grid-template-columns: minmax(0, 1fr); }
+  .bodygrid, .grid3, .exw { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
